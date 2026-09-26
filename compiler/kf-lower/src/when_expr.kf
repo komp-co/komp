@@ -136,7 +136,8 @@ fun expand_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_v
         _ => { }
     }
     if !is_when {
-        hoist_when_values(ip, temps, out)
+        // `s` is a copy: rewrite its own initializer, the one pushed.
+        hoist_when_values(s.let_init() ?: ip, temps, out)
         out.push(s)
         return
     }
@@ -255,4 +256,12 @@ mutating fun WhenTemps.fresh_when_temp(): Sym {
     name.append(String.of(&(n)).as_str())
     self.n = self.n + 1
     return intern(name.as_str())
+}
+
+fun Stmt.let_init(): Ptr<Expr>? {
+    return when (self.kind) {
+        LetVal(_n, _ty, init) => init.view()
+        LetVar(_n, _ty, init) => init.view()
+        _ => null
+    }
 }
