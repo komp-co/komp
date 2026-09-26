@@ -37,6 +37,10 @@ pub fun Expr.emit_expr(): String {
     // An auto-clone the move checker marked: a deep copy, or the bare value
     // for a primitive or pointer.
     if self.coerce == coerce_clone() {
+        when (self.ty.kind) {
+            BoxOf(_) => return emit_box_copy(base, self.ty.c_type_of_type())
+            _ => { }
+        }
         val ct = self.ty.c_type_of_type()
         val cf = clone_fn_for_ctype(ct.as_str())
         if cf.as_str().byte_len() == 0 {
@@ -50,6 +54,16 @@ pub fun Expr.emit_expr(): String {
         return concat_all(parts)
     }
     return base
+}
+
+/// A copied `Box` owns a fresh copy of its pointee: two owners of one
+/// allocation would each free it.
+fun emit_box_copy(base: String, box_ct: String): String {
+    val ct = box_ct.as_str().substring(0, box_ct.byte_len() - 1)
+    val cf = clone_fn_for_ctype(ct.as_str())
+    val value = if cf.as_str().byte_len() > 0 { "${cf}(*__src)" } else { String.from("*__src") }
+    return "({ ${ct}* __src = ${base}; ${ct}* __copy = __src ? (${ct}*)kf_alloc(sizeof(${ct})) : NULL; " +
+        "if (__copy) { *__copy = ${value}; } __copy; })"
 }
 
 fun Expr.emit_expr_base(): String {

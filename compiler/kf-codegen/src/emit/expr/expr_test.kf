@@ -1,0 +1,16 @@
+import core.assert.assert_eq
+
+@test fun a_copied_box_of_a_struct_clones_its_pointee(): void {
+    val c = emit_box_copy(String.from("__head"), String.from("Node*"))
+    assert_eq(c.as_str().contains("*__copy = Node__glue_clone(*__src)"), true, "the pointee is deep-copied")
+}
+
+@test fun a_copied_box_of_a_primitive_copies_its_value(): void {
+    val c = emit_box_copy(String.from("__n"), String.from("int32_t*"))
+    assert_eq(c.as_str().contains("*__copy = *__src;"), true, "a primitive is copied by value")
+}
+
+@test fun a_copied_box_is_a_new_allocation(): void {
+    val c = emit_box_copy(String.from("__n"), String.from("int32_t*"))
+    assert_eq(c.as_str().contains("(int32_t*)kf_alloc(sizeof(int32_t))"), true, "the copy is allocated")
+}
