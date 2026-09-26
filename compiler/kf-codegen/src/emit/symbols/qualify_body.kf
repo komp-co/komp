@@ -210,10 +210,12 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             qualify_tyref_ptr(tp, names, repls)
         }
         DynCoerce(ip, vtable) => {
-            // The vtable identity is a type name; the value is qualified.
+            // The vtable identity is a type name; the value is qualified. The
+            // raw store keeps the old kind, so the value moves across as is.
             val concrete_vtable = subst_mangled_name(vtable.as_str(), names, repls)
-            unsafe { ep.kind = ExprKind.DynCoerce(ip, intern(concrete_vtable.as_str())) }
-            qualify_expr_ptr(unsafe { ip as Ptr<Expr> }, names, repls, rename_types)
+            val value: Ptr<Expr> = ip
+            qualify_expr_ptr(value, names, repls, rename_types)
+            unsafe { ep.kind = ExprKind.DynCoerce(value, intern(concrete_vtable.as_str())) }
         }
         Retain(ip) => qualify_expr_ptr(ip, names, repls, rename_types)
         _ => return

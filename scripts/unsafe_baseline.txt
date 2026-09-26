@@ -23,7 +23,7 @@
 14 compiler/kf-codegen/src/emit/stmt/emit_stmt.kf
 1 compiler/kf-codegen/src/emit/stmt/switch_guard.kf
 3 compiler/kf-codegen/src/emit/symbols/qualify.kf
-19 compiler/kf-codegen/src/emit/symbols/qualify_body.kf
+18 compiler/kf-codegen/src/emit/symbols/qualify_body.kf
 14 compiler/kf-codegen/src/emit/symbols/qualify_helpers.kf
 6 compiler/kf-codegen/src/emit/types.kf
 4 compiler/kf-codegen/src/emit/unit/header.kf
