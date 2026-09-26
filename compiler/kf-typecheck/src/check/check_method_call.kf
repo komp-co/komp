@@ -11,7 +11,6 @@ import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
 import kf_typecheck.check.borrow.coerce_call_arg
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// `Equal`, `Compare` and `Display` on built-in types are satisfied without an
 /// impl. Says only that the name is not an error; the type stays poison.

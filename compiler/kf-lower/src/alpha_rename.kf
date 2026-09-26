@@ -11,7 +11,6 @@ import alloc.list.*
 
 import kf_core.ast.*
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 // One scope's (original -> renamed) pairs; a non-shadowing binding maps to
 // itself.
@@ -64,7 +63,7 @@ mutating fun RnCtx.rn_lookup(name: Sym): Sym {
 mutating fun RnCtx.rn_bind(name: Sym): Sym {
     var nn = name
     if self.rn_visible(name) {
-        val suffix = unsafe { __kf_v2_int32_to_str(self.counter as int32) }
+        val suffix = "${self.counter}"
         val fresh = name.as_string() + String.from("__shadow") + suffix
         nn = intern(fresh.as_str())
         self.counter = self.counter + 1

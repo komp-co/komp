@@ -3,7 +3,6 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
@@ -76,5 +75,5 @@ fun Variant.enum_payload_comparison(span: Span): Ptr<Expr> {
 }
 
 fun enum_binder_name(side: str, index: uint64): String {
-    return String.from(side) + String.from("_") + __kf_v2_int32_to_str(index as int32)
+    return "${side}_${index}"
 }

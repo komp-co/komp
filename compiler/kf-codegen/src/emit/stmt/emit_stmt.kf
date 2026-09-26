@@ -8,10 +8,7 @@ import kf_core.ast.*
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
-import kf_codegen.emit.glue.__kf_v2_int32_to_str
 
-pub extern "C" fun __kf_v2_int32_to_str(v: int32): String
-pub extern "C" fun int64_display(v: int64): String
 
 pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()
@@ -89,7 +86,7 @@ fun emit_while(cp: Ptr<Expr>, body: List<Stmt>, indent: uint64, env: &var LocalE
 mutating fun LocalEnv.make_brk_label(): String {
     val n = self.label_counter
     self.label_counter = n + 1
-    val ns = unsafe { __kf_v2_int32_to_str(n as int32) }
+    val ns = "${n}"
     return "__brk_${ns}"
 }
 
@@ -254,7 +251,7 @@ fun emit_enum_arm(a: SwitchArm, ename: String, through_ref: bool, indent: uint64
                 // but the index still advances.
                 val is_wild = b.as_str().equals("_")
                 if !is_wild {
-                    val bstr = unsafe { __kf_v2_int32_to_str(bi as int32) }
+                    val bstr = "${bi}"
                     parts.push(emit_indent(indent + 1))
                     parts.push("__auto_type ${c_local_name(b.as_str())} = __when_subj${member_access(through_ref)}u.V_${name}._${bstr};\n")
                     // Records the binder's release function, since the C type
@@ -374,7 +371,7 @@ fun emit_arm(a: SwitchArm, indent: uint64, env: &var LocalEnv): String {
 
 /// A `case` label's constant.
 fun emit_case_value(n: int64): String {
-    return unsafe { int64_display(n) }
+    return "${n}"
 }
 
 fun emit_indent(n: uint64): String {

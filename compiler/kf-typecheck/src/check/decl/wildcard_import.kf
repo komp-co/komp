@@ -57,7 +57,7 @@ fun Import.wildcard_import_warning(names: &List<Sym>): Diagnostic {
     if names.size() == 1 {
         msg.append("one name")
     } else {
-        msg.append(__kf_v2_int32_to_str(names.size() as int32).as_str())
+        msg.append("${names.size()}".as_str())
         msg.append(" names")
     }
     msg.append("; name ")

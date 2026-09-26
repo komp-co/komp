@@ -8,7 +8,6 @@ import kf_core.ast.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// In discovery order.
 pub fun collect_test_names(modules: List<Module>): List<String> {
@@ -53,7 +52,7 @@ fun import_seen(seen: &List<String>, target: str): bool {
 }
 
 pub fun gen_test_main_src(names: List<String>): String {
-    val n_str = unsafe { __kf_v2_int32_to_str(names.size() as int32) }
+    val n_str = "${names.size()}"
     var parts = List.new<String>()
     // Only `runtime_println` is declared; test files import core.assert.
     parts.push(String.from("extern \"C\" fun runtime_println(s: str): void\n"))

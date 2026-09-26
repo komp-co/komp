@@ -21,7 +21,6 @@ import kf_core.ast.subst.clone_type_ref
 import kf_typecheck.check.decl.register_type_identity
 import kf_typecheck.check.decl.register_sigs
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub mutating fun Expr.check_lambda(ctx: &var TypeCtx): Type {
     val span = self.span
@@ -92,7 +91,7 @@ fun lambda_struct_ty(name: String, span: Span): Type {
 mutating fun TypeCtx.fresh_lambda_name(): String {
     var out = "Lambda_${self.fn_owner.as_str()}_"
     val n = unsafe { (*self.sigs).synth_decls.size() }
-    out.append(__kf_v2_int32_to_str(n as int32).as_str())
+    out.append("${n}".as_str())
     return out
 }
 
@@ -344,7 +343,7 @@ mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: Ptr<List
 
 fun call_trait_name(arity: uint64, mutating_call: bool): String {
     val prefix = if mutating_call { String.from("CallMut") } else { String.from("Call") }
-    return prefix + __kf_v2_int32_to_str(arity as int32)
+    return prefix + "${arity}"
 }
 
 fun param_type_refs(params: &List<Param>): List<TypeRef> {

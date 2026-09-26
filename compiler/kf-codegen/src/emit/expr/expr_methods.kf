@@ -228,7 +228,7 @@ fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: List<
             parts.push(String.from(", .u.V_"))
             parts.push(mname.clone())
             parts.push(String.from("._"))
-            parts.push(unsafe { __kf_v2_int32_to_str(i as int32) })
+            parts.push("${i}")
             parts.push(String.from(" = "))
             val arg = *margs.at(i)
             parts.push(emit_value_expr(arg))

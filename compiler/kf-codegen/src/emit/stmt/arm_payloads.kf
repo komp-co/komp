@@ -5,10 +5,8 @@
 import alloc.list.*
 
 import kf_core.ast.*
-import kf_codegen.emit.glue.__kf_v2_int32_to_str
 import kf_codegen.emit.glue.is_box_tref
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// `keys` are "<Enum>/<Variant>/<index>", `rels` their release functions ("" for
 /// none). Flat lists: a nested generic does not survive mono.
@@ -22,7 +20,7 @@ pub fun no_arm_payloads(): ArmPayloads {
 }
 
 pub fun arm_payload_key(ename: str, vname: str, idx: uint64): String {
-    val n = unsafe { __kf_v2_int32_to_str(idx as int32) }
+    val n = "${idx}"
     return String.from(ename) + String.from("/") + String.from(vname) + String.from("/") + n
 }
 

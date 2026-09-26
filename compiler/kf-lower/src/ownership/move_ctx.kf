@@ -18,7 +18,6 @@ fun span_is_in_a_dependency(span: Span, ctx: &var MoveCtx): bool {
 }
 
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// Per-function move-check state, in parallel lists.
 pub struct MoveCtx {

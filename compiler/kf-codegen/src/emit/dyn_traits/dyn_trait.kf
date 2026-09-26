@@ -244,14 +244,14 @@ fun Type.dyn_coerce_receiver_identity(): String {
 
 fun append_dyn_c_params(parts: &var List<String>, params: &List<Type>): void {
     while i in 0..params.size() {
-        parts.push(String.from(", ") + c_type_of_type(params.at(i)) + String.from(" arg") + unsafe { __kf_v2_int32_to_str(i as int32) })
+        parts.push(", ${c_type_of_type(params.at(i))} arg${i}")
     }
 }
 
 fun append_dyn_arg_names(parts: &var List<String>, count: uint64): void {
     var i = 0
     while i < count {
-        parts.push(String.from(", arg") + unsafe { __kf_v2_int32_to_str(i as int32) })
+        parts.push(", arg${i}")
         i = i + 1
     }
 }

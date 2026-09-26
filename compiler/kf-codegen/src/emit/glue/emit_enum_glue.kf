@@ -8,7 +8,6 @@ import kf_codegen.concat_all
 import kf_codegen.concat
 import kf_codegen.emit.*
 
-pub extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub fun Module.emit_enum_tags(): String {
     var parts = List.new<String>()
@@ -63,7 +62,7 @@ fun emit_enum_body(name: String, variants: List<Variant>): String {
         } else {
             while j in 0..v.payloads.size() {
                 val pt = *v.payloads.at(j)
-                val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+                val jstr = "${j}"
                 parts.push("            ${pt.c_value_type()} _${jstr};\n")
             }
         }
@@ -98,7 +97,7 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module, deep: bool
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+            val jstr = "${j}"
             val lval = "v.u.V_${v.name.as_string()}._${jstr}"
             if is_box_tref(pt) {
                 // A Box payload: drop the pointee, then free the box.
@@ -159,7 +158,7 @@ fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module, deep: bo
             val pt = *v.payloads.at(j)
             val needs = ty_needs_drop_in_glue(pt, m, deep)
             if needs {
-                val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+                val jstr = "${j}"
                 val ct = pt.c_type()
                 parts.push(String.from("            v.u.V_"))
                 parts.push(v.name.as_string())
@@ -212,7 +211,7 @@ fun emit_enum_clone(name: String, variants: List<Variant>, m: &Module): String {
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+            val jstr = "${j}"
             // lval = v.u.V_<variant>._<j>
             var lval = String.from("v.u.V_")
             lval = concat(lval, v.name.as_string())

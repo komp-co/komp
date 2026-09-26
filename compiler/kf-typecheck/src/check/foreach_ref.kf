@@ -9,12 +9,11 @@ import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// From the loop's span, so nested loops do not collide.
 pub fun foreach_tag(span: Span): String {
-    val fid_str = unsafe { __kf_v2_int32_to_str(span.file_id as int32) }
-    val start_str = unsafe { __kf_v2_int32_to_str(span.start as int32) }
+    val fid_str = "${span.file_id}"
+    val start_str = "${span.start}"
     val tag = "${fid_str.as_str()}_${start_str.as_str()}"
     return tag
 }

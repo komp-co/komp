@@ -4,7 +4,6 @@
 import alloc.list.*
 
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// End-exclusive byte offsets; a zero-width range is an insertion.
 pub struct PendingFix {
@@ -81,9 +80,9 @@ fun ascending_by_start(fixes: &List<PendingFix>): List<uint64> {
 /// Where it lands and what it writes; the title does not count.
 fun PendingFix.fix_identity(): String {
     var id = ""
-    id.append(unsafe { __kf_v2_int32_to_str(self.start as int32) }.as_str())
+    id.append("${self.start}".as_str())
     id.append(":")
-    id.append(unsafe { __kf_v2_int32_to_str(self.end as int32) }.as_str())
+    id.append("${self.end}".as_str())
     id.append(":")
     id.append(self.replacement.as_str())
     return id

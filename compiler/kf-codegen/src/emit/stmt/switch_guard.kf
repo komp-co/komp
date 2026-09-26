@@ -94,7 +94,7 @@ fun chain_binder_decls(a: SwitchArm, through_ref: bool): List<String> {
 /// A payload member for a variant arm, the whole subject for a wildcard.
 fun chain_binder_rhs(tag: SwitchTag, through_ref: bool, idx: uint64): String {
     return when (tag) {
-        Variant(name) => "__when_subj${member_access(through_ref)}u.V_${name}._${unsafe { __kf_v2_int32_to_str(idx as int32) }}"
+        Variant(name) => "__when_subj${member_access(through_ref)}u.V_${name}._${idx}"
         IntLit(_) => String.from("__when_subj")
         Range(_, _) => String.from("__when_subj")
         Alternatives(_) => String.from("__when_subj")

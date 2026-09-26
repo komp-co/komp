@@ -14,7 +14,6 @@ import kf_typecheck.check.check_generic_bounds
 import kf_core.ast.dyn_meta.dyn_trait_type
 
     // Declared per file: the shim is in every translation unit.
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
     when (self.kind) {
@@ -152,7 +151,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             when (unsafe { sigs.find_unique_trait(name.as_str()) }) {
                 Some(info) => {
                     if info.type_params.size() != args.size() {
-                        val message = "trait `${name.as_string()}` expects ${__kf_v2_int32_to_str(info.type_params.size() as int32)} type arguments, found ${__kf_v2_int32_to_str(args.size() as int32)}"
+                        val message = "trait `${name.as_string()}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
                         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
                         return poison_ty()
                     }

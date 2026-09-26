@@ -50,7 +50,7 @@ mutating fun Expr.mark_auto_clone(callee: String, idx: uint64, ctx: &var MoveCtx
 fun reject_auto_clone(span: Span, ty: &Type, callee: String, idx: uint64, ctx: &var MoveCtx): void {
     if span_is_in_a_dependency(span, ctx) { return }
     if !warning_has_a_subject(span, ctx) { return }
-    val idx_s = unsafe { __kf_v2_int32_to_str(idx as int32) }
+    val idx_s = "${idx}"
     val m = String.from("copying `") + ty.unauthorized_clone_name() +
         String.from("` here to fill arg ") + idx_s +
         String.from(" of `") + callee.clone() +
@@ -173,7 +173,7 @@ pub fun move_check_args_consume(args: &var List<Expr>, callee: String, ctx: &var
 fun warn_auto_clone(span: Span, callee: String, idx: uint64, ctx: &var MoveCtx): void {
     if span_is_in_a_dependency(span, ctx) { return }
     if !warning_has_a_subject(span, ctx) { return }
-    val idx_s = unsafe { __kf_v2_int32_to_str(idx as int32) }
+    val idx_s = "${idx}"
     val m = String.from("auto-inserted a copy in `") + ctx.cur_fn.clone() +
         String.from("` (arg ") + idx_s +
         String.from(" of `") + callee.clone() +

@@ -15,7 +15,6 @@ import kf_shared.ensure_dir
 
 extern "C" fun access(path: str, mode: int32): int32
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.
 /// `extra_cflags` is caller-trusted. Returns an exit code; failures name

@@ -8,7 +8,6 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.borrow.coerce_call_arg
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 /// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
 /// the callee name. Only reached with `Expr.is_intrinsic` set.
@@ -114,7 +113,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     val written_name = callee_surface_name(name.as_str(), ctx.sigs)
     note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, intern(written_name.as_str()))
     if args.size() != sig.params.size() {
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong number of arguments to `${callee_surface_name(name.as_str(), ctx.sigs)}`: expected ${__kf_v2_int32_to_str(sig.params.size() as int32)}, found ${__kf_v2_int32_to_str(args.size() as int32)}")))
+        ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong number of arguments to `${callee_surface_name(name.as_str(), ctx.sigs)}`: expected ${sig.params.size()}, found ${args.size()}")))
         return poison_ty()
     }
     expect_lambda_call_args(String.from(name.as_str()), &sig, args, &var arg_tys, span, ctx)
@@ -179,7 +178,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
             saw_error = true
         } else if !outcome.coerced && !at.type_eq(expected) && !ctx.fits(at, expected) {
             saw_error = true
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong type for argument ${__kf_v2_int32_to_str((j + 1) as int32)} of `${name.as_str()}`: expected `${expected.display_type(ctx)}`, found `${at.display_type(ctx)}`")))
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong type for argument ${j + 1} of `${name.as_str()}`: expected `${expected.display_type(ctx)}`, found `${at.display_type(ctx)}`")))
         }
     }
     if saw_error { return poison_ty() }
@@ -317,14 +316,14 @@ fun enum_is_generic(enum_name: String, ctx: &var TypeCtx): bool {
 }
 
 fun emit_ctor_arity_err(enum_name: String, variant: String, want: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
-    val want_s = __kf_v2_int32_to_str(want as int32)
-    val got_s = __kf_v2_int32_to_str(got as int32)
+    val want_s = "${want}"
+    val got_s = "${got}"
     val msg = "variant `${enum_name.as_str()}.${variant.as_str()}` takes ${want_s.as_str()} payload(s), found ${got_s.as_str()}"
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 
 fun emit_ctor_payload_err(enum_name: String, variant: String, idx: uint64, want: Type, got: Type, span: Span, ctx: &var TypeCtx): void {
-    val idx_s = __kf_v2_int32_to_str(idx as int32)
+    val idx_s = "${idx}"
     // A deferred projection's mangle must never reach a reader.
     val want_s = want.display_type(ctx)
     val got_s = got.display_type(ctx)

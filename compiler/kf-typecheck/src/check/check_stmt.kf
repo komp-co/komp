@@ -9,7 +9,6 @@ import kf_typecheck.traits.validate_dyn_placement
 import kf_typecheck.check.borrow.check_returned_borrow
 import kf_typecheck.check.control.check_when_arms
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
     when (self.kind) {
