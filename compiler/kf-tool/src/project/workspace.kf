@@ -6,12 +6,12 @@ import alloc.text_edit.replace
 import kf_shared.join_path
 import kf_shared.resolve_path
 import kf_shared.normalized_path
+import std.fs.exists
 
-extern "C" fun access(path: str, mode: int32): int32
 
 pub fun manifest_missing(root: str): bool {
     val path = join_path(root, "kf.toml")
-    return unsafe { access(path.as_str(), 0) } != 0
+    return !exists(path.as_str())
 }
 
 fun manifest_source_at(dir: str): String {

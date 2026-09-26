@@ -5,10 +5,10 @@
 
 import alloc.path.Path
 import std.fs.create_dir_all
+import std.fs.remove_file
+import std.fs.rename
 
 extern "C" fun getpid(): int32
-extern "C" fun rename(from: str, to: str): int32
-extern "C" fun unlink(path: str): int32
 
 pub fun staging_path(path: str): String {
     val pid = unsafe { getpid() }
@@ -16,12 +16,12 @@ pub fun staging_path(path: str): String {
 }
 
 pub fun publish_staged(staged: str, path: str): bool {
-    return unsafe { rename(staged, path) } == 0
+    return rename(staged, path).is_ok()
 }
 
 /// Failures leave nothing behind.
 pub fun discard_staged(staged: str): void {
-    val _gone = unsafe { unlink(staged) }
+    val _gone = remove_file(staged)
 }
 
 pub fun publish_text(path: str, content: str): bool {

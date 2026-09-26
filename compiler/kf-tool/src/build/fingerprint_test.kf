@@ -6,6 +6,7 @@ import alloc.list.*
 
 import std.fs.scratch_path
 import kf_shared.crate_artifact_manifest_path
+import std.fs.exists
 
 extern "C" fun system(cmd: str): int32
 
@@ -180,12 +181,12 @@ fun a_rebuild_that_fails_leaves_no_reuse_metadata(): void {
     assert_eq(prepare_failing_native_fixture(), 0, "the fixture is prepared")
     assert_eq(build_project_separate(root, ""), 0, "it builds once")
     val manifest = crate_artifact_manifest_path(target_dir(root).as_str(), "fail_lib")
-    assert_eq(unsafe { access(manifest.as_str(), 0) }, 0, "a finished build records its metadata")
+    assert_eq(exists(manifest.as_str()), true, "a finished build records its metadata")
 
     // The native source is fingerprinted, so this rebuilds and fails at cc.
     write_file("${root}/native/bit.c".as_str(), "int fail_lib_bit(void) {\n")
     assert_eq(build_project_separate(root, "-w 2>/dev/null") != 0, true, "the rebuild fails")
-    assert_eq(unsafe { access(manifest.as_str(), 0) } != 0, true, "and leaves nothing claiming the crate is current")
+    assert_eq(!exists(manifest.as_str()), true, "and leaves nothing claiming the crate is current")
 }
 
 @test

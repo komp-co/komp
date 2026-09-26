@@ -4,9 +4,9 @@
 import alloc.list.*
 import kf_shared.absolutize
 import kf_shared.join_path
+import std.fs.exists
 
 
-extern "C" fun access(path: str, mode: int32): int32
 
 /// None when the graph is broken.
 pub fun project_crates(root_dir: str): List<BuildCrate> {
@@ -29,7 +29,7 @@ pub fun crate_root_for_file(file_path: str): String {
     var dir = parent_dir(file_path)
     while dir.as_str() != "" {
         val manifest = join_path(dir.as_str(), "kf.toml")
-        if unsafe { access(manifest.as_str(), 0) } == 0 { return dir }
+        if exists(manifest.as_str()) { return dir }
         val up = parent_dir(dir.as_str())
         if up.as_str() == dir.as_str() { return "" }
         dir = up

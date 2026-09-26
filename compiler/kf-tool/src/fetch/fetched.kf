@@ -5,9 +5,9 @@ import alloc.list.*
 import kf_tool.project.parse_manifest
 import kf_shared.ensure_dir
 import kf_shared.staging_path
-
-extern "C" fun kf_remove_dir_all(path: str): int32
-extern "C" fun rename(from: str, to: str): int32
+import std.fs.exists
+import std.fs.remove_dir_all
+import std.fs.rename
 
 /// `error` is "" when `entry` is usable.
 pub struct Fetched {
@@ -36,15 +36,15 @@ pub fun fresh_staging(cache: str, kind: str): String {
 }
 
 pub fun remove_tree(path: str): void {
-    val _removed = unsafe { kf_remove_dir_all(path) }
+    val _removed = remove_dir_all(path)
 }
 
 /// Moves `staged` to `root`. Losing a race to another komp is success: both
 /// wrote the same bytes.
 pub fun publish_fetched(staged: str, root: str): bool {
-    if unsafe { rename(staged, root) } == 0 { return true }
+    if rename(staged, root).is_ok() { return true }
     remove_tree(staged)
-    return path_exists(root)
+    return exists(root)
 }
 
 /// The row for the crate published at `root`, named by its own manifest.

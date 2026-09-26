@@ -11,8 +11,8 @@ import kf_tool.project.manifest_c_sources
 import kf_tool.project.manifest_hosted_c_sources
 import kf_tool.project.parse_manifest
 import kf_shared.crate_artifact_manifest_path
+import std.fs.exists
 
-extern "C" fun access(path: str, mode: int32): int32
 // Declared by kf_runtime.h already, so no second prototype is emitted.
 extern "C" fun kf_file_hash(path: str): uint64
 
@@ -126,7 +126,7 @@ pub struct ReuseDecision {
 /// rebuild, never an error.
 pub fun decide_crate_reuse(tdir: str, expected: &ArtifactManifest): ReuseDecision {
     val mpath = crate_artifact_manifest_path(tdir, expected.name.as_str())
-    if unsafe { access(mpath.as_str(), 0) } != 0 {
+    if !exists(mpath.as_str()) {
         return reuse_no("no recorded artifact metadata")
     }
     val parsed = parse_artifact_manifest(read_file(mpath.as_str()).as_str())
@@ -205,7 +205,7 @@ fun dep_hashes_match(rec_names: &List<String>, rec_hashes: &List<String>, exp_na
 
 fun artifact_file_present(tdir: str, rel: str): bool {
     val full = String.from(tdir) + String.from("/") + String.from(rel)
-    return unsafe { access(full.as_str(), 0) } == 0
+    return exists(full.as_str())
 }
 
 /// "" when absent.

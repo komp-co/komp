@@ -11,9 +11,9 @@ import kf_shared.crate_artifact_manifest_path
 import kf_shared.crate_archive_path
 import kf_shared.binary_path
 import kf_shared.ensure_dir
+import std.fs.exists
 
 
-extern "C" fun access(path: str, mode: int32): int32
 
 
 /// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.
@@ -97,7 +97,7 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
     val root_name = graph.crates.at(graph.crates.size() - 1).name
     val bin = binary_path(tdir.as_str(), root_name.as_str())
     if !relink {
-        if unsafe { access(bin.as_str(), 0) } == 0 {
+        if exists(bin.as_str()) {
             build_note(verbose, "up to date", root_name.as_str(), "nothing rebuilt")
             return 0
         }

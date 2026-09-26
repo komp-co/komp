@@ -4,8 +4,6 @@
 
 import alloc.list.*
 
-extern "C" fun is_dir(p: str): bool
-
 /// Absolute paths of the non-test `.kf` files under `dir`, sorted.
 pub fun walk_kf_files(dir: str, out: &var List<String>): void {
     walk_kf_files_inc(dir, out, false)

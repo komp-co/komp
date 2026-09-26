@@ -9,6 +9,7 @@ import kf_tool.build.check_project_with_kflatc
 import kf_tool.fetch.*
 import kf_tool.project.parse_manifest
 import std.fs.create_dir_all
+import std.fs.exists
 
 pub fun publish_package(root: str, index_url: str, cache: str): int32 {
     val facts = release_facts(root)
@@ -22,7 +23,7 @@ pub fun publish_package(root: str, index_url: str, cache: str): int32 {
     if checkout.error.byte_len() > 0 { return publish_refused(checkout.error.as_str()) }
     val relative = index_file_path(facts.name.as_str())
     val file = "${checkout.dir}/${relative}"
-    val existing = if path_exists(file.as_str()) { read_file(file.as_str()) } else { String.from("") }
+    val existing = if exists(file.as_str()) { read_file(file.as_str()) } else { String.from("") }
     if parse_index_file(existing.as_str()).holds_version(facts.version.as_str()) {
         return publish_refused("${release} is already in ${index_url}")
     }
@@ -94,7 +95,7 @@ pub fun publish_status(root: str, index_url: str, cache: str): int32 {
     val checkout = index_checkout(index_url, cache, &var refreshed)
     if checkout.error.byte_len() > 0 { return publish_refused(checkout.error.as_str()) }
     val file = "${checkout.dir}/${index_file_path(name.as_str())}"
-    val existing = if path_exists(file.as_str()) { read_file(file.as_str()) } else { String.from("") }
+    val existing = if exists(file.as_str()) { read_file(file.as_str()) } else { String.from("") }
     val published = parse_index_file(existing.as_str())
     while entry in &published {
         println("${name} ${entry.version}   ${if entry.yanked { "yanked" } else { "published" }}")

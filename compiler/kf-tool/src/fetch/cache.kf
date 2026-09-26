@@ -2,18 +2,17 @@
 // once written, shared by every project on the machine.
 
 import kf_shared.normalized_path
-
-extern "C" fun kf_env_get(name: str): str
-extern "C" fun access(path: str, mode: int32): int32
+import std.fs.exists
+import std.env.get
 
 /// `$KFLAT_CACHE`, else `$XDG_CACHE_HOME/kflat`, else `~/.cache/kflat`: the
 /// directory `bootstrap/seed.sh` keeps seeds in.
 pub fun cache_root(): String {
-    val explicit = unsafe { kf_env_get("KFLAT_CACHE") }
-    if explicit != "" { return normalized_path(explicit) }
-    val xdg = unsafe { kf_env_get("XDG_CACHE_HOME") }
-    if xdg != "" { return normalized_path("${xdg}/kflat".as_str()) }
-    val home = unsafe { kf_env_get("HOME") }
+    val explicit = get("KFLAT_CACHE") ?: String.from("")
+    if explicit.byte_len() > 0 { return normalized_path(explicit.as_str()) }
+    val xdg = get("XDG_CACHE_HOME") ?: String.from("")
+    if xdg.byte_len() > 0 { return normalized_path("${xdg}/kflat".as_str()) }
+    val home = get("HOME") ?: String.from("")
     return normalized_path("${home}/.cache/kflat".as_str())
 }
 
@@ -28,9 +27,5 @@ pub fun LockEntry.cached_root(cache: str): String {
 
 /// A fetch finished: the crate root holds its manifest.
 pub fun is_fetched(crate_root: str): bool {
-    return path_exists("${crate_root}/kf.toml".as_str())
-}
-
-pub fun path_exists(path: str): bool {
-    return unsafe { access(path, 0) } == 0
+    return exists("${crate_root}/kf.toml".as_str())
 }

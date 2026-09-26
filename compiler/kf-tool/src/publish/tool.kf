@@ -6,8 +6,7 @@ import alloc.text_edit.trim
 import alloc.text_split.split_whitespace
 import std.fs.scratch_path
 import std.process.Command
-
-extern "C" fun kf_remove_dir_all(path: str): int32
+import std.fs.remove_file
 
 /// `program` with `words` split on whitespace; an argument holding a space
 /// is added with `arg` afterwards.
@@ -30,7 +29,7 @@ pub fun output_of(command: Command): String? {
     running.stdout_to(Path.new(file))
     val ok = running.status().success()
     val text = read_file(file)
-    val _gone = unsafe { kf_remove_dir_all(file) }
+    val _gone = remove_file(file)
     if !ok { return null }
     return text.trim()
 }

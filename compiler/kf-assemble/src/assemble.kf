@@ -16,7 +16,6 @@ import kf_shared.walk_kf_files_inc
 extern "C" fun runtime_println(s: str): void
 extern "C" fun join(a: str, b: str): String
 extern "C" fun read_file(path: str): String
-extern "C" fun is_dir(p: str): bool
 extern "C" fun write_file(path: str, content: str): void
 
 mutating fun Parser.drain_parse_diags(pdiags: Ptr<List<Diagnostic>>): void {

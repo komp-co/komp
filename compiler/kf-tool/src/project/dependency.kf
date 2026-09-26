@@ -1,3 +1,4 @@
+import std.env.get
 // A `[dependencies]` row and where its crate comes from.
 //
 //   name = "0.2"                                                # from an index
@@ -5,8 +6,6 @@
 //   name = { path = "../name" }
 //   name = { git = "https://host/name.git", tag = "v1.0.0" }    # or rev, branch
 //   name = { tarball = "https://host/name.tar.gz", checksum = "sha256:..." }
-
-extern "C" fun kf_env_get(name: str): str
 
 /// Exactly one of `version`, `path`, `git` and `tarball` is set; the rest
 /// are "". `index_url` is where a `version` is looked up.
@@ -149,7 +148,7 @@ pub fun index_url_for(name: str, names: &List<String>, urls: &List<String>): Str
 
 /// `$KFLAT_INDEX`, else komp-co/index.
 pub fun default_index_url(): String {
-    val chosen = unsafe { kf_env_get("KFLAT_INDEX") }
-    if chosen != "" { return String.from(chosen) }
+    val chosen = get("KFLAT_INDEX") ?: String.from("")
+    if chosen.byte_len() > 0 { return chosen }
     return "https://github.com/komp-co/index"
 }

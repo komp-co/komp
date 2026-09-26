@@ -7,9 +7,9 @@ import kf_shared.crate_interface_stamp_path
 import kf_shared.crate_artifact_manifest_path
 import kf_shared.ensure_dir
 import kf_shared.render_json_error
+import std.fs.exists
 
 
-extern "C" fun access(path: str, mode: int32): int32
 
 /// Returns 0 when the project checks clean. `as_json` prints diagnostics as
 /// newline-delimited JSON.
@@ -67,15 +67,15 @@ fun BuildCrate.refresh_interface(root_dir: str, tdir: str, compiler: &CompilerId
 /// ABI.
 pub fun interface_is_current(artifacts: str, dependency: &BuildCrate, compiler: &CompilerIdentity): bool {
     val name = dependency.name.as_str()
-    if unsafe { access(crate_interface_path(artifacts, name).as_str(), 0) } != 0 { return false }
+    if !exists(crate_interface_path(artifacts, name).as_str()) { return false }
     val fingerprint = crate_source_fingerprint(dependency.root.as_str(), compiler)
     val stamp = crate_interface_stamp_path(artifacts, name)
-    if unsafe { access(stamp.as_str(), 0) } == 0 {
+    if exists(stamp.as_str()) {
         val expected = interface_stamp(fingerprint.as_str(), compiler)
         if read_file(stamp.as_str()).as_str() == expected.as_str() { return true }
     }
     val metadata = crate_artifact_manifest_path(artifacts, name)
-    if unsafe { access(metadata.as_str(), 0) } != 0 { return false }
+    if !exists(metadata.as_str()) { return false }
     val parsed = parse_artifact_manifest(read_file(metadata.as_str()).as_str())
     if !parsed.ok || parsed.manifest.compiler_abi.as_str() != compiler.abi.as_str() { return false }
     return fingerprint.as_str() == "" || fingerprint.as_str() == parsed.manifest.source_fingerprint.as_str()

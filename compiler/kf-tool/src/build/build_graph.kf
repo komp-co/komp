@@ -10,8 +10,8 @@ import kf_tool.project.*
 import kf_shared.absolutize
 import kf_shared.normalized_path
 import kf_shared.canonicalize_path
+import std.fs.exists
 
-extern "C" fun access(path: str, mode: int32): int32
 // The compiler binary's directory, to find the bundled stdlib.
 extern "C" fun kf_self_dir(): String
 
@@ -59,7 +59,7 @@ pub fun build_crate_graph(root_dir: str): BuildGraph {
 fun root_is_freestanding(root: str): bool {
     var manifest_path = String.from(root)
     manifest_path.append("/kf.toml")
-    if unsafe { access(manifest_path.as_str(), 0) } != 0 { return false }
+    if !exists(manifest_path.as_str()) { return false }
     return parse_manifest(read_file(manifest_path.as_str()).as_str()).freestanding
 }
 
@@ -81,7 +81,7 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
         return
     }
     val manifest_path = root.clone() + String.from("/kf.toml")
-    if unsafe { access(manifest_path.as_str(), 0) } != 0 {
+    if !exists(manifest_path.as_str()) {
         (*error) = "error: no kf.toml manifest found at ${manifest_path}"
         return
     }
@@ -105,7 +105,7 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
         val dep_manifest = dep_root.clone() + String.from("/kf.toml")
         visit_crate(dep_root.clone(), freestanding, sources, crates, cycle, error, in_progress, done)
         if cycle.cycle_found() || error.as_str() != "" { return }
-        if unsafe { access(dep_manifest.as_str(), 0) } == 0 {
+        if exists(dep_manifest.as_str()) {
             val dep_mf = parse_manifest(read_file(dep_manifest.as_str()).as_str())
             dep_names.push(String.from(dep_mf.name.as_str()))
         }
@@ -180,11 +180,11 @@ pub fun bundled_libs_root(crate_root: str): String {
     if base.as_str().byte_len() > 0 {
         val beside = base + String.from("/../libs")
         val manifest = beside.clone() + String.from("/core/kf.toml")
-        if unsafe { access(manifest.as_str(), 0) } == 0 {
+        if exists(manifest.as_str()) {
             return canonicalize_path(beside.as_str())
         }
     }
-    if unsafe { access("libs/core/kf.toml", 0) } == 0 {
+    if exists("libs/core/kf.toml") {
         return canonicalize_path(absolutize("libs").as_str())
     }
     // Normalized, so `komp check .` does not collapse to "".
@@ -193,7 +193,7 @@ pub fun bundled_libs_root(crate_root: str): String {
     while depth < 16 {
         val candidate = here.clone() + String.from("/libs")
         val manifest = candidate.clone() + String.from("/core/kf.toml")
-        if unsafe { access(manifest.as_str(), 0) } == 0 {
+        if exists(manifest.as_str()) {
             return canonicalize_path(candidate.as_str())
         }
         val parent = parent_path(here.as_str())
