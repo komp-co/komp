@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.*
+import kf_core.span.no_span
 import kf_core.ast.*
 
 fun ctor_filling(variant: str, slot: TypeRef): Expr {
