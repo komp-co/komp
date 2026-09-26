@@ -1,0 +1,48 @@
+//! asan: clean
+// A mutating method that rebuilds its enum around its own binders frees the
+// value it replaces: `name` is copied in, `items` is only read.
+
+import alloc.list.*
+
+enum Kind {
+    Body(String, List<String>)
+    Empty
+}
+
+struct Decl {
+    pub var kind: Kind
+}
+
+fun shouted(items: &List<String>): List<String> {
+    var out = List.new<String>()
+    while item in &items { out.push("${item}!") }
+    return out
+}
+
+mutating fun Decl.rewrite(): void {
+    when (self.kind) {
+        Body(name, items) => {
+            val fresh = shouted(&items)
+            self.kind = Kind.Body(name, fresh)
+        }
+        Empty => return
+    }
+}
+
+fun Decl.count(): uint64 {
+    return when (self.kind) {
+        Body(_, items) => items.size()
+        Empty => 0
+    }
+}
+
+fun main(): int32 {
+    var items = List.new<String>()
+    items.push(String.from("first"))
+    items.push(String.from("second"))
+    var d = Decl { kind: Kind.Body(String.from("f"), items) }
+    d.rewrite()
+    d.rewrite()
+    if d.count() != 2 { return 1 }
+    return 0
+}

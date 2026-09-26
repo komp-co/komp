@@ -79,11 +79,14 @@ fun lower_place_assign_drop(place_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span
                             out: &var List<Stmt>): Sym? {
     val pe = unsafe { *place_ptr }
     if !is_heap_ty_rc(pe.ty) { return null }
-    when (classify_binding(unsafe { *rhs_ptr }, ctx)) {
-        OwnedFresh => { }
-        _ => return null
+    val rhs = unsafe { &*rhs_ptr }
+    if !rhs.is_rebuilt_from_its_own_parts(ctx) {
+        when (classify_binding(unsafe { *rhs_ptr }, ctx)) {
+            OwnedFresh => { }
+            _ => return null
+        }
+        if rhs_may_share_the_place(rhs, ctx) { return null }
     }
-    if rhs_may_share_the_place(rhs_ptr, ctx) { return null }
     val copy = rebuild_overwritten_place(place_ptr, ctx, out) ?: return null
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
@@ -93,15 +96,44 @@ fun lower_place_assign_drop(place_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span
     return tmp_sym
 }
 
-/// A constructor is fresh as a whole but not in its arguments:
-/// `td.kind = Function(params, ret, body)` over binders of `td.kind` rebuilds
-/// around the old storage. The old value is dropped only when every variable
-/// the rhs names is owned outright here; otherwise it leaks.
-fun rhs_may_share_the_place(rhs_ptr: Ptr<Expr>, ctx: &var RcCtx): bool {
+/// A fresh value may still be built around the old storage; it is safe only
+/// when every variable it names is owned outright here.
+fun rhs_may_share_the_place(rhs: &Expr, ctx: &var RcCtx): bool {
     var names = List.new<String>()
-    collect_var_names_in_expr(unsafe { &*rhs_ptr }, &var names)
+    collect_var_names_in_expr(rhs, &var names)
     while n in &names {
         if ctx.rc_owning_frame(n.as_str()) < 0 { return true }
     }
     return false
+}
+
+/// A constructor rebuilt around binders of the place (`td.kind =
+/// Function(params, ret, body)`) holds none of the old storage when each part
+/// is a copy, is owned outright here, or has nothing to free.
+fun Expr.is_rebuilt_from_its_own_parts(ctx: &var RcCtx): bool {
+    when (self.kind) {
+        MethodCall(_recv, _m, args) => {
+            if !self.is_variant_ctor { return false }
+            while arg in &args {
+                if !arg.is_its_own_part(ctx) { return false }
+            }
+            return true
+        }
+        StructLit(_n, finits) => {
+            while fi in &finits {
+                if !fi.value.is_its_own_part(ctx) { return false }
+            }
+            return true
+        }
+        _ => return false
+    }
+}
+
+fun Expr.is_its_own_part(ctx: &var RcCtx): bool {
+    if !is_heap_ty_rc(self.ty.clone()) { return true }
+    if self.coerce == coerce_clone() { return true }
+    return when (self.kind) {
+        Variable(name) => ctx.rc_owning_frame(name.as_str()) >= 0 && !ctx.is_view_local(name.as_str())
+        _ => self.is_rebuilt_from_its_own_parts(ctx)
+    }
 }
