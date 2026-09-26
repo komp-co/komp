@@ -17,7 +17,7 @@ pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
             move_check_expr_borrow(unsafe { &var *recv_ptr }, ctx)
             move_check_args_borrow(args, ctx)
             // A constructor has no callee in the parameter table.
-            if self.is_variant_ctor {
+            if self.is_variant_ctor && !self.payload_is_a_borrow() {
                 check_consumed_ctor_payloads(args, ctx)
             }
             val callee2 = self.mangled_callee.as_string()
@@ -92,7 +92,7 @@ pub mutating fun Expr.move_check_expr_borrow(ctx: &var MoveCtx): void {
             move_check_expr_borrow(unsafe { &var *recv_ptr }, ctx)
             move_check_args_borrow(args, ctx)
             // A constructor's payloads are move-sinks as an argument too.
-            if self.is_variant_ctor {
+            if self.is_variant_ctor && !self.payload_is_a_borrow() {
                 check_consumed_ctor_payloads(args, ctx)
             }
             val callee_b2 = self.mangled_callee.as_string()

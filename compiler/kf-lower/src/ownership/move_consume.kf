@@ -81,6 +81,21 @@ pub fun check_consumed_ctor_payloads(args: &var List<Expr>, ctx: &var MoveCtx): 
     }
 }
 
+/// `Option.Some(x)` filling an `Option<Ptr<T>>` or `Option<&T>` holds a
+/// pointer to `x`, not `x`: the payload borrows.
+fun Expr.payload_is_a_borrow(): bool {
+    when (self.kind) {
+        MethodCall(_recv, name, _args) => if name.as_str() != "Some" { return false }
+        _ => return false
+    }
+    if self.type_args.size() != 1 { return false }
+    return when (self.type_args.at(0).kind) {
+        Reference(_, _) => true
+        Named(n, _) => n.as_str() == "Ptr"
+        _ => false
+    }
+}
+
 // A struct literal field always takes ownership.
 mutating fun Expr.check_consumed_field(ctx: &var MoveCtx): void {
     self.check_consumed_sink(String.from("<struct-field>"), ctx)

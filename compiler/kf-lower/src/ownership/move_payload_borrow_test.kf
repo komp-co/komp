@@ -1,0 +1,29 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+
+fun ctor_filling(variant: str, slot: TypeRef): Expr {
+    val recv = Box.new(new_expr(no_span(), ExprKind.Variable(intern("Option"))))
+    var e = new_expr(no_span(), ExprKind.MethodCall(recv, intern(variant), List.new<Expr>()))
+    e.type_args.push(slot)
+    e.is_variant_ctor = true
+    return e
+}
+
+fun named_slot(name: str): TypeRef {
+    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+}
+
+@test fun some_into_a_pointer_slot_borrows(): void {
+    assert_eq(ctor_filling("Some", named_slot("Ptr")).payload_is_a_borrow(), true, "Option<Ptr<T>> holds a pointer")
+}
+
+@test fun some_into_an_owning_slot_consumes(): void {
+    assert_eq(ctor_filling("Some", named_slot("String")).payload_is_a_borrow(), false, "Option<String> owns it")
+}
+
+@test fun another_variant_is_not_judged_by_its_type_argument(): void {
+    assert_eq(ctor_filling("Ok", named_slot("Ptr")).payload_is_a_borrow(), false, "only Some's payload is T")
+}
