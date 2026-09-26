@@ -211,13 +211,13 @@ impl Parser {
         val pat_ptr: Ptr<Pattern> = unsafe { alloc<Pattern>() }
         unsafe { *pat_ptr = self.parse_arm_pattern() }
 
-        var guard_ptr: Ptr<Expr>? = null
+        var guard_ptr: Box<Expr>? = null
 
         if is_keyword(self.peek(), Keyword.If) {
             unsafe { self.advance() }
             val gp: Ptr<Expr> = unsafe { alloc<Expr>() }
             unsafe { *gp = self.parse_expr() }
-            guard_ptr = Option.Some<Ptr<Expr>>(gp)
+            guard_ptr = Option.Some<Box<Expr>>(gp)
         }
 
         // Missing `=>`: the rest is taken as the body.

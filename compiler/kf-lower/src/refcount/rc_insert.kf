@@ -217,18 +217,18 @@ fun ty_is_struct_value(t: Type): bool {
 
 /// `return <expr>` that must drop locals after evaluating the value, which
 /// may read through them: capture, drop, return the temp.
-fun lower_return_drop_after_eval(ep: Ptr<Expr>?, rels: List<Stmt>, ctx: &var RcCtx, out: &var List<Stmt>): void {
-    val rp = ep ?: return
+fun lower_return_drop_after_eval(value: Box<Expr>?, rels: List<Stmt>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val rp = value.view() ?: return
     val re = unsafe { *rp }
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
     val tmp_name = "__retval_${u64_to_str(tmp_id)}"
-    out.push(new_stmt(re.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, rp)))
+    out.push(new_stmt(re.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, value)))
     push_stmts(out, rels)
     var v = new_expr(re.span, ExprKind.Variable(intern(tmp_name.as_str())))
-    v.ty = re.ty
+    v.ty = re.ty.clone()
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *vp = v }
-    val operand: Ptr<Expr>? = vp
+    val operand: Box<Expr>? = vp
     out.push(new_stmt(re.span, StmtKind.Return(operand)))
 }

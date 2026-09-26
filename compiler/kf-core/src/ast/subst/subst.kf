@@ -21,7 +21,7 @@ pub fun clone_sym_list(ss: &List<Sym>): List<Sym> {
 pub fun subst_arm_list(arms: &List<Arm>, names: &var List<String>, repls: &var List<TypeRef>): List<Arm> {
     var narms = List.new<Arm>()
     while a in &arms {
-        val ng = clone_expr_ptr_opt(a.guard, names, repls)
+        val ng = clone_expr_ptr_opt(a.guard.view(), names, repls)
         val nbody = subst_stmt_list(a.body, names, repls)
         narms.push(new_arm(a.span, fresh_pattern_box(a.pattern), ng, nbody))
     }
@@ -48,15 +48,15 @@ pub fun Stmt.subst_stmt(names: &var List<String>, repls: &var List<TypeRef>): St
 fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>): Stmt {
     when (self.kind) {
         LetVal(nm, ty_ptr, init_ptr) => {
-            val nty = clone_tref_ptr_opt(ty_ptr, names, repls)
+            val nty = clone_tref_ptr_opt(ty_ptr.view(), names, repls)
             // A null init is `var x: T` with no value.
-            val ninit = clone_expr_ptr_opt(init_ptr, names, repls)
+            val ninit = clone_expr_ptr_opt(init_ptr.view(), names, repls)
             return new_stmt(self.span, StmtKind.LetVal(nm, nty, ninit))
         }
         LetVar(nm, ty_ptr, init_ptr) => {
-            val nty = clone_tref_ptr_opt(ty_ptr, names, repls)
+            val nty = clone_tref_ptr_opt(ty_ptr.view(), names, repls)
             // A null init is `var x: T` with no value.
-            val ninit = clone_expr_ptr_opt(init_ptr, names, repls)
+            val ninit = clone_expr_ptr_opt(init_ptr.view(), names, repls)
             return new_stmt(self.span, StmtKind.LetVar(nm, nty, ninit))
         }
         Assign(nm, expr_ptr) => {
@@ -69,7 +69,7 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
             return new_stmt(self.span, StmtKind.AssignTo(np, ne))
         }
         Return(expr_ptr) => {
-            val ne = clone_expr_box_opt(expr_ptr, names, repls)
+            val ne = clone_expr_box_opt(expr_ptr.view(), names, repls)
             return new_stmt(self.span, StmtKind.Return(ne))
         }
         If(cond_ptr, then_body, else_body) => {
@@ -101,7 +101,7 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
             var narms = List.new<SwitchArm>()
             while sa in &sarms {
                 val nbody = subst_stmt_list(sa.body, names, repls)
-                val nguard = clone_expr_ptr_opt(sa.guard, names, repls)
+                val nguard = clone_expr_ptr_opt(sa.guard.view(), names, repls)
                 val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
                 narms.push(new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody))
             }

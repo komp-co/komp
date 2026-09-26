@@ -474,7 +474,7 @@ fun TypeRef.tref_choice_name(): String {
     assert_eq(inst.impl_binding_choice(0).as_str(), "int32", "the instance records the substituted choice")
 }
 
-pub fun ret_op(p: Ptr<Expr>): Ptr<Expr>? {
+pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     return p
 }
 

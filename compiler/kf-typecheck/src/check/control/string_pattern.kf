@@ -30,12 +30,13 @@ pub mutating fun Arm.desugar_string_pattern(texts: List<String>, subject_ty: Typ
     when (self.guard) {
         Some(written) => {
             val both: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *both = new_expr(span, ExprKind.Binary(condition, BinOp.AndAnd, written)) }
+            // The store below drops the written guard, so the condition keeps a copy.
+            unsafe { *both = new_expr(span, ExprKind.Binary(condition, BinOp.AndAnd, Box.new(written.clone()))) }
             condition = both
         }
         None => { }
     }
-    self.guard = Option.Some<Ptr<Expr>>(condition)
+    self.guard = Option.Some<Box<Expr>>(condition)
 }
 
 /// `binder == "text"`, through `.as_str()` unless the subject is a `str`.

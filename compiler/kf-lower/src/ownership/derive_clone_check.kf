@@ -93,9 +93,9 @@ fun collect_freed_in_stmts(stmts: &List<Stmt>, out: &var List<String>): void {
 fun Stmt.collect_freed_in_stmt(out: &var List<String>): void {
     when (self.kind) {
         Expression(ep) => collect_freed_in_expr(unsafe { &*ep }, out)
-        LetVal(_n, _t, ip) => collect_freed_in_opt(ip, out)
-        LetVar(_n, _t, ip) => collect_freed_in_opt(ip, out)
-        Return(ep) => collect_freed_in_opt(ep, out)
+        LetVal(_n, _t, ip) => collect_freed_in_opt(ip.view(), out)
+        LetVar(_n, _t, ip) => collect_freed_in_opt(ip.view(), out)
+        Return(ep) => collect_freed_in_opt(ep.view(), out)
         Assign(_n, rp) => collect_freed_in_expr(unsafe { &*rp }, out)
         AssignTo(_pp, rp) => collect_freed_in_expr(unsafe { &*rp }, out)
         If(cp, t, e) => {

@@ -81,8 +81,8 @@ fun name_stmt_list(stmts: &List<Stmt>, found: &var List<NameSpan>): void {
 
 fun Stmt.name_stmt(found: &var List<NameSpan>): void {
     when (self.kind) {
-        LetVal(_n, _ann, init) => name_expr_ptr(init, found)
-        LetVar(_n, _ann, init) => name_expr_ptr(init, found)
+        LetVal(_n, _ann, init) => name_expr_ptr(init.view(), found)
+        LetVar(_n, _ann, init) => name_expr_ptr(init.view(), found)
         Assign(_n, value) => name_expr_ptr(value, found)
         AssignTo(place, value) => {
             name_expr_ptr(place, found)

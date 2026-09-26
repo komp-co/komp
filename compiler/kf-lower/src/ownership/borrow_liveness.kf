@@ -139,8 +139,8 @@ fun Stmt.emit_moved_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>
 /// The local a `val`/`var` initializer borrows from, or "".
 fun Stmt.borrow_binding_origin(): String {
     when (self.kind) {
-        LetVal(_n, _t, init) => return init_borrow_origin(init)
-        LetVar(_n, _t, init) => return init_borrow_origin(init)
+        LetVal(_n, _t, init) => return init_borrow_origin(init.view())
+        LetVar(_n, _t, init) => return init_borrow_origin(init.view())
         _ => return ""
     }
 }

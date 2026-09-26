@@ -39,11 +39,11 @@ fun gather_free_names_stmts(stmts: &List<Stmt>, params: &List<Param>, ctx: &var 
 fun Stmt.gather_free_names_stmt(params: &List<Param>, ctx: &var TypeCtx, found: &var List<LambdaCapture>, locals: &var List<String>): void {
     when (self.kind) {
         LetVal(name, _ty, init_ptr) => {
-            gather_free_names(init_ptr, params, ctx, found, locals)
+            gather_free_names(init_ptr.view(), params, ctx, found, locals)
             locals.push(name.as_string())
         }
         LetVar(name, _ty, init_ptr) => {
-            gather_free_names(init_ptr, params, ctx, found, locals)
+            gather_free_names(init_ptr.view(), params, ctx, found, locals)
             locals.push(name.as_string())
         }
         Assign(_n, expr_ptr) => gather_free_names(expr_ptr, params, ctx, found, locals)
@@ -74,7 +74,7 @@ fun Stmt.gather_free_names_stmt(params: &List<Param>, ctx: &var TypeCtx, found: 
         When(subj_ptr, arms) => {
             gather_free_names(subj_ptr, params, ctx, found, locals)
             while arm in &arms {
-                gather_free_names(arm.guard, params, ctx, found, locals)
+                gather_free_names(arm.guard.view(), params, ctx, found, locals)
                 gather_free_names_nested(arm.body, params, ctx, found, locals)
             }
         }
@@ -114,8 +114,8 @@ pub fun classify_captures(body: &List<Stmt>, captures: &var List<LambdaCapture>,
 /// Initializers and returns take ownership; conditions read.
 fun Stmt.classify_capture_stmt(captures: &var List<LambdaCapture>, ctx: &var TypeCtx): void {
     when (self.kind) {
-        LetVal(_n, _ty, init_ptr) => classify_capture_expr(init_ptr, true, captures, ctx)
-        LetVar(_n, _ty, init_ptr) => classify_capture_expr(init_ptr, true, captures, ctx)
+        LetVal(_n, _ty, init_ptr) => classify_capture_expr(init_ptr.view(), true, captures, ctx)
+        LetVar(_n, _ty, init_ptr) => classify_capture_expr(init_ptr.view(), true, captures, ctx)
         Assign(_n, expr_ptr) => classify_capture_expr(expr_ptr, true, captures, ctx)
         AssignTo(place_ptr, expr_ptr) => {
             classify_capture_expr(place_ptr, false, captures, ctx)
@@ -142,7 +142,7 @@ fun Stmt.classify_capture_stmt(captures: &var List<LambdaCapture>, ctx: &var Typ
         When(subj_ptr, arms) => {
             classify_capture_expr(subj_ptr, false, captures, ctx)
             while arm in &arms {
-                classify_capture_expr(arm.guard, false, captures, ctx)
+                classify_capture_expr(arm.guard.view(), false, captures, ctx)
                 classify_captures(arm.body, captures, ctx)
             }
         }
@@ -219,7 +219,7 @@ fun gather_free_names(p_opt: Ptr<Expr>?, params: &List<Param>, ctx: &var TypeCtx
         WhenExpr(subj_ptr, arms) => {
             gather_free_names(subj_ptr, params, ctx, found, locals)
             while arm in &arms {
-                gather_free_names(arm.guard, params, ctx, found, locals)
+                gather_free_names(arm.guard.view(), params, ctx, found, locals)
                 gather_free_names_nested(arm.body, params, ctx, found, locals)
             }
         }
@@ -271,7 +271,7 @@ fun classify_capture_expr(p_opt: Ptr<Expr>?, consumed: bool, captures: &var List
         WhenExpr(subj_ptr, arms) => {
             classify_capture_expr(subj_ptr, false, captures, ctx)
             while arm in &arms {
-                classify_capture_expr(arm.guard, false, captures, ctx)
+                classify_capture_expr(arm.guard.view(), false, captures, ctx)
                 classify_captures(arm.body, captures, ctx)
             }
         }
@@ -334,11 +334,11 @@ pub fun rewrite_captures_in_stmts(stmts: &List<Stmt>, captures: &List<LambdaCapt
 fun Stmt.rewrite_captures_stmt(captures: &List<LambdaCapture>, span: Span, locals: &var List<String>): void {
     when (self.kind) {
         LetVal(name, _ty, init_ptr) => {
-            rewrite_captures_to_fields(init_ptr, captures, span, locals)
+            rewrite_captures_to_fields(init_ptr.view(), captures, span, locals)
             locals.push(name.as_string())
         }
         LetVar(name, _ty, init_ptr) => {
-            rewrite_captures_to_fields(init_ptr, captures, span, locals)
+            rewrite_captures_to_fields(init_ptr.view(), captures, span, locals)
             locals.push(name.as_string())
         }
         Assign(_n, expr_ptr) => rewrite_captures_to_fields(expr_ptr, captures, span, locals)
@@ -369,7 +369,7 @@ fun Stmt.rewrite_captures_stmt(captures: &List<LambdaCapture>, span: Span, local
         When(subj_ptr, arms) => {
             rewrite_captures_to_fields(subj_ptr, captures, span, locals)
             while arm in &arms {
-                rewrite_captures_to_fields(arm.guard, captures, span, locals)
+                rewrite_captures_to_fields(arm.guard.view(), captures, span, locals)
                 rewrite_captures_nested(arm.body, captures, span, locals)
             }
         }
@@ -428,7 +428,7 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
         WhenExpr(subj_ptr, arms) => {
             rewrite_captures_to_fields(subj_ptr, captures, span, locals)
             while arm in &arms {
-                rewrite_captures_to_fields(arm.guard, captures, span, locals)
+                rewrite_captures_to_fields(arm.guard.view(), captures, span, locals)
                 rewrite_captures_nested(arm.body, captures, span, locals)
             }
         }

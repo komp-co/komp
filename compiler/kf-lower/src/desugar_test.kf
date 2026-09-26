@@ -4,10 +4,6 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 
-fun null_expr_p(): Ptr<Expr> {
-    return unsafe { 0 as Ptr<Expr> }
-}
-
 fun mk_some_x_arm(): Arm {
     val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))
     var payloads = List.new<Pattern>()
@@ -17,7 +13,7 @@ fun mk_some_x_arm(): Arm {
     unsafe { *sp = some_pat }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
-    return new_arm(no_span(), sp, null_expr_p(), body)
+    return new_arm(no_span(), sp, null, body)
 }
 
 fun mk_none_arm(): Arm {
@@ -26,7 +22,7 @@ fun mk_none_arm(): Arm {
     unsafe { *np = none_pat }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
-    return new_arm(no_span(), np, null_expr_p(), body)
+    return new_arm(no_span(), np, null, body)
 }
 
 @test fun desugar_when_to_switch(): void {
@@ -62,7 +58,7 @@ fun mk_none_arm(): Arm {
     unsafe { *wp = wild }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
-    val arm = new_arm(no_span(), wp, null_expr_p(), body)
+    val arm = new_arm(no_span(), wp, null, body)
     var arms = List.new<Arm>()
     arms.push(arm)
 
@@ -132,7 +128,7 @@ fun mk_none_arm(): Arm {
     }
 }
 
-fun bare_op(): Ptr<Expr>? {
+fun bare_op(): Box<Expr>? {
     return null
 }
 

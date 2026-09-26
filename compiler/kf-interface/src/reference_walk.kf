@@ -154,12 +154,12 @@ fun collect_stmt_list_names(stmts: &List<Stmt>, out: &var List<String>): void {
 fun Stmt.collect_stmt_names(out: &var List<String>): void {
     when (self.kind) {
         LetVal(_n, ann, init) => {
-            collect_tyref_ptr_names(ann, out)
+            collect_tyref_ptr_names(ann.view(), out)
             val p = init ?: return
             collect_expr_names(unsafe { &*p }, out)
         }
         LetVar(_n, ann, init) => {
-            collect_tyref_ptr_names(ann, out)
+            collect_tyref_ptr_names(ann.view(), out)
             val p = init ?: return
             collect_expr_names(unsafe { &*p }, out)
         }

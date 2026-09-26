@@ -99,8 +99,8 @@ fun hit_stmt_list(stmts: &List<Stmt>, file_id: uint32, offset: uint32, found: &v
 
 fun Stmt.hit_stmt(file_id: uint32, offset: uint32, found: &var List<CoveringSpan>): void {
     when (self.kind) {
-        LetVal(_n, _ann, init) => hit_expr_ptr(init, file_id, offset, found)
-        LetVar(_n, _ann, init) => hit_expr_ptr(init, file_id, offset, found)
+        LetVal(_n, _ann, init) => hit_expr_ptr(init.view(), file_id, offset, found)
+        LetVar(_n, _ann, init) => hit_expr_ptr(init.view(), file_id, offset, found)
         Assign(_n, e) => hit_expr_ptr(e, file_id, offset, found)
         AssignTo(place, e) => {
             hit_expr_ptr(place, file_id, offset, found)

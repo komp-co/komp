@@ -14,11 +14,11 @@ fun coverage_arm(kind: PatternKind, guarded: bool): Arm {
 fun coverage_arm_at(kind: PatternKind, guarded: bool, span: Span): Arm {
     val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *pattern = new_pattern(span, kind) }
-    var guard: Ptr<Expr>? = null
+    var guard: Box<Expr>? = null
     if guarded {
         val gp: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *gp = new_expr(no_span(), ExprKind.LitBool(true)) }
-        guard = Option.Some<Ptr<Expr>>(gp)
+        guard = Option.Some<Box<Expr>>(gp)
     }
     return new_arm(no_span(), pattern, guard, List.new<Stmt>())
 }

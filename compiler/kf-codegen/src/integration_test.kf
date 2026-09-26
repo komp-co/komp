@@ -310,6 +310,6 @@ fun pt_var_ptr(name: str): Ptr<Expr> {
     assert_eq(c2.as_str(), "(&(__x).f)", "field-of-lvalue borrows directly")
 }
 
-pub fun ret_op(p: Ptr<Expr>): Ptr<Expr>? {
+pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     return p
 }

@@ -190,8 +190,8 @@ fun collect_stmts(stmts: &List<Stmt>, out: &var List<Sym>, dyn_used: &var bool):
 
 fun Stmt.collect_stmt(out: &var List<Sym>, dyn_used: &var bool): void {
     when (self.kind) {
-        LetVal(_n, _t, init) => collect_expr_at(init, out, dyn_used)
-        LetVar(_n, _t, init) => collect_expr_at(init, out, dyn_used)
+        LetVal(_n, _t, init) => collect_expr_at(init.view(), out, dyn_used)
+        LetVar(_n, _t, init) => collect_expr_at(init.view(), out, dyn_used)
         Assign(_n, value) => collect_expr_at(value, out, dyn_used)
         AssignTo(place, value) => {
             collect_expr_at(place, out, dyn_used)
@@ -219,14 +219,14 @@ fun Stmt.collect_stmt(out: &var List<Sym>, dyn_used: &var bool): void {
         When(subject, arms) => {
             collect_expr_at(subject, out, dyn_used)
             while arm in &arms {
-                collect_expr_at(arm.guard, out, dyn_used)
+                collect_expr_at(arm.guard.view(), out, dyn_used)
                 collect_stmts(arm.body, out, dyn_used)
             }
         }
         Switch(subject, arms) => {
             collect_expr_at(subject, out, dyn_used)
             while arm in &arms {
-                collect_expr_at(arm.guard, out, dyn_used)
+                collect_expr_at(arm.guard.view(), out, dyn_used)
                 collect_stmts(&arm.guard_prelude, out, dyn_used)
                 collect_stmts(arm.body, out, dyn_used)
             }

@@ -182,14 +182,14 @@ fun rename_stmt_list(stmts: &List<Stmt>, ctx: &var RnCtx): void {
 fun rename_stmt(sp: Ptr<Stmt>, ctx: &var RnCtx): void {
     when (unsafe { sp.kind }) {
         LetVal(nm, ty, init) => {
-            rename_expr_ptr(init, ctx)          // init reads the OUTER scope
+            rename_expr_ptr(init.view(), ctx)          // init reads the OUTER scope
             val nn = ctx.rn_bind(nm)
-            if nn.id != nm.id { unsafe { sp.kind = StmtKind.LetVal(nn, ty, init) } }
+            if nn.id != nm.id { unsafe { sp.kind = StmtKind.LetVal(nn, ty.view().adopt(), init.view().adopt()) } }
         }
         LetVar(nm, ty, init) => {
-            rename_expr_ptr(init, ctx)
+            rename_expr_ptr(init.view(), ctx)
             val nn = ctx.rn_bind(nm)
-            if nn.id != nm.id { unsafe { sp.kind = StmtKind.LetVar(nn, ty, init) } }
+            if nn.id != nm.id { unsafe { sp.kind = StmtKind.LetVar(nn, ty.view().adopt(), init.view().adopt()) } }
         }
         Assign(nm, expr_box) => {
             rename_expr_ptr(expr_box, ctx)
@@ -233,7 +233,7 @@ fun rename_stmt(sp: Ptr<Stmt>, ctx: &var RnCtx): void {
             while a in &arms {
                 ctx.push_scope()
                 rn_register_pattern(unsafe { &*a.pattern }, ctx)
-                rename_expr_ptr(a.guard, ctx)
+                rename_expr_ptr(a.guard.view(), ctx)
                 rename_stmt_list(&a.body, ctx)
                 ctx.pop_scope()
             }

@@ -82,8 +82,8 @@ fun deref_self_opt_expr_ptr(ep: Ptr<Expr>?, owner: str): void {
 
 mutating fun Stmt.deref_self_stmt(owner: str): void {
     when (self.kind) {
-        LetVal(_n, _t, ip) => deref_self_opt_expr_ptr(ip, owner)
-        LetVar(_n, _t, ip) => deref_self_opt_expr_ptr(ip, owner)
+        LetVal(_n, _t, ip) => deref_self_opt_expr_ptr(ip.view(), owner)
+        LetVar(_n, _t, ip) => deref_self_opt_expr_ptr(ip.view(), owner)
         Assign(_n, ep) => deref_self_expr_ptr(ep, owner)
         AssignTo(pp, ep) => {
             deref_self_expr_ptr(pp, owner)

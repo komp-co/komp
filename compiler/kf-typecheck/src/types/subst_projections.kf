@@ -101,12 +101,12 @@ fun subst_proj_stmts(stmts: &var List<Stmt>, self_name: str, trait_name: str, tr
 mutating fun Stmt.subst_proj_stmt(self_name: str, trait_name: str, trait_args: str, sigs: Ptr<SigTable>): void {
     when (self.kind) {
         LetVal(_n, ty_p, init_p) => {
-            subst_proj_tref_ptr_opt(ty_p, self_name, trait_name, trait_args, sigs)
-            subst_proj_expr_ptr_opt(init_p, self_name, trait_name, trait_args, sigs)
+            subst_proj_tref_ptr_opt(ty_p.view(), self_name, trait_name, trait_args, sigs)
+            subst_proj_expr_ptr_opt(init_p.view(), self_name, trait_name, trait_args, sigs)
         }
         LetVar(_n, ty_p, init_p) => {
-            subst_proj_tref_ptr_opt(ty_p, self_name, trait_name, trait_args, sigs)
-            subst_proj_expr_ptr_opt(init_p, self_name, trait_name, trait_args, sigs)
+            subst_proj_tref_ptr_opt(ty_p.view(), self_name, trait_name, trait_args, sigs)
+            subst_proj_expr_ptr_opt(init_p.view(), self_name, trait_name, trait_args, sigs)
         }
         Assign(_n, ep) => subst_proj_expr_ptr_opt(ep, self_name, trait_name, trait_args, sigs)
         AssignTo(pp, ep) => {
@@ -130,14 +130,14 @@ mutating fun Stmt.subst_proj_stmt(self_name: str, trait_name: str, trait_args: s
             subst_proj_expr_ptr_opt(subj, self_name, trait_name, trait_args, sigs)
             while i in 0..arms.size() {
                 var a = arms.at_mut(i)
-                subst_proj_expr_ptr_opt(a.guard, self_name, trait_name, trait_args, sigs)
+                subst_proj_expr_ptr_opt(a.guard.view(), self_name, trait_name, trait_args, sigs)
                 subst_proj_stmts(&var a.body, self_name, trait_name, trait_args, sigs)
             }
         }
         Switch(subj, sarms) => {
             subst_proj_expr_ptr_opt(subj, self_name, trait_name, trait_args, sigs)
             while i in 0..sarms.size() {
-                subst_proj_expr_ptr_opt(sarms.at(i).guard, self_name, trait_name, trait_args, sigs)
+                subst_proj_expr_ptr_opt(sarms.at(i).guard.view(), self_name, trait_name, trait_args, sigs)
                 subst_proj_stmts(&var sarms.at_mut(i).body, self_name, trait_name, trait_args, sigs)
             }
         }

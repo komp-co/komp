@@ -4,10 +4,6 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 
-fun tb_null_expr(): Ptr<Expr> {
-    return unsafe { 0 as Ptr<Expr> }
-}
-
 fun tb_null_tyref(): Ptr<TypeRef> {
     return unsafe { 0 as Ptr<TypeRef> }
 }
@@ -37,7 +33,7 @@ fun tb_impl_with_arm(impl_name: str, variant: str, binder_count: uint64): TopDec
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
     var arms = List.new<SwitchArm>()
-    arms.push(new_switch_arm(no_span(), SwitchTag.Variant(String.from(variant)), binders, tb_null_expr(), List.new<Stmt>()))
+    arms.push(new_switch_arm(no_span(), SwitchTag.Variant(String.from(variant)), binders, null, List.new<Stmt>()))
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Switch(sp, arms)))
     val method = new_top_decl(no_span(), String.from("probe"),
@@ -142,7 +138,7 @@ fun tb_impl_with_returning_arm(impl_name: str, variant: str, binder_count: uint6
     var arm_body = List.new<Stmt>()
     arm_body.push(new_stmt(no_span(), StmtKind.Return(rp)))
     var arms = List.new<SwitchArm>()
-    arms.push(new_switch_arm(no_span(), SwitchTag.Variant(String.from(variant)), binders, tb_null_expr(), arm_body))
+    arms.push(new_switch_arm(no_span(), SwitchTag.Variant(String.from(variant)), binders, null, arm_body))
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Switch(sp, arms)))
     val method = new_top_decl(no_span(), String.from("probe"),

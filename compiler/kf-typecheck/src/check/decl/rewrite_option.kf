@@ -90,19 +90,19 @@ fun rewrite_option_stmt_list(stmts: &List<Stmt>, option_name: Sym): void {
 fun rewrite_option_stmt(sp: Ptr<Stmt>, option_name: Sym): void {
     when (unsafe { sp.kind }) {
         LetVal(_n, ty, init) => {
-            rewrite_option_ann(ty, option_name)
-            rewrite_option_expr(init, option_name)
+            rewrite_option_ann(ty.view(), option_name)
+            rewrite_option_expr(init.view(), option_name)
         }
         LetVar(_n, ty, init) => {
-            rewrite_option_ann(ty, option_name)
-            rewrite_option_expr(init, option_name)
+            rewrite_option_ann(ty.view(), option_name)
+            rewrite_option_expr(init.view(), option_name)
         }
         Assign(_n, expr_box) => rewrite_option_expr(expr_box, option_name)
         AssignTo(place_box, expr_box) => {
             rewrite_option_expr(place_box, option_name)
             rewrite_option_expr(expr_box, option_name)
         }
-        Return(expr_ptr) => rewrite_option_expr(expr_ptr, option_name)
+        Return(expr_ptr) => rewrite_option_expr(expr_ptr.view(), option_name)
         If(cond_box, then_body, else_body) => {
             rewrite_option_expr(cond_box, option_name)
             rewrite_option_stmt_list(&then_body, option_name)
@@ -135,14 +135,14 @@ fun rewrite_option_stmt(sp: Ptr<Stmt>, option_name: Sym): void {
 
 fun rewrite_option_arms(arms: &List<Arm>, option_name: Sym): void {
     while a in &arms {
-        rewrite_option_expr(a.guard, option_name)
+        rewrite_option_expr(a.guard.view(), option_name)
         rewrite_option_stmt_list(&a.body, option_name)
     }
 }
 
 fun rewrite_option_switch_arms(arms: &List<SwitchArm>, option_name: Sym): void {
     while a in &arms {
-        rewrite_option_expr(a.guard, option_name)
+        rewrite_option_expr(a.guard.view(), option_name)
         rewrite_option_stmt_list(&a.body, option_name)
     }
 }

@@ -434,6 +434,6 @@ fun mk_ref_string_param(name: str): Param {
     assert_eq(ty.is_move_only(&var ctx), true, "canonical type matches move-only display name")
 }
 
-pub fun ret_op(p: Ptr<Expr>): Ptr<Expr>? {
+pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     return p
 }

@@ -1280,7 +1280,7 @@ fun diag_mentions(diags: &List<Diagnostic>, needle: str): bool {
     return false
 }
 
-pub fun ret_op(p: Ptr<Expr>): Ptr<Expr>? {
+pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     return p
 }
 

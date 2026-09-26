@@ -125,7 +125,8 @@ fun trim_stmt(s: Stmt, arity: &VariantArity, self_owner: str): Stmt {
                 if kept.size() < a.binders.size() {
                     arm_body = blank_returns_of(&arm_body, &a.binders, kept.size())
                 }
-                out.push(new_guarded_switch_arm(a.span, a.tag, kept, a.guard, a.guard_prelude.clone(), arm_body))
+                out.push(new_guarded_switch_arm(a.span, a.tag, kept, a.guard.duplicate(),
+                    a.guard_prelude.clone(), arm_body))
             }
             return new_stmt(s.span, StmtKind.Switch(subj, out))
         }
@@ -212,7 +213,8 @@ fun blank_returns_in(s: Stmt, written: &List<Sym>, kept: uint64): Stmt {
             var out = List.new<SwitchArm>()
             while a in &arms {
                 val body = blank_returns_of(&a.body, written, kept)
-                out.push(new_guarded_switch_arm(a.span, a.tag, a.binders, a.guard, a.guard_prelude.clone(), body))
+                out.push(new_guarded_switch_arm(a.span, a.tag, a.binders, a.guard.duplicate(),
+                    a.guard_prelude.clone(), body))
             }
             return new_stmt(s.span, StmtKind.Switch(subj, out))
         }

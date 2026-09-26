@@ -190,8 +190,8 @@ fun assert_dyn_opt_expr_concrete(value: Ptr<Expr>?): void {
 
 fun Stmt.assert_dyn_stmt_concrete(): void {
     when (self.kind) {
-        LetVal(_, _, value) => assert_dyn_opt_expr_concrete(value)
-        LetVar(_, _, value) => assert_dyn_opt_expr_concrete(value)
+        LetVal(_, _, value) => assert_dyn_opt_expr_concrete(value.view())
+        LetVar(_, _, value) => assert_dyn_opt_expr_concrete(value.view())
         Assign(_, value) => assert_dyn_expr_concrete(unsafe { &*value })
         AssignTo(place, value) => { assert_dyn_expr_concrete(unsafe { &*place }); assert_dyn_expr_concrete(unsafe { &*value }) }
         Return(value) => when (value) {
@@ -204,14 +204,14 @@ fun Stmt.assert_dyn_stmt_concrete(): void {
         When(subject, arms) => {
             assert_dyn_expr_concrete(unsafe { &*subject })
             while arm in &arms {
-                assert_dyn_opt_expr_concrete(arm.guard)
+                assert_dyn_opt_expr_concrete(arm.guard.view())
                 assert_dyn_stmt_list_concrete(&arm.body)
             }
         }
         Switch(subject, arms) => {
             assert_dyn_expr_concrete(unsafe { &*subject })
             while arm in &arms {
-                assert_dyn_opt_expr_concrete(arm.guard)
+                assert_dyn_opt_expr_concrete(arm.guard.view())
                 assert_dyn_stmt_list_concrete(&arm.body)
             }
         }

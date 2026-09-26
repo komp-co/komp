@@ -113,8 +113,8 @@ fun collect_locals(stmts: &List<Stmt>, crate: &QueryCrate, offset: uint32, out: 
 /// Typed from the checked initializer, else the annotation.
 fun Stmt.add_binding(crate: &QueryCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
     when (self.kind) {
-        LetVal(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann, init, crate).as_str())
-        LetVar(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann, init, crate).as_str())
+        LetVal(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann.view(), init.view(), crate).as_str())
+        LetVar(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann.view(), init.view(), crate).as_str())
         _ => {}
     }
 }

@@ -15,11 +15,11 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
         LetVal(name, ty_ref_ptr, init_ptr) => {
             // Only Lower synthesizes a binding without an initializer.
             val ip = init_ptr ?: return
-            check_let(name.as_string(), ty_ref_ptr, ip, false, self.span, ctx)
+            check_let(name.as_string(), ty_ref_ptr.view(), ip, false, self.span, ctx)
         }
         LetVar(name, ty_ref_ptr, init_ptr) => {
             val ip = init_ptr ?: return
-            check_let(name.as_string(), ty_ref_ptr, ip, true, self.span, ctx)
+            check_let(name.as_string(), ty_ref_ptr.view(), ip, true, self.span, ctx)
         }
         Assign(name, expr_ptr) => {
             check_assign(name.as_string(), expr_ptr, self.span, ctx)
@@ -54,7 +54,7 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
             }
         }
         Return(maybe_expr) => {
-            check_return(maybe_expr, self.span, ctx)
+            check_return(maybe_expr.view(), self.span, ctx)
         }
         If(cond_ptr, then_body, else_body) => {
             check_expr(unsafe { &var *cond_ptr }, ctx)

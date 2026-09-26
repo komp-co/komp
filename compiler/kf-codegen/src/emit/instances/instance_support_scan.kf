@@ -76,14 +76,14 @@ fun scan_stmt_list(stmts: &List<Stmt>, callees: &var NameSet, type_refs: &var Na
 fun Stmt.scan_stmt(callees: &var NameSet, type_refs: &var NameSet): void {
     when (self.kind) {
         LetVal(_n, ann, init) => {
-            scan_tyref_ptr(ann, type_refs)
+            scan_tyref_ptr(ann.view(), type_refs)
             when (init) {
                 Some(p) => scan_expr(unsafe { &*p }, callees, type_refs)
                 None => { }
             }
         }
         LetVar(_n, ann, init) => {
-            scan_tyref_ptr(ann, type_refs)
+            scan_tyref_ptr(ann.view(), type_refs)
             // A null init has nothing to scan.
             when (init) {
                 Some(p) => scan_expr(unsafe { &*p }, callees, type_refs)

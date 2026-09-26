@@ -54,8 +54,8 @@ fun inlay_stmt_list(stmts: &List<Stmt>, crate: &QueryCrate, arr: &var JsonWriter
 
 fun Stmt.inlay_stmt(crate: &QueryCrate, arr: &var JsonWriter): void {
     when (self.kind) {
-        LetVal(_n, ann, init) => self.inlay_binding(ann, init, crate, arr)
-        LetVar(_n, ann, init) => self.inlay_binding(ann, init, crate, arr)
+        LetVal(_n, ann, init) => self.inlay_binding(ann.view(), init.view(), crate, arr)
+        LetVar(_n, ann, init) => self.inlay_binding(ann.view(), init.view(), crate, arr)
         If(_c, then_body, else_body) => {
             inlay_stmt_list(then_body, crate, arr)
             inlay_stmt_list(else_body, crate, arr)

@@ -20,12 +20,12 @@ pub fun qualify_stmt_list(stmts: &var List<Stmt>, names: &var List<String>, repl
 mutating fun Stmt.qualify_stmt(names: &var List<String>, repls: &var List<TypeRef>, rename_types: bool): void {
     when (self.kind) {
         LetVal(_n, ty_p, init_p) => {
-            qualify_tyref_ptr(ty_p, names, repls)
-            qualify_expr_ptr_opt(init_p, names, repls, rename_types)
+            qualify_tyref_ptr(ty_p.view(), names, repls)
+            qualify_expr_ptr_opt(init_p.view(), names, repls, rename_types)
         }
         LetVar(_n, ty_p, init_p) => {
-            qualify_tyref_ptr(ty_p, names, repls)
-            qualify_expr_ptr_opt(init_p, names, repls, rename_types)
+            qualify_tyref_ptr(ty_p.view(), names, repls)
+            qualify_expr_ptr_opt(init_p.view(), names, repls, rename_types)
         }
         Assign(_n, ep) => qualify_expr_ptr(ep, names, repls, rename_types)
         AssignTo(pp, ep) => {
@@ -49,7 +49,7 @@ mutating fun Stmt.qualify_stmt(names: &var List<String>, repls: &var List<TypeRe
             qualify_expr_ptr(subj, names, repls, rename_types)
             while i in 0..arms.size() {
                 var a = arms.at_mut(i)
-                qualify_expr_ptr_opt(a.guard, names, repls, rename_types)
+                qualify_expr_ptr_opt(a.guard.view(), names, repls, rename_types)
                 qualify_stmt_list(&var a.body, names, repls, rename_types)
             }
         }
@@ -57,7 +57,7 @@ mutating fun Stmt.qualify_stmt(names: &var List<String>, repls: &var List<TypeRe
             qualify_expr_ptr(subj, names, repls, rename_types)
             while i in 0..sarms.size() {
                 var sa = sarms.at_mut(i)
-                qualify_expr_ptr_opt(sa.guard, names, repls, rename_types)
+                qualify_expr_ptr_opt(sa.guard.view(), names, repls, rename_types)
                 qualify_stmt_list(&var sa.guard_prelude, names, repls, rename_types)
                 qualify_stmt_list(&var sa.body, names, repls, rename_types)
             }
@@ -179,7 +179,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             qualify_expr_ptr(subj, names, repls, rename_types)
             while i in 0..arms.size() {
                 var a = arms.at_mut(i)
-                qualify_expr_ptr_opt(a.guard, names, repls, rename_types)
+                qualify_expr_ptr_opt(a.guard.view(), names, repls, rename_types)
                 qualify_stmt_list(&var a.body, names, repls, rename_types)
             }
         }

@@ -18,7 +18,7 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
     }
     val slit_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_ptr = new_expr(span, ExprKind.StructLit(intern(name.as_str()), inits)) }
-    val ret_operand: Ptr<Expr>? = slit_ptr
+    val ret_operand: Box<Expr>? = slit_ptr
     var body = List.new<Stmt>()
     body.push(new_stmt(span, StmtKind.Return(ret_operand)))
 
@@ -68,7 +68,7 @@ fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: Crat
         comparison = unsafe { alloc<Expr>() }
         unsafe { *comparison = new_expr(span, ExprKind.Binary(prior, BinOp.AndAnd, field_equal)) }
     }
-    val operand: Ptr<Expr>? = comparison
+    val operand: Box<Expr>? = comparison
     var body = List.new<Stmt>()
     body.push(new_stmt(span, StmtKind.Return(operand)))
     return synth_equal_trait_impl(name, params, body, span, owner, module_path, trait_sym)
@@ -103,7 +103,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
             unsafe { *accumulator = new_expr(span, ExprKind.Binary(scaled, BinOp.Add, field_hash)) }
         }
     }
-    val result: Ptr<Expr>? = accumulator
+    val result: Box<Expr>? = accumulator
     var body = List.new<Stmt>()
     body.push(new_stmt(span, StmtKind.Return(result)))
 
@@ -149,7 +149,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
     unsafe { *result_type = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
     val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *self_value = new_expr(span, ExprKind.Variable(intern("self"))) }
-    val operand: Ptr<Expr>? = self_value
+    val operand: Box<Expr>? = self_value
     var body = List.new<Stmt>()
     body.push(new_stmt(span, StmtKind.Return(operand)))
     var clone_fn = new_top_decl(span, String.from("clone"),

@@ -56,8 +56,8 @@ fun list_returns(stmts: &List<Stmt>, name: str): bool {
 fun Stmt.stmt_moves(origin: str, ptable: Ptr<List<ParamEntry>>): bool {
     when (self.kind) {
         Expression(e) => return expr_moves(unsafe { &*e }, origin, ptable)
-        LetVal(_n, _t, init) => return init_moves(init, origin, ptable)
-        LetVar(_n, _t, init) => return init_moves(init, origin, ptable)
+        LetVal(_n, _t, init) => return init_moves(init.view(), origin, ptable)
+        LetVar(_n, _t, init) => return init_moves(init.view(), origin, ptable)
         Assign(_n, rhs) => return expr_moves(unsafe { &*rhs }, origin, ptable)
         Return(maybe) => {
             when (maybe) {
@@ -122,8 +122,8 @@ fun Stmt.stmt_disturbs(origin: str, muts: &List<MutatingMethod>): bool {
             return root.as_str() == origin
         }
         Expression(e) => return expr_mutates(unsafe { &*e }, origin, muts)
-        LetVal(_n, _t, init) => return init_mutates(init, origin, muts)
-        LetVar(_n, _t, init) => return init_mutates(init, origin, muts)
+        LetVal(_n, _t, init) => return init_mutates(init.view(), origin, muts)
+        LetVar(_n, _t, init) => return init_mutates(init.view(), origin, muts)
         _ => return false
     }
 }
@@ -180,8 +180,8 @@ fun list_mutates(args: &List<Expr>, origin: str, muts: &List<MutatingMethod>): b
 
 fun Stmt.stmt_mentions(name: str): bool {
     when (self.kind) {
-        LetVal(_n, _t, init) => return init_mentions(init, name)
-        LetVar(_n, _t, init) => return init_mentions(init, name)
+        LetVal(_n, _t, init) => return init_mentions(init.view(), name)
+        LetVar(_n, _t, init) => return init_mentions(init.view(), name)
         Assign(n, rhs) => {
             if n.as_str() == name { return true }
             return expr_mentions(unsafe { &*rhs }, name)

@@ -101,12 +101,12 @@ fun collect_insts_in_optional_tyref(tropt: Ptr<TypeRef>?, gps: &List<String>, ma
 fun Stmt.collect_insts_in_stmt(gps: &List<String>, marities: &List<MethodArity>, work: &var List<Inst>): void {
     when (self.kind) {
         LetVal(_n, ty, init_ptr) => {
-            collect_insts_in_optional_tyref(ty, gps, marities, work)
+            collect_insts_in_optional_tyref(ty.view(), gps, marities, work)
             val p = init_ptr ?: return
             collect_insts_in_expr(unsafe { &*p }, gps, marities, work)
         }
         LetVar(_n, ty, init_ptr) => {
-            collect_insts_in_optional_tyref(ty, gps, marities, work)
+            collect_insts_in_optional_tyref(ty.view(), gps, marities, work)
             val p = init_ptr ?: return
             collect_insts_in_expr(unsafe { &*p }, gps, marities, work)
         }

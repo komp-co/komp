@@ -22,7 +22,7 @@ pub struct SwitchArm {
     pub val binders: List<Sym>
     /// Null when unguarded. Any guard makes codegen emit the whole `Switch`
     /// as an if/else-if chain.
-    pub val guard:   Ptr<Expr>?
+    pub val guard:   Box<Expr>?
     /// Runs before the guard, inside it: binds the guard's owned temporaries
     /// and its value, then drops them. Empty when the guard owns nothing.
     pub var guard_prelude: List<Stmt>
@@ -43,7 +43,7 @@ pub enum SwitchTag {
     Alternatives(List<SwitchTag>)
 }
 
-pub fun new_switch_arm(span: Span, tag: SwitchTag, binders: List<Sym>, guard: Ptr<Expr>?, body: List<Stmt>): SwitchArm {
+pub fun new_switch_arm(span: Span, tag: SwitchTag, binders: List<Sym>, guard: Box<Expr>?, body: List<Stmt>): SwitchArm {
     return new_guarded_switch_arm(span, tag, binders, guard, List.new<Stmt>(), body)
 }
 
@@ -51,7 +51,7 @@ pub fun new_guarded_switch_arm(
     span: Span,
     tag: SwitchTag,
     binders: List<Sym>,
-    guard: Ptr<Expr>?,
+    guard: Box<Expr>?,
     guard_prelude: List<Stmt>,
     body: List<Stmt>
 ): SwitchArm {
@@ -64,16 +64,16 @@ pub fun SwitchArm.switch_arm_has_guard(): bool {
 
 pub enum StmtKind {
     /// `val name: ty = init`; no annotation means inferred.
-    LetVal(Sym, Ptr<TypeRef>?, Ptr<Expr>?)
+    LetVal(Sym, Box<TypeRef>?, Box<Expr>?)
     /// `var name: ty = init`. No initializer only in Lower's `var __whenN: T`,
     /// which then must be annotated.
-    LetVar(Sym, Ptr<TypeRef>?, Ptr<Expr>?)
+    LetVar(Sym, Box<TypeRef>?, Box<Expr>?)
     /// `name = expr`.
     Assign(Sym, Box<Expr>)
     /// `place = expr` for an lvalue such as `*ptr` or `ptr.field`.
     AssignTo(Box<Expr>, Box<Expr>)
     /// `return expr`; None is a bare `return`.
-    Return(Ptr<Expr>?)
+    Return(Box<Expr>?)
     /// `if cond { then } else { otherwise }`; the else body may be empty.
     If(Box<Expr>, List<Stmt>, List<Stmt>)
     /// `while cond { body }`.

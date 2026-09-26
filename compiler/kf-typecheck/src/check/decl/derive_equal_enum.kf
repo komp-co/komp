@@ -17,13 +17,13 @@ fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, ow
         var inner_arms = List.new<Arm>()
         var matching_body = List.new<Stmt>()
         val comparison: Ptr<Expr> = variant.enum_payload_comparison(span)
-        val comparison_operand: Ptr<Expr>? = comparison
+        val comparison_operand: Box<Expr>? = comparison
         matching_body.push(new_stmt(span, StmtKind.Return(comparison_operand)))
         inner_arms.push(new_arm(span, variant.enum_variant_pattern("right", span), null, matching_body))
         var different_body = List.new<Stmt>()
         val false_expr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *false_expr = new_expr(span, ExprKind.LitBool(false)) }
-        val false_operand: Ptr<Expr>? = false_expr
+        val false_operand: Box<Expr>? = false_expr
         different_body.push(new_stmt(span, StmtKind.Return(false_operand)))
         inner_arms.push(new_arm(span, enum_wildcard_pattern(span), null, different_body))
 

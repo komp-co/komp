@@ -261,11 +261,12 @@ pub fun rc_insert_stmt(s: Stmt, ctx: &var RcCtx): Stmt {
                     Some(g) => mark_consumed_moves(unsafe { *g }, ctx)
                     None => { }
                 }
-                val prelude = guard_temporaries(arm.guard, ctx)
+                val prelude = guard_temporaries(arm.guard.view(), ctx)
                 val rest = rc_insert_stmt_list(arm.body, ctx)
                 val arm_releases = ctx.pop_frame()
                 val new_body = append_releases(rest, arm_releases)
-                out_arms.push(new_guarded_switch_arm(arm.span, arm.tag, arm.binders, arm.guard, prelude, new_body))
+                out_arms.push(new_guarded_switch_arm(arm.span, arm.tag, arm.binders, arm.guard.duplicate(),
+                    prelude, new_body))
             }
             return new_stmt(s.span, StmtKind.Switch(subj_ptr, out_arms))
         }

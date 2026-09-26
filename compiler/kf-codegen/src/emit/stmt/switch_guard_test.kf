@@ -12,7 +12,7 @@ fun guard_expr(name: str): Ptr<Expr> {
     return g
 }
 
-fun guarded_arm(tag: SwitchTag, guard: Ptr<Expr>?): SwitchArm {
+fun guarded_arm(tag: SwitchTag, guard: Box<Expr>?): SwitchArm {
     return new_switch_arm(no_span(), tag, List.new<Sym>(), guard, List.new<Stmt>())
 }
 

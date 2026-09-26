@@ -79,8 +79,10 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
                 out.push(item)
             }
         }
-        LetVal(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr, init_ptr, true, temps, out)
-        LetVar(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr, init_ptr, false, temps, out)
+        LetVal(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr.duplicate(), init_ptr.view(),
+            true, temps, out)
+        LetVar(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr.duplicate(), init_ptr.view(),
+            false, temps, out)
         If(cond_ptr, then_body, else_body) => {
             val nt = block_expr_stmt_list(&then_body, temps)
             val ne = block_expr_stmt_list(&else_body, temps)
@@ -95,7 +97,7 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard, block_expr_stmt_list(&a.body, temps)))
+                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(), block_expr_stmt_list(&a.body, temps)))
             }
             out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
@@ -112,7 +114,7 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
 }
 
 /// A binding with no block in it passes through untouched.
-fun expand_block_let(s: Stmt, name: Sym, ty_ptr: Ptr<TypeRef>?, init_ptr: Ptr<Expr>?, is_val: bool, temps: &var BlockTemps, out: &var List<Stmt>): void {
+fun expand_block_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_val: bool, temps: &var BlockTemps, out: &var List<Stmt>): void {
     // `var __blkN: T`, emitted by this pass, has nothing to look inside.
     val ip = init_ptr ?: {
         out.push(s)
@@ -141,9 +143,9 @@ fun expand_block_let(s: Stmt, name: Sym, ty_ptr: Ptr<TypeRef>?, init_ptr: Ptr<Ex
     v.ty = value_ty
     unsafe { *vp = v }
     if is_val {
-        out.push(new_stmt(span, StmtKind.LetVal(name, ty_ptr, vp)))
+        out.push(new_stmt(span, StmtKind.LetVal(name, ty, vp)))
     } else {
-        out.push(new_stmt(span, StmtKind.LetVar(name, ty_ptr, vp)))
+        out.push(new_stmt(span, StmtKind.LetVar(name, ty, vp)))
     }
 }
 
@@ -198,7 +200,8 @@ fun value_stmts(ep: Ptr<Expr>, to_return: bool, temp: Sym, temps: &var BlockTemp
             // Only the branching-tail arm reaches here; each arm sinks its tail.
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard, sink_into_list(&a.body, to_return, temp, temps)))
+                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(),
+                    sink_into_list(&a.body, to_return, temp, temps)))
             }
             out.push(new_stmt(unsafe { ep.span }, StmtKind.When(subj_ptr, new_arms)))
             return out
@@ -251,7 +254,8 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard, sink_into_list(&a.body, to_return, temp, temps)))
+                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(),
+                    sink_into_list(&a.body, to_return, temp, temps)))
             }
             out.push(new_stmt(self.span, StmtKind.When(subj_ptr, new_arms)))
         }

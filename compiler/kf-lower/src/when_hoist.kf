@@ -92,7 +92,7 @@ fun rewrite_arm_bodies_in_place(ep: Ptr<Expr>, temps: &var WhenTemps): void {
         WhenExpr(subj, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard, when_expr_stmt_list(&a.body, temps)))
+                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(), when_expr_stmt_list(&a.body, temps)))
             }
             unsafe { ep.kind = ExprKind.WhenExpr(subj, new_arms) }
         }

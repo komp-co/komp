@@ -53,8 +53,7 @@ pub fun Expr.emit_expr(): String {
 }
 
 fun Expr.emit_expr_base(): String {
-    val ek = self.kind
-    when (ek) {
+    when (self.kind) {
         LitInt(n) => return emit_lit_int(n)
         LitBool(b) => return emit_lit_bool(b)
         LitStr(s) => return emit_lit_str(s)

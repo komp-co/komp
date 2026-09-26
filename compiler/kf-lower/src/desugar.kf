@@ -91,7 +91,7 @@ fun Arm.arm_to_switch(): SwitchArm {
     val tag = pat.pattern_to_tag()
     val binders = pat.pattern_binders()
     val new_body = desugar_stmt_list(self.body)
-    return new_switch_arm(self.span, tag, binders, self.guard, new_body)
+    return new_switch_arm(self.span, tag, binders, self.guard.duplicate(), new_body)
 }
 
 fun bool_case_value(b: bool): int64 {

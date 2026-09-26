@@ -10,7 +10,7 @@ fun guarded_arm(kind: PatternKind, guard: ExprKind): Arm {
     unsafe { *pattern = new_pattern(no_span(), kind) }
     val guard_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *guard_ptr = new_expr(no_span(), guard) }
-    return new_arm(no_span(), pattern, Option.Some<Ptr<Expr>>(guard_ptr), List.new<Stmt>())
+    return new_arm(no_span(), pattern, Option.Some<Box<Expr>>(guard_ptr), List.new<Stmt>())
 }
 
 fun guard_diags(subject_name: str, guard: ExprKind): List<Diagnostic> {

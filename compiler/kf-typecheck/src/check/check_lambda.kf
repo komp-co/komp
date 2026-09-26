@@ -75,7 +75,7 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
             // overwritten.
             val fresh: Ptr<Expr> = unsafe { alloc<Expr>() }
             unsafe { *fresh = (*expr_ptr).clone() }
-            val operand: Ptr<Expr>? = fresh
+            val operand: Box<Expr>? = fresh
             return new_stmt(span, StmtKind.Return(operand))
         }
         _ => return self.clone()

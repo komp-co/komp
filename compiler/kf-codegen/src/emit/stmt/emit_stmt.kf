@@ -21,11 +21,11 @@ pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): Stri
 
 pub fun emit_stmt(s: Stmt, indent: uint64, env: &var LocalEnv): String {
     return when (s.kind) {
-        LetVal(name, ty_p, init_p) => emit_let(name.as_string(), ty_p, init_p, indent, env)
-        LetVar(name, ty_p, init_p) => emit_let(name.as_string(), ty_p, init_p, indent, env)
+        LetVal(name, ty_p, init_p) => emit_let(name.as_string(), ty_p.view(), init_p.view(), indent, env)
+        LetVar(name, ty_p, init_p) => emit_let(name.as_string(), ty_p.view(), init_p.view(), indent, env)
         Assign(name, vp) => emit_assign(name.as_string(), vp, indent)
         AssignTo(pp, vp) => emit_assign_to(pp, vp, indent)
-        Return(opt_p) => emit_return(opt_p, indent, env)
+        Return(opt_p) => emit_return(opt_p.view(), indent, env)
         Expression(ep) => emit_expr_stmt(ep, indent)
         Release(name) => emit_release(name.as_string(), indent, env)
         Drop(name) => emit_release(name.as_string(), indent, env)

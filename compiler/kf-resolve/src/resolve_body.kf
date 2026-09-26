@@ -30,8 +30,8 @@ fun resolve_stmt_list(stmts: &var List<Stmt>, table: &var DeclTable): void {
 
 mutating fun Stmt.resolve_stmt(table: &var DeclTable): void {
     when (self.kind) {
-        LetVal(_n, _ann, init) => resolve_expr_ptr(init, table)
-        LetVar(_n, _ann, init) => resolve_expr_ptr(init, table)
+        LetVal(_n, _ann, init) => resolve_expr_ptr(init.view(), table)
+        LetVar(_n, _ann, init) => resolve_expr_ptr(init.view(), table)
         Assign(_n, value) => resolve_expr_ptr(value, table)
         AssignTo(place, value) => {
             resolve_expr_ptr(place, table)
@@ -69,7 +69,7 @@ mutating fun Stmt.resolve_stmt(table: &var DeclTable): void {
 
 fun resolve_arm_list(arms: &var List<Arm>, table: &var DeclTable): void {
     while i in 0..arms.size() {
-        resolve_expr_ptr(arms.at(i).guard, table)
+        resolve_expr_ptr(arms.at(i).guard.view(), table)
         resolve_stmt_list(&var arms.at_mut(i).body, table)
     }
 }

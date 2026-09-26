@@ -23,7 +23,7 @@ fun stmts_diverge(body: &List<Stmt>): bool {
 
 /// `return` with nothing after it.
 fun bare_return(span: Span): Stmt {
-    val none_operand: Ptr<Expr>? = null
+    val none_operand: Box<Expr>? = null
     return new_stmt(span, StmtKind.Return(none_operand))
 }
 
@@ -35,10 +35,10 @@ impl Parser {
         val name: String = self.expect_name("variable")
         unsafe { self.advance() }
 
-        var ty_ptr: Ptr<TypeRef>? = null
+        var ty_ptr: Box<TypeRef>? = null
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            ty_ptr = Option.Some<Ptr<TypeRef>>(self.parse_type_ref_ptr())
+            ty_ptr = Option.Some<Box<TypeRef>>(self.parse_type_ref_ptr())
         }
 
         val _eq = self.expect_op(Operator.Eq, "after the variable name (a binding needs an initializer)")
@@ -151,7 +151,7 @@ impl Parser {
         val e = self.parse_value_operand()
         val e_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *e_ptr = e }
-        val operand: Ptr<Expr>? = e_ptr
+        val operand: Box<Expr>? = e_ptr
         return new_stmt(span, StmtKind.Return(operand))
     }
 

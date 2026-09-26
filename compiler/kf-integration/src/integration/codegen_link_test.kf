@@ -47,7 +47,7 @@ fun arm_ret(variant: str, n: int64): SwitchArm {
     return new_switch_arm(no_span(), SwitchTag.Variant(String.from(variant)), List.new<Sym>(), null, body)
 }
 
-fun ret_op(p: Ptr<Expr>): Ptr<Expr>? {
+fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     return p
 }
 

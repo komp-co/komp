@@ -7,7 +7,7 @@ fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<Type
 }
 
 /// An absent operand (a bare `return`) stays absent.
-fun clone_expr_box_opt(p: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr>? {
+fun clone_expr_box_opt(p: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Box<Expr>? {
     return when (p) {
         Some(inner) => clone_expr_ptr(inner, names, repls)
         None => null
@@ -15,7 +15,7 @@ fun clone_expr_box_opt(p: Ptr<Expr>?, names: &var List<String>, repls: &var List
 }
 
 /// An absent guard stays absent.
-fun clone_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr>? {
+fun clone_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Box<Expr>? {
     val p = p_opt ?: return null
     return clone_expr_ptr(p, names, repls)
 }
@@ -26,7 +26,7 @@ fun clone_tref_ptr(p: Ptr<TypeRef>, names: &var List<String>, repls: &var List<T
     return np
 }
 
-fun clone_tref_ptr_opt(popt: Ptr<TypeRef>?, names: &var List<String>, repls: &var List<TypeRef>): Ptr<TypeRef>? {
+fun clone_tref_ptr_opt(popt: Ptr<TypeRef>?, names: &var List<String>, repls: &var List<TypeRef>): Box<TypeRef>? {
     val p = popt ?: return null
     val np: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *np = subst_type_ref(&*p, names, repls) }

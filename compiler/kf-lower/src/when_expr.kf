@@ -81,8 +81,8 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
                 }
             }
         }
-        LetVal(name, ty_ptr, init_ptr) => expand_let(s, name, ty_ptr, init_ptr, true, temps, out)
-        LetVar(name, ty_ptr, init_ptr) => expand_let(s, name, ty_ptr, init_ptr, false, temps, out)
+        LetVal(name, ty_ptr, init_ptr) => expand_let(s, name, ty_ptr.duplicate(), init_ptr.view(), true, temps, out)
+        LetVar(name, ty_ptr, init_ptr) => expand_let(s, name, ty_ptr.duplicate(), init_ptr.view(), false, temps, out)
         If(cond_ptr, then_body, else_body) => {
             hoist_when_values(cond_ptr, temps, out)
             val nt = when_expr_stmt_list(&then_body, temps)
@@ -98,7 +98,7 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
             hoist_when_values(subj_ptr, temps, out)
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard, when_expr_stmt_list(&a.body, temps)))
+                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(), when_expr_stmt_list(&a.body, temps)))
             }
             out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
@@ -125,7 +125,7 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
 }
 
 /// A binding with no initializer (`var __blkN: T`) passes through.
-fun expand_let(s: Stmt, name: Sym, ty_ptr: Ptr<TypeRef>?, init_ptr: Ptr<Expr>?, is_val: bool, temps: &var WhenTemps, out: &var List<Stmt>): void {
+fun expand_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_val: bool, temps: &var WhenTemps, out: &var List<Stmt>): void {
     val ip = init_ptr ?: {
         out.push(s)
         return
@@ -159,9 +159,9 @@ fun expand_let(s: Stmt, name: Sym, ty_ptr: Ptr<TypeRef>?, init_ptr: Ptr<Expr>?, 
             v.ty = value_ty
             unsafe { *vp = v }
             if is_val {
-                out.push(new_stmt(span, StmtKind.LetVal(name, ty_ptr, vp)))
+                out.push(new_stmt(span, StmtKind.LetVal(name, ty, vp)))
             } else {
-                out.push(new_stmt(span, StmtKind.LetVar(name, ty_ptr, vp)))
+                out.push(new_stmt(span, StmtKind.LetVar(name, ty, vp)))
             }
         }
         _ => out.push(s)
@@ -227,7 +227,7 @@ fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
-        out.push(new_arm(a.span, a.pattern, a.guard, body))
+        out.push(new_arm(a.span, a.pattern, a.guard.duplicate(), body))
     }
     return out
 }
@@ -244,7 +244,7 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
-        out.push(new_arm(a.span, a.pattern, a.guard, body))
+        out.push(new_arm(a.span, a.pattern, a.guard.duplicate(), body))
     }
     return out
 }

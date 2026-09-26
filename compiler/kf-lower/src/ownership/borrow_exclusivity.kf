@@ -58,8 +58,8 @@ fun bx_check_stmts(stmts: &List<Stmt>, ptable: Ptr<List<ParamEntry>>, diags: Ptr
 fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
     when (self.kind) {
         Expression(e) => bx_check_expr(unsafe { &*e }, self.span, ptable, diags)
-        LetVal(_n, _t, init) => bx_check_init(init, self.span, ptable, diags)
-        LetVar(_n, _t, init) => bx_check_init(init, self.span, ptable, diags)
+        LetVal(_n, _t, init) => bx_check_init(init.view(), self.span, ptable, diags)
+        LetVar(_n, _t, init) => bx_check_init(init.view(), self.span, ptable, diags)
         Assign(_n, e) => bx_check_expr(unsafe { &*e }, self.span, ptable, diags)
         AssignTo(target, e) => {
             bx_check_expr(unsafe { &*target }, self.span, ptable, diags)

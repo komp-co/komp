@@ -39,12 +39,12 @@ pub fun rc_insert_stmt_list(stmts: &List<Stmt>, ctx: &var RcCtx): List<Stmt> {
         }
         when (s.kind) {
             Return(ep) => {
-                var exclude = returned_var_names(ep)
-                refine_return_exclusions(ep, ctx, &var exclude)
+                var exclude = returned_var_names(ep.view())
+                refine_return_exclusions(ep.view(), ctx, &var exclude)
                 val rels = ctx.exit_releases(false, exclude)
-                val after_eval = return_drops_after_eval(ep, rels.size(), ctx)
+                val after_eval = return_drops_after_eval(ep.view(), rels.size(), ctx)
                 if after_eval {
-                    lower_return_drop_after_eval(ep, rels, ctx, &var out)
+                    lower_return_drop_after_eval(ep.duplicate(), rels, ctx, &var out)
                 } else {
                     push_stmts(&var out, rels)
                     out.push(s)
