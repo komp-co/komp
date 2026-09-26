@@ -15,32 +15,22 @@
 // CONSTRAINT: a plain module because `CaseSpec` is declared here, and a test
 // file's structs get no C type. The walker is in case_runner_test.kf.
 
-extern "C" fun kf_arg_count(): int32
-extern "C" fun kf_arg_get(i: int32): str
 
 /// "" in an ordinary run. The walker re-execs the test binary with it, one
 /// process per case.
 pub fun case_build_arg(): str {
-    val n = unsafe { kf_arg_count() }
-    var i = 0
-    while i < n {
-        if unsafe { kf_arg_get(i) } == "--build-case" {
-            if i + 1 < n { return unsafe { kf_arg_get(i + 1) } }
-        }
-        i = i + 1
-    }
-    return ""
+    return value_after("--build-case")
 }
 
 /// Read at run time, so narrowing needs no rebuild.
 pub fun case_filter_arg(): str {
-    val n = unsafe { kf_arg_count() }
-    var i = 0
-    while i < n {
-        if unsafe { kf_arg_get(i) } == "--case" {
-            if i + 1 < n { return unsafe { kf_arg_get(i + 1) } }
-        }
-        i = i + 1
+    return value_after("--case")
+}
+
+/// The argument after the first `flag`, or "".
+fun value_after(flag: str): str {
+    while i in 0..arg_count() {
+        if arg_at(i) == flag { return arg_at(i + 1) }
     }
     return ""
 }

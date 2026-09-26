@@ -34,8 +34,6 @@ import kf_shared.cli_arg_get
 import kf_shared.kflat_version
 
 // Bodies in the runtime prelude, which captures argv in main().
-extern "C" fun kf_arg_count(): int32
-extern "C" fun kf_arg_get(i: int32): str
 
 // Returns a wait status, not an exit code: only compare it with 0. As an exit
 // code, 256 truncates to 0 and a failure reads as success. To report a

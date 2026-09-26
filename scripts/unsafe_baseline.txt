@@ -56,7 +56,6 @@
 1 compiler/kf-driver/src/diag_report.kf
 16 compiler/kf-driver/src/pipeline.kf
 1 compiler/kf-driver/src/testing/test_runner.kf
-6 compiler/kf-integration/src/harness/case_runner.kf
 1 compiler/kf-integration/src/harness/fixture.kf
 20 compiler/kf-integration/src/harness/in_process.kf
 3 compiler/kf-interface/src/emit/emit.kf
