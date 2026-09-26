@@ -16,7 +16,7 @@ pub struct LocalBinding {
     pub val is_var: bool
     /// An unannotated binding's literal initializer, which its first use may
     /// retype; null otherwise.
-    pub var flexible_init: Ptr<Expr>
+    pub var flexible_init: Ptr<Expr>?
     /// Where the binding is first read; `no_span()` until it is.
     pub var first_use: Span
 }
@@ -131,12 +131,12 @@ impl TypeCtx {
 
     // A mutable binding. Only `declare_val` sites are enforced.
     pub mutating fun declare(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: unsafe { 0 as Ptr<Expr> }, first_use: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, first_use: no_span() })
     }
 
     // An immutable binding: `val`, params, `self` in a non-mutating method.
     pub mutating fun declare_val(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: unsafe { 0 as Ptr<Expr> }, first_use: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, first_use: no_span() })
     }
 
     pub mutating fun declare_flexible(name: String, ty: Type, is_var: bool, init: Ptr<Expr>): void {
@@ -157,10 +157,9 @@ impl TypeCtx {
         }
     }
 
-    /// Non-null only while the binding is flexible and `span` is its first use.
-    pub fun flexible_init_at(name: str, span: Span): Ptr<Expr> {
-        val none: Ptr<Expr> = unsafe { 0 as Ptr<Expr> }
-        if span.is_none() { return none }
+    /// Present only while the binding is flexible and `span` is its first use.
+    pub fun flexible_init_at(name: str, span: Span): Ptr<Expr>? {
+        if span.is_none() { return null }
         var i: uint64 = self.locals.size()
         while i > 0 {
             i = i - 1
@@ -168,10 +167,10 @@ impl TypeCtx {
             if binding.name.as_str().equals(name) {
                 val first = binding.first_use
                 if first.file_id == span.file_id && first.start == span.start && first.end == span.end { return binding.flexible_init }
-                return none
+                return null
             }
         }
-        return none
+        return null
     }
 
     pub mutating fun pin_binding(name: str, ty: Type): void {
@@ -181,7 +180,7 @@ impl TypeCtx {
             if self.locals.at(i).name.as_str().equals(name) {
                 val binding = self.locals.at_mut(i)
                 binding.ty = ty
-                binding.flexible_init = unsafe { 0 as Ptr<Expr> }
+                binding.flexible_init = null
                 return
             }
         }

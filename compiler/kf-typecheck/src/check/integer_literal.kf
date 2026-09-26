@@ -88,8 +88,7 @@ fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
     if is_integer_literal(*self) { return true }
     when (self.kind) {
         Variable(name) => {
-            val init = ctx.flexible_init_at(name.as_str(), self.span)
-            return unsafe { init as uint64 } != 0
+            return ctx.flexible_init_at(name.as_str(), self.span).is_some()
         }
         _ => return false
     }
@@ -99,8 +98,8 @@ fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
 mutating fun Expr.pin_at_first_use(expected: Type, ctx: &var TypeCtx): bool {
     when (self.kind) {
         Variable(name) => {
-            val init = ctx.flexible_init_at(name.as_str(), self.span)
-            if unsafe { init as uint64 } == 0 || !is_numeric(expected) { return false }
+            val init = ctx.flexible_init_at(name.as_str(), self.span) ?: return false
+            if !is_numeric(expected) { return false }
             if !apply_expected(unsafe { &var *init }, expected.clone(), ctx) { return false }
             ctx.pin_binding(name.as_str(), expected.clone())
             self.ty = expected

@@ -53,29 +53,29 @@ pub fun new_arm(span: Span, pattern: Box<Pattern>, guard: Ptr<Expr>?, body: List
 }
 
 /// The value a `when`-expression arm yields: its body's last statement, if
-/// that is an expression. Earlier statements are the arm's steps. Null for an
+/// that is an expression. Earlier statements are the arm's steps. None for an
 /// empty body or one ending in a non-expression.
-pub fun Arm.arm_value_expr(): Ptr<Expr> {
+pub fun Arm.arm_value_expr(): Ptr<Expr>? {
     val n: uint64 = self.body.size()
-    if n == 0 { return unsafe { 0 as Ptr<Expr> } }
+    if n == 0 { return null }
     // CONSTRAINT: `at` keeps the body in receiver position, where it stays self
     // borrow. Passing it to self function makes the arm own it and free it.
     val s = self.body.at(n - 1)
     return when (s.kind) {
         Expression(e_ptr) => e_ptr
-        _ => unsafe { 0 as Ptr<Expr> }
+        _ => null
     }
 }
 
-/// The value a statement yields, or null.
+/// The value a statement yields, if it is an expression.
 ///
 /// CONSTRAINT: takes the statement, not the list. Passing a `when` binder's
 /// list to a function makes the arm own and free it; `get` on it stays a
 /// borrow.
-pub fun Stmt.stmt_value_expr(): Ptr<Expr> {
+pub fun Stmt.stmt_value_expr(): Ptr<Expr>? {
     return when (self.kind) {
         Expression(e_ptr) => e_ptr
-        _ => unsafe { 0 as Ptr<Expr> }
+        _ => null
     }
 }
 

@@ -217,15 +217,15 @@ fun Arm.arm_steps_into(temps: &var WhenTemps, out: &var List<Stmt>): void {
 fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
     var out = List.new<Arm>()
     while a in &arms {
-        val vp = arm_value_expr(&a)
         var body = List.new<Stmt>()
-        if unsafe { vp as uint64 } == 0 {
-            body = when_expr_stmt_list(&a.body, temps)
-        } else {
-            a.arm_steps_into(temps, &var body)
-            // A `when` inside the arm's value is hoisted inside this arm.
-            hoist_when_values(vp, temps, &var body)
-            body.push(new_stmt(unsafe { vp.span }, StmtKind.Return(Option.Some(vp))))
+        when (arm_value_expr(&a)) {
+            Some(vp) => {
+                a.arm_steps_into(temps, &var body)
+                // A `when` inside the arm's value is hoisted inside this arm.
+                hoist_when_values(vp, temps, &var body)
+                body.push(new_stmt(unsafe { vp.span }, StmtKind.Return(Option.Some(vp))))
+            }
+            None => body = when_expr_stmt_list(&a.body, temps)
         }
         out.push(new_arm(a.span, a.pattern, a.guard, body))
     }
@@ -235,14 +235,14 @@ fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
 fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm> {
     var out = List.new<Arm>()
     while a in &arms {
-        val vp = arm_value_expr(&a)
         var body = List.new<Stmt>()
-        if unsafe { vp as uint64 } == 0 {
-            body = when_expr_stmt_list(&a.body, temps)
-        } else {
-            a.arm_steps_into(temps, &var body)
-            hoist_when_values(vp, temps, &var body)
-            body.push(new_stmt(unsafe { vp.span }, StmtKind.Assign(temp, vp)))
+        when (arm_value_expr(&a)) {
+            Some(vp) => {
+                a.arm_steps_into(temps, &var body)
+                hoist_when_values(vp, temps, &var body)
+                body.push(new_stmt(unsafe { vp.span }, StmtKind.Assign(temp, vp)))
+            }
+            None => body = when_expr_stmt_list(&a.body, temps)
         }
         out.push(new_arm(a.span, a.pattern, a.guard, body))
     }

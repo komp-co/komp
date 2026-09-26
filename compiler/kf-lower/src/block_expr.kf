@@ -169,7 +169,7 @@ fun some_arm_tail_branches(arms: &List<Arm>): bool {
     while a in &arms {
         val n = a.body.size()
         if n > 0 {
-            if unsafe { stmt_value_expr(a.body.at(n - 1)) as uint64 } == 0 {
+            if stmt_value_expr(a.body.at(n - 1)).is_none() {
                 if list_yields_value(&a.body) { return true }
             }
         }
