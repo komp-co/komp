@@ -114,9 +114,8 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 ## std is thin, and not implicit
 
 `core` and `alloc` are injected automatically; `std` must be declared in
-`[dependencies]`. What it does not have: environment variables, file contents (there are
-`read_file`/`write_file` externs but no wrapper), directory walking,
-networking, threads ([#58]). It does have standard input, and `std.time` — a
+`[dependencies]`. What it does not have: directory walking, writing to
+standard error, networking, threads ([#58]). It does have standard input, and `std.time` — a
 clock, a sleep, and a monotonic `Instant`. The process's arguments are in core
 (`arg_count()`, `arg_at(i)`).
 

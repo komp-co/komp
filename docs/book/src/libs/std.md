@@ -25,50 +25,80 @@ cause.
 
 ## std.fs
 
-Filesystem operations:
+Reading and writing files, and the filesystem around them. The operations
+that can fail answer a `Result`, whose error names the path and the operating
+system's reason, so a missing file is not mistaken for an empty one:
 
 ```kflat
-import std.fs.*
+import std.fs.read_to_string
+import std.fs.write
 
 fun main(): int32 {
-    // Create a directory (and any missing parents)
-    val created = create_dir_all(Path.new("a/b/c"))
+    when write("notes.txt", "first line\n") {
+        Ok(_) => {}
+        Err(error) => {
+            println("cannot write: ${error}")
+            return 1
+        }
+    }
+    val text = read_to_string("notes.txt").unwrap()
+    println(text.as_str())
 
-    // Make a temporary directory, removed when `tmp` is dropped
-    val tmp = TempDir.new("my-prefix")
-    val workdir = tmp.path()
+    when read_to_string("missing.txt") {
+        Ok(_) => println("unexpected")
+        Err(error) => println("${error}")
+    }
     return 0
 }
+```
+
+```console
+first line
+
+missing.txt: No such file or directory
 ```
 
 | Function | Return | Notes |
 |---|---|---|
+| `read_to_string(path: str)` | `Result<String, IoError>` | The whole file |
+| `write(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
+| `remove_file(path: str)` | `Result<void, IoError>` | |
+| `remove_dir_all(path: str)` | `Result<void, IoError>` | A directory and everything under it |
+| `rename(from: str, to: str)` | `Result<void, IoError>` | Replaces `to` if it exists |
+| `exists(path: str)` | `bool` | |
+| `is_file(path: str)` | `bool` | A regular file |
+| `is_dir(path: str)` | `bool` | |
 | `create_dir_all(Path)` | `bool` | `true` on success; creates parents |
 | `TempDir.new(str)` | `TempDir` | Drops on scope exit — deletes the directory |
 
-`Path` is in `alloc.path`, not `std.fs`. Import it separately.
+`IoError` has `path`, `code` (the `errno` value) and `message`, and displays
+as `path: message`. `Path` is in `alloc.path`, not `std.fs`; import it
+separately.
 
 ## std.env
-
-One function, and that is the whole module:
 
 | Function | Return |
 |---|---|
 | `current_dir()` | `Path` — the process's working directory |
+| `get(name: str)` | `String?` — the variable's value, or `null` when it is not set |
+
+A variable that is set to the empty string answers `""`, not `null`:
 
 ```kflat
-import std.env.*
+import std.env.get
 
 fun main(): int32 {
-    val dir = current_dir()
-    println(dir.as_str())
+    val home = get("HOME") ?: return 1
+    println("home is ${home}")
+    val editor = get("EDITOR")?.as_str() ?: "vi"
+    println("editor is ${editor}")
     return 0
 }
 ```
 
-There is **no** way to read an environment variable yet ([#58]). The process's
-own command-line arguments are in core, with no import: `arg_count()` and
-`arg_at(i)`, which borrows the argument rather than copying it.
+The process's own command-line arguments are in core, with no import:
+`arg_count()` and `arg_at(i)`, which borrows the argument rather than copying
+it.
 
 ## std.io
 
@@ -160,9 +190,6 @@ A non-positive duration returns immediately.
 
 `std` is thin — the modules above are all of it. Not available ([#58]):
 
-- Reading and writing file contents (there is a `read_file`/`write_file`
-  extern but no `std.fs` wrapper yet), or anything that reports an IO failure
-- Environment variables
 - Writing to standard error
 - Directory listing/walking
 - Networking of any kind

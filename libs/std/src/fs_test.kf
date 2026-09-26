@@ -42,3 +42,95 @@ fun a_scratch_path_is_writable(): void {
         "a fixture can be written there")
     assert_eq(read_file("${dir}/file.txt".as_str()).as_str(), "hello\n", "and read back")
 }
+
+/// A fresh directory under the scratch root, holding nothing.
+fun empty_dir(name: str): str {
+    val dir = scratch_path(name)
+    val _cleared = unsafe { system("rm -rf ${dir} && mkdir -p ${dir}") }
+    return dir
+}
+
+@test
+fun a_written_file_reads_back(): void {
+    val path = "${empty_dir("fs_round_trip")}/note.txt"
+    val _wrote = write(path.as_str(), "hello\nworld\n")
+    assert_eq(read_to_string(path.as_str()).unwrap().as_str(), "hello\nworld\n", "the same text")
+}
+
+@test
+fun an_empty_file_reads_as_empty_text(): void {
+    val path = "${empty_dir("fs_empty")}/empty.txt"
+    val _wrote = write(path.as_str(), "")
+    assert_eq(read_to_string(path.as_str()).is_ok(), true, "empty is not missing")
+}
+
+@test
+fun a_missing_file_is_an_error(): void {
+    val path = "${empty_dir("fs_missing")}/nowhere.txt"
+    assert_eq(read_to_string(path.as_str()).is_err(), true, "not an empty String")
+}
+
+@test
+fun the_error_names_the_path_and_the_reason(): void {
+    val path = "${empty_dir("fs_error_text")}/nowhere.txt"
+    val error = read_to_string(path.as_str()).unwrap_err()
+    assert_eq(String.of(&error).as_str(), "${path}: No such file or directory".as_str(), "path, then the OS's reason")
+}
+
+@test
+fun writing_into_a_missing_directory_fails(): void {
+    val path = "${empty_dir("fs_bad_write")}/absent/note.txt"
+    assert_eq(write(path.as_str(), "x").is_err(), true, "no parent directory")
+}
+
+@test
+fun a_written_file_exists(): void {
+    val path = "${empty_dir("fs_exists")}/here.txt"
+    val _wrote = write(path.as_str(), "x")
+    assert_eq(exists(path.as_str()), true, "after write")
+}
+
+@test
+fun a_file_is_a_file_and_not_a_directory(): void {
+    val path = "${empty_dir("fs_kinds")}/plain.txt"
+    val _wrote = write(path.as_str(), "x")
+    assert_eq(is_file(path.as_str()) && !is_dir(path.as_str()), true, "a regular file")
+}
+
+@test
+fun a_directory_is_a_directory_and_not_a_file(): void {
+    val dir = empty_dir("fs_dir_kind")
+    assert_eq(is_dir(dir) && !is_file(dir), true, "a directory")
+}
+
+@test
+fun a_removed_file_is_gone(): void {
+    val path = "${empty_dir("fs_remove")}/gone.txt"
+    val _wrote = write(path.as_str(), "x")
+    val _removed = remove_file(path.as_str())
+    assert_eq(exists(path.as_str()), false, "removed")
+}
+
+@test
+fun removing_a_missing_file_is_an_error(): void {
+    val path = "${empty_dir("fs_remove_missing")}/never.txt"
+    assert_eq(remove_file(path.as_str()).is_err(), true, "nothing to remove")
+}
+
+@test
+fun a_renamed_file_moves(): void {
+    val dir = empty_dir("fs_rename")
+    val from = "${dir}/a.txt"
+    val to = "${dir}/b.txt"
+    val _wrote = write(from.as_str(), "moved")
+    val _renamed = rename(from.as_str(), to.as_str())
+    assert_eq(read_to_string(to.as_str()).unwrap().as_str(), "moved", "the content is at the new name")
+}
+
+@test
+fun a_directory_tree_is_removed_whole(): void {
+    val dir = empty_dir("fs_tree")
+    val _made = unsafe { system("mkdir -p ${dir}/a/b && touch ${dir}/a/b/c.txt") }
+    val _removed = remove_dir_all("${dir}/a".as_str())
+    assert_eq(exists("${dir}/a".as_str()), false, "the tree and its files")
+}

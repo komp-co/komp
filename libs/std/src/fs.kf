@@ -5,6 +5,16 @@ extern "C" fun kf_temp_dir(prefix: str): String
 extern "C" fun kf_remove_dir_all(path: str): int32
 extern "C" fun kf_scratch_root(): str
 extern "C" fun kf_scratch_path(name: str): str
+extern "C" fun kf_fs_last_error(): int32
+extern "C" fun kf_fs_error_text(code: int32): String
+extern "C" fun kf_fs_read(path: str): String
+extern "C" fun kf_fs_write(path: str, content: str): int32
+extern "C" fun kf_fs_remove_file(path: str): int32
+extern "C" fun kf_fs_remove_dir_all(path: str): int32
+extern "C" fun kf_fs_rename(from: str, to: str): int32
+extern "C" fun kf_fs_exists(path: str): bool
+extern "C" fun kf_fs_is_dir(path: str): bool
+extern "C" fun kf_fs_is_file(path: str): bool
 
 pub struct TempDir {
     val root: Path
@@ -45,4 +55,68 @@ pub fun scratch_root(): str {
 /// CONSTRAINT: interned, so it is a `str`.
 pub fun scratch_path(name: str): str {
     return kf_scratch_path(name)
+}
+
+/// Why a filesystem operation failed: the operating system's error, and the
+/// path it was about.
+pub struct IoError {
+    pub val path: String
+    /// The `errno` value.
+    pub val code: int32
+    pub val message: String
+}
+
+impl Display for IoError {
+    fun display(out: &var dyn Write): void {
+        out.write_str("${self.path}: ${self.message}".as_str())
+    }
+}
+
+/// The error the last checked call recorded, about `path`.
+fun last_error(path: str): IoError {
+    val code = kf_fs_last_error()
+    return IoError { path: String.from(path), code: code, message: kf_fs_error_text(code) }
+}
+
+fun status_of(result: int32, path: str): Result<void, IoError> {
+    if result == 0 { return Result.Ok() }
+    return Result.Err(last_error(path))
+}
+
+/// The whole file. A missing file is an error, not an empty `String`.
+pub fun read_to_string(path: str): Result<String, IoError> {
+    val text = kf_fs_read(path)
+    if kf_fs_last_error() != 0 { return Result.Err(last_error(path)) }
+    return Result.Ok(text)
+}
+
+/// Creates the file, or truncates it, and writes `contents`.
+pub fun write(path: str, contents: str): Result<void, IoError> {
+    return status_of(kf_fs_write(path, contents), path)
+}
+
+pub fun remove_file(path: str): Result<void, IoError> {
+    return status_of(kf_fs_remove_file(path), path)
+}
+
+/// A directory and everything under it; a file is removed as itself.
+pub fun remove_dir_all(path: str): Result<void, IoError> {
+    return status_of(kf_fs_remove_dir_all(path), path)
+}
+
+/// Replaces `to` if it exists.
+pub fun rename(from: str, to: str): Result<void, IoError> {
+    return status_of(kf_fs_rename(from, to), from)
+}
+
+pub fun exists(path: str): bool {
+    return kf_fs_exists(path)
+}
+
+pub fun is_dir(path: str): bool {
+    return kf_fs_is_dir(path)
+}
+
+pub fun is_file(path: str): bool {
+    return kf_fs_is_file(path)
 }

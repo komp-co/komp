@@ -1,0 +1,11 @@
+import core.assert.assert_eq
+
+@test
+fun a_set_variable_is_read(): void {
+    assert_eq(get("PATH").is_some(), true, "every process inherits a PATH")
+}
+
+@test
+fun an_unset_variable_is_null(): void {
+    assert_eq(get("KF_STD_ENV_TEST_NEVER_SET").is_none(), true, "not the empty string")
+}
