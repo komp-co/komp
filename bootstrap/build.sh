@@ -19,8 +19,14 @@
 #      komp1 builds compiler/kflatc   -> kflatc2.c
 #   4. assert stage1.c == stage2.c and kflatc1.c == kflatc2.c (the fixpoint)
 #
-# `--seed-out` packs stage1.c and kflatc1.c, which the fixpoint just proved,
-# as kflat-seed-<version>.tar.gz. A release publishes that file.
+# stage1.c is the seed's output, so a tree that changes what the compiler
+# emits for its own source cannot match it. Then komp2 and kflatc2 are built
+# from stage2.c and kflatc2.c, build the tree once more, and the fixpoint is
+# stage2.c == stage3.c and kflatc2.c == kflatc3.c: two compilers from the same
+# source agree.
+#
+# `--seed-out` packs the pair the fixpoint just proved as
+# kflat-seed-<version>.tar.gz. A release publishes that file.
 #
 # Each step fails for its own reason, named with its remedy.
 #
@@ -144,46 +150,73 @@ if [ "$kflatc2_status" -ne 0 ]; then
 fi
 
 echo "[4/4] fixpoint check"
-if ! diff -q "$WORK/stage1.c" "$WORK/stage2.c" >/dev/null; then
-    echo "FAIL: fixpoint broken (stage1.c != stage2.c)"
-    echo "  the compiler does not reproduce itself; see diff:"
-    diff "$WORK/stage1.c" "$WORK/stage2.c" | head -40
-    exit 1
+# The compiler that proved the fixpoint and the C it reproduced.
+proven_komp="$WORK/komp1"
+proven_kflatc="$WORK/kflatc"
+proven_komp_c="$WORK/stage1.c"
+proven_kflatc_c="$WORK/kflatc1.c"
+if ! diff -q "$WORK/stage1.c" "$WORK/stage2.c" >/dev/null || ! diff -q "$WORK/kflatc1.c" "$WORK/kflatc2.c" >/dev/null; then
+    echo "NOTE: this tree changes what the compiler emits for itself; checking one stage later"
+    mkdir -p "$WORK/s2"
+    if ! (cd "$WORK" && "$CC" $CFLAGS -c -o s2/stage2.o stage2.c) || ! "$CC" $CFLAGS -o "$WORK/s2/komp2" "$WORK/s2/stage2.o"; then
+        fail "stage2.c, the current compiler's own output, does not compile."
+    fi
+    if ! (cd "$WORK" && "$CC" $CFLAGS -c -o s2/kflatc2.o kflatc2.c) || ! "$CC" $CFLAGS -o "$WORK/s2/kflatc" "$WORK/s2/kflatc2.o"; then
+        fail "kflatc2.c, the current compiler's own output, does not compile."
+    fi
+    stage3_status=0
+    "$WORK/s2/komp2" "$ROOT/compiler/komp" "$WORK/stage3.c" || stage3_status=$?
+    "$WORK/s2/komp2" "$ROOT/compiler/kflatc" "$WORK/kflatc3.c" || stage3_status=$?
+    if [ "$stage3_status" -ne 0 ]; then
+        report_if_killed "$stage3_status" "the self-built compiler reading this tree" || true
+        fail "the compiler built by the current compiler cannot compile this tree."
+    fi
+    if ! diff -q "$WORK/stage2.c" "$WORK/stage3.c" >/dev/null; then
+        echo "FAIL: fixpoint broken (stage2.c != stage3.c)"
+        echo "  the compiler does not reproduce itself; see diff:"
+        diff "$WORK/stage2.c" "$WORK/stage3.c" | head -40
+        exit 1
+    fi
+    if ! diff -q "$WORK/kflatc2.c" "$WORK/kflatc3.c" >/dev/null; then
+        echo "FAIL: fixpoint broken (kflatc2.c != kflatc3.c)"
+        diff "$WORK/kflatc2.c" "$WORK/kflatc3.c" | head -40
+        exit 1
+    fi
+    proven_komp="$WORK/s2/komp2"
+    proven_kflatc="$WORK/s2/kflatc"
+    proven_komp_c="$WORK/stage2.c"
+    proven_kflatc_c="$WORK/kflatc2.c"
+    echo "OK: stage2.c == stage3.c and kflatc2.c == kflatc3.c (fixpoint holds)"
+else
+    echo "OK: stage1.c == stage2.c and kflatc1.c == kflatc2.c (fixpoint holds)"
 fi
-if ! diff -q "$WORK/kflatc1.c" "$WORK/kflatc2.c" >/dev/null; then
-    echo "FAIL: fixpoint broken (kflatc1.c != kflatc2.c)"
-    diff "$WORK/kflatc1.c" "$WORK/kflatc2.c" | head -40
-    exit 1
-fi
-echo "OK: stage1.c == stage2.c and kflatc1.c == kflatc2.c (fixpoint holds)"
 
-# KOMP_PUBLISH names a path to copy the verified komp1 to, with the kflatc
+# KOMP_PUBLISH names a path to copy the verified komp to, with the kflatc
 # beside it, so other jobs can reuse both instead of rebuilding them from the
 # seed. Each is written beside its target and renamed, so a reader sees the
-# whole binary or none. kflatc1.c and kflatc2.c are equal by now, so the
-# kflatc already built is the one the tree builds.
+# whole binary or none.
 if [ -n "${KOMP_PUBLISH:-}" ]; then
     publish_dir="$(dirname "$KOMP_PUBLISH")"
     mkdir -p "$publish_dir"
-    cp "$WORK/kflatc" "$publish_dir/kflatc.tmp.$$" && mv -f "$publish_dir/kflatc.tmp.$$" "$publish_dir/kflatc"
-    cp "$WORK/komp1" "$KOMP_PUBLISH.tmp.$$" && mv -f "$KOMP_PUBLISH.tmp.$$" "$KOMP_PUBLISH"
-    echo "OK: published komp1 and kflatc to $publish_dir"
+    cp "$proven_kflatc" "$publish_dir/kflatc.tmp.$$" && mv -f "$publish_dir/kflatc.tmp.$$" "$publish_dir/kflatc"
+    cp "$proven_komp" "$KOMP_PUBLISH.tmp.$$" && mv -f "$KOMP_PUBLISH.tmp.$$" "$KOMP_PUBLISH"
+    echo "OK: published the verified komp and kflatc to $publish_dir"
 fi
 
 # Informational: whether the pinned seed matches the current source. A stale
 # seed is harmless until the tree needs something it cannot build.
-if diff -q "$WORK/stage1.c" "$WORK/s0/seed/komp.c" > /dev/null && diff -q "$WORK/kflatc1.c" "$WORK/s0/seed/kflatc.c" > /dev/null; then
+if diff -q "$proven_komp_c" "$WORK/s0/seed/komp.c" > /dev/null && diff -q "$proven_kflatc_c" "$WORK/s0/seed/kflatc.c" > /dev/null; then
     echo "OK: the seed is current (it matches a fresh self-build)"
 else
     echo "NOTE: the seed is behind the current source; a release would catch it up."
 fi
 
 if [ -n "$SEED_OUT" ]; then
-    version="$("$WORK/komp1" version | sed -n 's/^komp //p')"
+    version="$("$proven_komp" version | sed -n 's/^komp //p')"
     name="kflat-seed-$version"
     mkdir -p "$WORK/out/$name" "$SEED_OUT"
-    cp "$WORK/stage1.c" "$WORK/out/$name/komp.c"
-    cp "$WORK/kflatc1.c" "$WORK/out/$name/kflatc.c"
+    cp "$proven_komp_c" "$WORK/out/$name/komp.c"
+    cp "$proven_kflatc_c" "$WORK/out/$name/kflatc.c"
     # Byte-identical from identical C: sorted, a fixed date, no owner, gzip -n.
     (cd "$WORK/out" && tar --sort=name --mtime='2000-01-01 00:00Z' --owner=0 --group=0 --numeric-owner -cf - "$name" \
         | gzip -n -9 > "$name.tar.gz")

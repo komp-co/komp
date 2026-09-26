@@ -26,6 +26,18 @@ assert stage1 == stage2         # the fixpoint
 The fixpoint, byte for byte, is the single test that guards the whole
 compiler: if komp can no longer reproduce itself, this fails.
 
+stage1.c is the *seed's* output. A tree that changes what the compiler emits
+for its own source cannot match it, so then the chain runs once more:
+
+```
+cc stage2.c, kflatc2.c          -> komp2, with its kflatc beside it
+komp2 builds both again         -> stage3.c, kflatc3.c
+assert stage2 == stage3         # the fixpoint
+```
+
+Either way the fixpoint is two compilers built from the same source agreeing,
+and `--seed-out` packs the pair that proved it.
+
 ## A new seed
 
 The seed only has to *build* the current source, so it can lag. A new one
