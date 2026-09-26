@@ -1,4 +1,4 @@
-import std.env.get
+import std.env.env_var
 // A `[dependencies]` row and where its crate comes from.
 //
 //   name = "0.2"                                                # from an index
@@ -148,7 +148,7 @@ pub fun index_url_for(name: str, names: &List<String>, urls: &List<String>): Str
 
 /// `$KFLAT_INDEX`, else komp-co/index.
 pub fun default_index_url(): String {
-    val chosen = get("KFLAT_INDEX") ?: String.from("")
+    val chosen = env_var("KFLAT_INDEX") ?: String.from("")
     if chosen.byte_len() > 0 { return chosen }
     return "https://github.com/komp-co/index"
 }

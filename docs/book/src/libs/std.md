@@ -31,10 +31,10 @@ system's reason, so a missing file is not mistaken for an empty one:
 
 ```kflat
 import std.fs.read_to_string
-import std.fs.write
+import std.fs.write_text
 
 fun main(): int32 {
-    when write("notes.txt", "first line\n") {
+    when write_text("notes.txt", "first line\n") {
         Ok(_) => {}
         Err(error) => {
             println("cannot write: ${error}")
@@ -61,13 +61,13 @@ missing.txt: No such file or directory
 | Function | Return | Notes |
 |---|---|---|
 | `read_to_string(path: str)` | `Result<String, IoError>` | The whole file |
-| `write(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
+| `write_text(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
 | `remove_file(path: str)` | `Result<void, IoError>` | |
 | `remove_dir_all(path: str)` | `Result<void, IoError>` | A directory and everything under it |
-| `rename(from: str, to: str)` | `Result<void, IoError>` | Replaces `to` if it exists |
+| `rename_path(from: str, to: str)` | `Result<void, IoError>` | Replaces `to` if it exists |
 | `exists(path: str)` | `bool` | |
 | `is_file(path: str)` | `bool` | A regular file |
-| `is_dir(path: str)` | `bool` | |
+| `is_directory(path: str)` | `bool` | |
 | `create_dir_all(Path)` | `bool` | `true` on success; creates parents |
 | `TempDir.new(str)` | `TempDir` | Drops on scope exit — deletes the directory |
 
@@ -80,17 +80,17 @@ separately.
 | Function | Return |
 |---|---|
 | `current_dir()` | `Path` — the process's working directory |
-| `get(name: str)` | `String?` — the variable's value, or `null` when it is not set |
+| `env_var(name: str)` | `String?` — the variable's value, or `null` when it is not set |
 
 A variable that is set to the empty string answers `""`, not `null`:
 
 ```kflat
-import std.env.get
+import std.env.env_var
 
 fun main(): int32 {
-    val home = get("HOME") ?: return 1
+    val home = env_var("HOME") ?: return 1
     println("home is ${home}")
-    val editor = get("EDITOR")?.as_str() ?: "vi"
+    val editor = env_var("EDITOR")?.as_str() ?: "vi"
     println("editor is ${editor}")
     return 0
 }

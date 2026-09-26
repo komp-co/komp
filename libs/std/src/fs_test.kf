@@ -53,14 +53,14 @@ fun empty_dir(name: str): str {
 @test
 fun a_written_file_reads_back(): void {
     val path = "${empty_dir("fs_round_trip")}/note.txt"
-    val _wrote = write(path.as_str(), "hello\nworld\n")
+    val _wrote = write_text(path.as_str(), "hello\nworld\n")
     assert_eq(read_to_string(path.as_str()).unwrap().as_str(), "hello\nworld\n", "the same text")
 }
 
 @test
 fun an_empty_file_reads_as_empty_text(): void {
     val path = "${empty_dir("fs_empty")}/empty.txt"
-    val _wrote = write(path.as_str(), "")
+    val _wrote = write_text(path.as_str(), "")
     assert_eq(read_to_string(path.as_str()).is_ok(), true, "empty is not missing")
 }
 
@@ -80,33 +80,33 @@ fun the_error_names_the_path_and_the_reason(): void {
 @test
 fun writing_into_a_missing_directory_fails(): void {
     val path = "${empty_dir("fs_bad_write")}/absent/note.txt"
-    assert_eq(write(path.as_str(), "x").is_err(), true, "no parent directory")
+    assert_eq(write_text(path.as_str(), "x").is_err(), true, "no parent directory")
 }
 
 @test
 fun a_written_file_exists(): void {
     val path = "${empty_dir("fs_exists")}/here.txt"
-    val _wrote = write(path.as_str(), "x")
+    val _wrote = write_text(path.as_str(), "x")
     assert_eq(exists(path.as_str()), true, "after write")
 }
 
 @test
 fun a_file_is_a_file_and_not_a_directory(): void {
     val path = "${empty_dir("fs_kinds")}/plain.txt"
-    val _wrote = write(path.as_str(), "x")
-    assert_eq(is_file(path.as_str()) && !is_dir(path.as_str()), true, "a regular file")
+    val _wrote = write_text(path.as_str(), "x")
+    assert_eq(is_file(path.as_str()) && !is_directory(path.as_str()), true, "a regular file")
 }
 
 @test
 fun a_directory_is_a_directory_and_not_a_file(): void {
     val dir = empty_dir("fs_dir_kind")
-    assert_eq(is_dir(dir) && !is_file(dir), true, "a directory")
+    assert_eq(is_directory(dir) && !is_file(dir), true, "a directory")
 }
 
 @test
 fun a_removed_file_is_gone(): void {
     val path = "${empty_dir("fs_remove")}/gone.txt"
-    val _wrote = write(path.as_str(), "x")
+    val _wrote = write_text(path.as_str(), "x")
     val _removed = remove_file(path.as_str())
     assert_eq(exists(path.as_str()), false, "removed")
 }
@@ -122,8 +122,8 @@ fun a_renamed_file_moves(): void {
     val dir = empty_dir("fs_rename")
     val from = "${dir}/a.txt"
     val to = "${dir}/b.txt"
-    val _wrote = write(from.as_str(), "moved")
-    val _renamed = rename(from.as_str(), to.as_str())
+    val _wrote = write_text(from.as_str(), "moved")
+    val _renamed = rename_path(from.as_str(), to.as_str())
     assert_eq(read_to_string(to.as_str()).unwrap().as_str(), "moved", "the content is at the new name")
 }
 

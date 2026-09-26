@@ -1,12 +1,12 @@
 // A workspace shares one target directory, so two komp processes may write
 // one artifact at once. Every artifact is written under a process-private
-// name and renamed over the real one; rename(2) is atomic within a
+// name and renamed over the real one; rename_path(2) is atomic within a
 // filesystem, and two writers produce the same bytes.
 
 import alloc.path.Path
 import std.fs.create_dir_all
 import std.fs.remove_file
-import std.fs.rename
+import std.fs.rename_path
 
 extern "C" fun getpid(): int32
 
@@ -16,7 +16,7 @@ pub fun staging_path(path: str): String {
 }
 
 pub fun publish_staged(staged: str, path: str): bool {
-    return rename(staged, path).is_ok()
+    return rename_path(staged, path).is_ok()
 }
 
 /// Failures leave nothing behind.

@@ -7,7 +7,7 @@ import kf_shared.ensure_dir
 import kf_shared.staging_path
 import std.fs.exists
 import std.fs.remove_dir_all
-import std.fs.rename
+import std.fs.rename_path
 
 /// `error` is "" when `entry` is usable.
 pub struct Fetched {
@@ -42,7 +42,7 @@ pub fun remove_tree(path: str): void {
 /// Moves `staged` to `root`. Losing a race to another komp is success: both
 /// wrote the same bytes.
 pub fun publish_fetched(staged: str, root: str): bool {
-    if rename(staged, root).is_ok() { return true }
+    if rename_path(staged, root).is_ok() { return true }
     remove_tree(staged)
     return exists(root)
 }

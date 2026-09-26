@@ -91,7 +91,7 @@ pub fun read_to_string(path: str): Result<String, IoError> {
 }
 
 /// Creates the file, or truncates it, and writes `contents`.
-pub fun write(path: str, contents: str): Result<void, IoError> {
+pub fun write_text(path: str, contents: str): Result<void, IoError> {
     return status_of(kf_fs_write(path, contents), path)
 }
 
@@ -105,7 +105,7 @@ pub fun remove_dir_all(path: str): Result<void, IoError> {
 }
 
 /// Replaces `to` if it exists.
-pub fun rename(from: str, to: str): Result<void, IoError> {
+pub fun rename_path(from: str, to: str): Result<void, IoError> {
     return status_of(kf_fs_rename(from, to), from)
 }
 
@@ -113,7 +113,7 @@ pub fun exists(path: str): bool {
     return kf_fs_exists(path)
 }
 
-pub fun is_dir(path: str): bool {
+pub fun is_directory(path: str): bool {
     return kf_fs_is_dir(path)
 }
 

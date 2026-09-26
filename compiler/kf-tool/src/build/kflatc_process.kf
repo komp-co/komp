@@ -5,14 +5,14 @@ import core.args.arg_at
 import core.args.arg_count
 import alloc.path.Path
 import std.process.*
-import std.env.get
+import std.env.env_var
 
 extern "C" fun kf_self_dir(): String
 extern "C" fun access(path: str, mode: int32): int32
 
 /// `KFLATC` when set, else `kflatc` beside this binary.
 pub fun kflatc_path(): String {
-    val chosen = get("KFLATC") ?: String.from("")
+    val chosen = env_var("KFLATC") ?: String.from("")
     if chosen.byte_len() > 0 { return chosen }
     val dir = unsafe { kf_self_dir() }
     return "${dir}/kflatc"
