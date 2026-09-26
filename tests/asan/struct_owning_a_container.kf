@@ -1,8 +1,7 @@
 //! asan: clean
 //! mode: unity
-//! broken: #10 — unity drop glue does not recurse into fields
-// Separate compilation is clean; this is the unity form bootstrap and the
-// fixpoint gate use.
+// A struct's drop frees what its fields own, in the unity form bootstrap and
+// the fixpoint gate use as in separate compilation.
 import alloc.string.*
 import alloc.list.*
 

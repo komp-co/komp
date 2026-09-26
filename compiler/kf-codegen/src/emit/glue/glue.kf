@@ -12,25 +12,25 @@ pub fun Module.emit_public_glue_declarations(): String {
     return concat_all(parts)
 }
 
-pub fun Module.emit_public_glue_definitions(lookup: &Module, deep: bool): String {
-    val bodies = self.emit_all_glue_definitions(lookup, deep)
+pub fun Module.emit_public_glue_definitions(lookup: &Module): String {
+    val bodies = self.emit_all_glue_definitions(lookup)
     return replace_glue_storage(bodies.as_str(), "static inline ", "")
 }
 
-pub fun Module.emit_private_glue_definitions(lookup: &Module, deep: bool): String {
-    return self.emit_all_glue_definitions(lookup, deep)
+pub fun Module.emit_private_glue_definitions(lookup: &Module): String {
+    return self.emit_all_glue_definitions(lookup)
 }
 
-// Separate emission walks ownership deeply through owner-qualified glue
-// symbols; unity emission stays shallow. `view` picks which types get glue;
+// Glue walks ownership deeply, through owner-qualified glue symbols in
+// separate emission. `view` picks which types get glue;
 // `lookup` answers whether a member owns heap, since its `Drop` may live in a
 // dependency.
-fun Module.emit_all_glue_definitions(lookup: &Module, deep: bool): String {
+fun Module.emit_all_glue_definitions(lookup: &Module): String {
     var parts = List.new<String>()
-    parts.push(self.emit_struct_retains(lookup, deep))
-    parts.push(self.emit_enum_retains(lookup, deep))
-    parts.push(self.emit_struct_drops(lookup, deep))
-    parts.push(self.emit_enum_drops(lookup, deep))
+    parts.push(self.emit_struct_retains(lookup))
+    parts.push(self.emit_enum_retains(lookup))
+    parts.push(self.emit_struct_drops(lookup))
+    parts.push(self.emit_enum_drops(lookup))
     parts.push(self.emit_struct_clones())
     parts.push(self.emit_enum_clones())
     return concat_all(parts)

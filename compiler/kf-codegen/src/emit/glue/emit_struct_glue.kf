@@ -61,20 +61,20 @@ fun emit_struct_new(name: String, fields: List<Field>): String {
     return concat_all(parts)
 }
 
-pub fun Module.emit_struct_drops(lookup: &Module, deep: bool): String {
+pub fun Module.emit_struct_drops(lookup: &Module): String {
     var parts = List.new<String>()
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            Struct(fields, _p) => parts.push(emit_struct_drop(td.name.as_string(), fields, lookup, deep))
+            Struct(fields, _p) => parts.push(emit_struct_drop(td.name.as_string(), fields, lookup))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_struct_drop(name: String, fields: List<Field>, m: &Module, deep: bool): String {
+fun emit_struct_drop(name: String, fields: List<Field>, m: &Module): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
     if type_has_user_drop(name, m) {
@@ -94,7 +94,7 @@ fun emit_struct_drop(name: String, fields: List<Field>, m: &Module, deep: bool):
             }
             parts.push("kf_free(v.${fname}); }\n")
         } else {
-            val needs = ty_needs_drop_in_glue(fty, m, deep)
+            val needs = ty_needs_drop_deep(fty, m)
             if needs {
                 val drop_fn = release_fn_for_ctype(fty.c_type().as_str())
                 parts.push("    ${drop_fn}(v.${f.name.as_string()});\n")
@@ -195,20 +195,20 @@ fun box_inner_tref(fty: TypeRef): TypeRef {
     }
 }
 
-pub fun Module.emit_struct_retains(lookup: &Module, deep: bool): String {
+pub fun Module.emit_struct_retains(lookup: &Module): String {
     var parts = List.new<String>()
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            Struct(fields, _p) => parts.push(emit_struct_retain(td.name.as_string(), fields, lookup, deep))
+            Struct(fields, _p) => parts.push(emit_struct_retain(td.name.as_string(), fields, lookup))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_struct_retain(name: String, fields: List<Field>, m: &Module, deep: bool): String {
+fun emit_struct_retain(name: String, fields: List<Field>, m: &Module): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())
@@ -227,7 +227,7 @@ fun emit_struct_retain(name: String, fields: List<Field>, m: &Module, deep: bool
     while f in &fields {
         val ftyp = f.ty
         val fty = unsafe { *ftyp }
-        val needs = ty_needs_drop_in_glue(fty, m, deep)
+        val needs = ty_needs_drop_deep(fty, m)
         if needs {
             val ct = fty.c_type()
             parts.push(String.from("    v."))

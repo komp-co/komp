@@ -49,11 +49,10 @@ pub fun Module.emit_module_body(is_bin: bool): String {
     // core declares.
     parts.push(self.emit_fn_forwards())
     parts.push(self.emit_struct_news())
-    // CONSTRAINT: shallow. komp's own C relies on shallow-copy sharing.
-    parts.push(self.emit_struct_retains(self, false))
-    parts.push(self.emit_enum_retains(self, false))
-    parts.push(self.emit_struct_drops(self, false))
-    parts.push(self.emit_enum_drops(self, false))
+    parts.push(self.emit_struct_retains(self))
+    parts.push(self.emit_enum_retains(self))
+    parts.push(self.emit_struct_drops(self))
+    parts.push(self.emit_enum_drops(self))
     parts.push(self.emit_struct_clones())
     parts.push(self.emit_enum_clones())
     parts.push(self.emit_dyn_adapters())

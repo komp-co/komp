@@ -224,10 +224,8 @@ pub fun ty_needs_drop(t: TypeRef, m: &Module): bool {
     }
 }
 
-/// The transitive classification for separate glue: also true for a declared
-/// struct or enum owning heap through by-value members.
-/// CONSTRAINT: unity emission keeps the shallow `ty_needs_drop`; komp's own C
-/// relies on shallow-copy sharing, and deepening its destructors double-frees.
+/// The transitive classification for glue: also true for a declared struct or
+/// enum owning heap through by-value members.
 pub fun ty_needs_drop_deep(t: TypeRef, m: &Module): bool {
     if ty_needs_drop(t, m) { return true }
     when (t.kind) {
@@ -241,12 +239,6 @@ pub fun ty_needs_drop_deep(t: TypeRef, m: &Module): bool {
         }
         _ => return false
     }
-}
-
-/// Shallow for unity emission, transitive for separate.
-pub fun ty_needs_drop_in_glue(t: TypeRef, m: &Module, deep: bool): bool {
-    if deep { return ty_needs_drop_deep(t, m) }
-    return ty_needs_drop(t, m)
 }
 
 // By-value embedding cannot cycle in a valid module, so this terminates.
