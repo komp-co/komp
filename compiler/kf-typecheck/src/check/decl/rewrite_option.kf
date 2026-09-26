@@ -63,7 +63,8 @@ fun rewrite_option_ann(ty: Ptr<TypeRef>?, option_name: Sym): void {
     }
 }
 
-fun rewrite_option_box(b: Box<TypeRef>, option_name: Sym): void {
+/// Rewrites the node in place, through a view of the Box that owns it.
+fun rewrite_option_box(b: Ptr<TypeRef>, option_name: Sym): void {
     if (b as uint64) == 0 { return }
     unsafe { *b = (unsafe { &*b }).rewrite_option_tref(option_name) }
 }
