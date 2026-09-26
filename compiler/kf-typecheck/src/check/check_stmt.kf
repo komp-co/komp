@@ -199,7 +199,10 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
     }
-    if ann.is_none() && is_numeric_literal(unsafe { *init_ptr }) {
+    // Its first use may choose a literal's width, an open call's type
+    // arguments, or what a `null` is absent from.
+    val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
+    if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return
     }

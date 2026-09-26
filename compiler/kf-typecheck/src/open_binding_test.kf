@@ -1,0 +1,79 @@
+// An open generic call typed by its binding's first use. Shares
+// open_generic_call_test.kf's `Bag<T>`.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_resolve.new_decl_table
+import kf_resolve.resolve_module
+
+// impl Bag<T> { mutating fun put(v: T): void { } }
+fun mk_bag_put(): TopDecl {
+    var params = List.new<Param>()
+    params.push(new_param(no_span(), String.from("v"), tref_p("T")))
+    val put_kind = TopDeclKind.Function(params, tref_p("void"), List.new<Stmt>(), true, false, true, false)
+    val put = new_top_decl(no_span(), String.from("put"), put_kind)
+    var methods = List.new<TopDecl>()
+    methods.push(put)
+    var td = new_top_decl(no_span(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
+    var tps = List.new<TypeParam>()
+    tps.push(new_type_param(no_span(), String.from("T")))
+    td.generics = tps
+    return td
+}
+
+/// A use of `b` at its own place: a first use is known by its span.
+fun b_at(offset: uint32): Ptr<Expr> {
+    val read: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *read = new_expr(Span { file_id: 1, start: offset, end: offset + 1 }, ExprKind.Variable(intern("b"))) }
+    return read
+}
+
+fun put_stmt(offset: uint32, value: ExprKind): Stmt {
+    var args = List.new<Expr>()
+    args.push(new_expr(no_span(), value))
+    val call = ep(ExprKind.MethodCall(b_at(offset), intern("put"), args))
+    return new_stmt(no_span(), StmtKind.Expression(call))
+}
+
+fun open_bag_diags(uses: List<Stmt>): List<Diagnostic> {
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.LetVar(intern("b"), null, bag_make_call())))
+    while s in &uses {
+        body.push(s.clone())
+    }
+    var m = bag_module(body)
+    m.decls.push(mk_bag_put())
+    var table = new_decl_table()
+    resolve_module(&var m, &var table)
+    return m.typecheck_module(&var table)
+}
+
+// `var b = Bag.make()` then `b.put(3)`: a `Bag<int32>`.
+@test fun a_first_method_call_types_an_open_binding(): void {
+    var uses = List.new<Stmt>()
+    uses.push(put_stmt(10, ExprKind.LitInt(3)))
+    assert_eq(open_bag_diags(uses).size(), 0, "put(3) says what the Bag holds")
+}
+
+// A later use does not reach back past the first.
+@test fun a_binding_used_first_elsewhere_stays_open(): void {
+    var uses = List.new<Stmt>()
+    uses.push(new_stmt(no_span(), StmtKind.Expression(b_at(10))))
+    uses.push(put_stmt(20, ExprKind.LitInt(3)))
+    val diags = open_bag_diags(uses)
+    assert_eq(diag_mentions(&diags, "cannot tell what `Bag.make()` is over"), true, "the call stays open")
+}
+
+// Once pinned, a second call is checked against the pinned type.
+@test fun a_pinned_binding_rejects_another_type(): void {
+    var uses = List.new<Stmt>()
+    uses.push(put_stmt(10, ExprKind.LitInt(3)))
+    uses.push(put_stmt(20, ExprKind.LitBool(true)))
+    val diags = open_bag_diags(uses)
+    assert_eq(diag_mentions(&diags, "expected `int32`, found `bool`"), true, "true is not an int32")
+}

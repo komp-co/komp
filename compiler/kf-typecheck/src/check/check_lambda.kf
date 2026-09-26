@@ -22,7 +22,15 @@ import kf_typecheck.check.decl.register_type_identity
 import kf_typecheck.check.decl.register_sigs
 
 
+/// A lambda that fails to check becomes `Poison`, as one that checks becomes
+/// its struct literal: no later pass meets a `Lambda` node.
 pub mutating fun Expr.check_lambda(ctx: &var TypeCtx): Type {
+    val ty = self.lambda_type(ctx)
+    if ty.is_poison() { self.kind = ExprKind.Poison }
+    return ty
+}
+
+mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
     val span = self.span
     when (self.kind) {
         Lambda(params, body) => {
@@ -64,21 +72,6 @@ pub mutating fun Expr.check_lambda(ctx: &var TypeCtx): Type {
             return lambda_struct_ty(name, span)
         }
         _ => return poison_ty()
-    }
-}
-
-/// Anything other than a trailing expression is left alone.
-fun Stmt.returned_value_stmt(span: Span): Stmt {
-    when (self.kind) {
-        Expression(expr_ptr) => {
-            // A fresh Expr: the Lambda node is dropped when `e.kind` is
-            // overwritten.
-            val fresh: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *fresh = (*expr_ptr).clone() }
-            val operand: Box<Expr>? = fresh
-            return new_stmt(span, StmtKind.Return(operand))
-        }
-        _ => return self.clone()
     }
 }
 
@@ -199,6 +192,7 @@ fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body:
     while si in 0..body.size() {
         (unsafe { body.at(si) as Ptr<Stmt> } as &var Stmt).check_stmt(&var inner)
     }
+    val value = lambda_value_type(body, span, &var inner)
     val failed = unsafe { sink.size() } > 0
     var d = 0
     while d < unsafe { sink.size() } {
@@ -206,7 +200,6 @@ fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body:
         d = d + 1
     }
     if failed { return poison_ty() }
-    val value = lambda_value_type(body, span)
     if !validate_lambda_returns(body, &value, span, ctx) { return poison_ty() }
     return value
 }
@@ -248,15 +241,6 @@ fun Stmt.validate_returns_stmt(value: &Type, span: Span, ctx: &var TypeCtx): boo
             return ok
         }
         _ => return true
-    }
-}
-
-/// The last statement if it is an expression, void otherwise.
-fun lambda_value_type(body: &List<Stmt>, span: Span): Type {
-    if body.size() == 0 { return void_ty(span) }
-    when (body.at(body.size() - 1).kind) {
-        Expression(expr_ptr) => return unsafe { expr_ptr.ty.clone() }
-        _ => return void_ty(span)
     }
 }
 

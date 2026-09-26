@@ -8,6 +8,7 @@ import kf_typecheck.check.place_is_mutable
 import kf_typecheck.check.immutable_val_field
 import kf_typecheck.check.expect_arg
 import kf_typecheck.check.promote_subscript_to_mut
+import kf_typecheck.check.pin_open_binding
 
 pub struct ArgCoerceResult {
     pub val coerced: bool
@@ -68,6 +69,8 @@ pub fun coerce_call_arg(args: &var List<Expr>, idx: uint64, to: Type, ctx: &var 
     if idx >= args.size() {
         return ArgCoerceResult { coerced: false, valid: false }
     }
+    // An open binding at its first use takes the parameter's type first.
+    val _typed_by_slot = args.at_mut(idx).pin_open_binding(to.clone(), ctx)
     // Read through a borrow; the one mutation goes through `at_mut`.
     val arg = args.at(idx)
     when (to.kind) {

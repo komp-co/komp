@@ -31,7 +31,23 @@ enclosing scope declares the same name, in which case the local shadows it. An
 early `return` answers the lambda's value directly, and has to agree with the
 type the trailing expression settles on.
 
-A block that ends in something other than an expression makes the lambda void.
+A trailing `if` or `when` yields through its branches, as it does in a
+[block used as a value](when.md#when-as-a-value): each path's last expression
+is the lambda's value, and the paths must agree on a type.
+
+```kflat
+apply(|x: int32| {
+    when x {
+        0 => 0
+        v if v < 0 => -1
+        _ => 1
+    }
+}, 3)
+```
+
+A block that ends in something other than an expression makes the lambda void,
+and so does a trailing `if` or `when` with a path that ends in a `void` call:
+there the branches are statements, not values.
 
 ## What it desugars to
 

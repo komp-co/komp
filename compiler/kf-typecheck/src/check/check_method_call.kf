@@ -170,9 +170,11 @@ fun emit_method_arity(method_name: String, expected: uint64, found: uint64, span
 }
 
 fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64, expected: Type, method_name: String, span: Span, ctx: &var TypeCtx): bool {
-    val actual = *arg_tys.at(index)
     val outcome = coerce_call_arg(args, index, expected.clone(), ctx)
     if !outcome.valid { return false }
+    // After the coercion, which may have typed an open binding; a lambda
+    // still waiting on its bound stays poison.
+    val actual = if arg_tys.at(index).is_poison() { poison_ty() } else { args.at(index).ty.clone() }
     if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
     if actual.display_type(ctx).as_str().equals(expected.display_type(ctx).as_str()) { return false }
     val msg = "wrong type for argument ${index + 1} of method `${method_name}`: expected `${expected.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
@@ -213,6 +215,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     // Arguments first, in place, so nested receivers are typed even when the
     // method does not resolve.
     report_annotated_lambda_args(receiver_ty.clone(), method_name.clone(), args, _span, ctx)
+    val pretyped = ctx.take_pretyped_args()
     var arg_tys = List.new<Type>()
     var ai = 0
     while ai < args.size() {
@@ -221,7 +224,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         if aa.lambda_wants_expectation() {
             arg_tys.push(poison_ty())
         } else {
-            aa.check_call_argument(ctx)
+            if ai >= pretyped { aa.check_call_argument(ctx) }
             arg_tys.push(aa.ty.clone())
         }
         ai = ai + 1
@@ -405,12 +408,16 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             // Items are expected as the element type.
             "push" => {
                 if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-                expect_arg(args, 0, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                val pushed = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
+                if call.receiver_still_open(ctx) { return void_ty(_span) }
+                if !check_method_arg(args, &arg_tys, 0, pushed, method_name, _span, ctx) { return poison_ty() }
                 return void_ty(_span)
             }
             "set" => {
                 if args.size() != 2 { emit_method_arity(method_name, 2, args.size(), _span, ctx); return poison_ty() }
-                expect_arg(args, 1, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                val stored = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
+                if call.receiver_still_open(ctx) { return void_ty(_span) }
+                if !check_method_arg(args, &arg_tys, 1, stored, method_name, _span, ctx) { return poison_ty() }
                 return void_ty(_span)
             }
             _ => { }

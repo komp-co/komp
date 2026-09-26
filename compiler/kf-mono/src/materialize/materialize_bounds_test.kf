@@ -1,0 +1,23 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun param_bounded_by(trait_name: str): TypeParam {
+    var bounds = List.new<TypeRef>()
+    bounds.push(new_type_ref(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())))
+    return TypeParam { span: no_span(), name: intern("T"), bounds: bounds }
+}
+
+@test fun a_copy_bound_admits_a_shared_borrow(): void {
+    assert_eq(param_bounded_by("Copy").bounded_by_copy_alone(intern("Copy")), true, "&T is Copy")
+}
+
+@test fun another_bound_turns_a_borrow_away(): void {
+    assert_eq(param_bounded_by("Clone").bounded_by_copy_alone(intern("Copy")), false, "no impl for &T can be written")
+}
+
+@test fun an_unknown_copy_trait_admits_nothing(): void {
+    assert_eq(param_bounded_by("Copy").bounded_by_copy_alone(intern("")), false, "no core, no Copy")
+}

@@ -1,0 +1,84 @@
+// A lambda's value is its block's: the last statement, walked through every
+// branch of a trailing `if` or `when`. A path ending in no expression, or in
+// a `void` one, leaves the lambda `void`, its tail a statement.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.ast.subst.clone_expr_ptr
+import kf_core.ast.subst.clone_expr_ptr_opt
+import kf_core.ast.subst.fresh_pattern_box
+
+/// CONSTRAINT: after the body is checked; each path is adapted to the joined
+/// type, as a block expression's are.
+fun lambda_value_type(body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
+    if !list_yields_value(body) { return void_ty(span) }
+    if list_tail_has_void(body) { return void_ty(span) }
+    val joined = list_tail_ty(body, ctx.string_name())
+    apply_list_tail_ty(body, &joined, true, ctx)
+    return joined
+}
+
+fun list_tail_has_void(stmts: &List<Stmt>): bool {
+    if stmts.size() == 0 { return false }
+    return (stmts.at(stmts.size() - 1)).tail_has_void()
+}
+
+fun Stmt.tail_has_void(): bool {
+    when (self.kind) {
+        Expression(ep) => return ty_is_void(ep.ty)
+        If(_c, then_body, else_body) => {
+            return list_tail_has_void(&then_body) || list_tail_has_void(&else_body)
+        }
+        When(_s, arms) => {
+            while arm in &arms {
+                if list_tail_has_void(&arm.body) { return true }
+            }
+            return false
+        }
+        _ => return false
+    }
+}
+
+/// A copy whose tail expression, on every path, is a `return` of it.
+/// Anything else is copied as it is. Copies go through the substitution walk
+/// with nothing to substitute, since the lambda's own statements are freed
+/// once its node is rewritten.
+fun Stmt.returned_value_stmt(span: Span): Stmt {
+    var names = List.new<String>()
+    var repls = List.new<TypeRef>()
+    when (self.kind) {
+        Expression(expr_ptr) => {
+            val operand: Box<Expr>? = clone_expr_ptr(expr_ptr, &var names, &var repls)
+            return new_stmt(span, StmtKind.Return(operand))
+        }
+        If(cond, then_body, else_body) => {
+            val then_returned = returned_tail(&then_body, span)
+            val else_returned = returned_tail(&else_body, span)
+            val condition = clone_expr_ptr(cond, &var names, &var repls)
+            return new_stmt(self.span, StmtKind.If(condition, then_returned, else_returned))
+        }
+        When(subject, arms) => {
+            var narms = List.new<Arm>()
+            while arm in &arms {
+                val guard = clone_expr_ptr_opt(arm.guard.view(), &var names, &var repls)
+                narms.push(new_arm(arm.span, fresh_pattern_box(arm.pattern), guard, returned_tail(&arm.body, span)))
+            }
+            return new_stmt(self.span, StmtKind.When(clone_expr_ptr(subject, &var names, &var repls), narms))
+        }
+        _ => return self.clone()
+    }
+}
+
+fun returned_tail(stmts: &List<Stmt>, span: Span): List<Stmt> {
+    var out = List.new<Stmt>()
+    while i in 0..stmts.size() {
+        if i + 1 == stmts.size() {
+            out.push((stmts.at(i)).returned_value_stmt(span))
+        } else {
+            out.push(stmts.at(i).clone())
+        }
+    }
+    return out
+}

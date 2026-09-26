@@ -34,14 +34,6 @@ early is not rejected either.
 The rule until then: do not keep a borrow past the point where the owner is
 alive. The borrow checker that closes the rest is [#36].
 
-## Exponent notation does not lex
-
-`1e10` and `1.5e-3` read as a number beside a name rather than as one
-number ([#17]). Write the digits out, or scale with a multiplication.
-
-Everything else in this family works: `3.14`, `'A'`, `0xff`, `0b1010` and
-`1_000` all lex.
-
 ## No overload resolution
 
 Two definitions in one scope may not share a name, whether they differ by
@@ -91,11 +83,6 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   checked against the template ([#3]). Put the arguments on the literal.
 - A method returning its own type with the parameters transposed is wrongly
   rejected ([#2]).
-- A type argument is not inferred backwards from a later use ([#6]): `var xs = List.new()`
-  followed by `xs.push(1)` is reported rather than solved. What does work is the
-  slot — an annotation, a return type or a parameter supplies a generic static
-  call's type arguments — and a literal takes its type from its first use, so
-  `var i = 0` beside `i < xs.size()` is a `uint64`.
 
 ## Extension functions
 
@@ -125,8 +112,8 @@ clock, a sleep, and a monotonic `Instant`. The process's arguments are in core
 this first slice stops short in three places:
 
 - **A collection of them does not work.** `List.new<&dyn Shape>()` is typed
-  as the trait rather than as a list ([#73]), and `List<&T>` of plain borrows
-  fails in cc ([#1]). A mixed collection is the usual reason to want dynamic
+  as the trait rather than as a list ([#73]). A `List<&Square>` of one
+  concrete type works; a mixed collection is the usual reason to want dynamic
   dispatch, so this is the gap that matters.
   Holding one in a struct of your own is rejected outright — a borrow is not
   storable, and `&dyn Trait` is a borrow like any other. So is holding a
@@ -183,12 +170,9 @@ is still being hardened — the crate-qualification issues above are all
 symptoms of it. Unity builds take a different path through the driver and do
 not agree with it in every case.
 
-[#1]: https://github.com/komp-co/komp/issues/1
 [#2]: https://github.com/komp-co/komp/issues/2
 [#3]: https://github.com/komp-co/komp/issues/3
-[#6]: https://github.com/komp-co/komp/issues/6
 [#15]: https://github.com/komp-co/komp/issues/15
-[#17]: https://github.com/komp-co/komp/issues/17
 [#20]: https://github.com/komp-co/komp/issues/20
 [#21]: https://github.com/komp-co/komp/issues/21
 [#36]: https://github.com/komp-co/komp/issues/36

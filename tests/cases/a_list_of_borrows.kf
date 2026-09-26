@@ -1,0 +1,37 @@
+//! run: exit 0
+//! deps: core, alloc
+// A list of borrows: an element is pushed by address, with or without a
+// written `&`, and read back through the borrow.
+
+import alloc.list.*
+
+struct Square { pub val side: int32 }
+
+struct Named { pub val name: String }
+
+fun total(squares: &List<&Square>): int32 {
+    var sum = 0
+    while i in 0..squares.size() {
+        sum = sum + squares.get(i).side
+    }
+    return sum
+}
+
+fun main(): int32 {
+    val a = Square { side: 4 }
+    val b = Square { side: 5 }
+    val c = Square { side: 6 }
+    var xs = List.new<&Square>()
+    xs.push(&a)
+    xs.push(b)
+    if xs.size() != 2 { return 1 }
+    if total(&xs) != 9 { return 2 }
+    xs.set(0, &c)
+    if xs.get(0).side != 6 { return 3 }
+    if a.side != 4 { return 4 }
+    val first = Named { name: String.from("first") }
+    var names = List.new<&Named>()
+    names.push(&first)
+    if names.get(0).name.len() != 5 { return 5 }
+    return 0
+}

@@ -96,11 +96,19 @@ pub fun mangle_suffix(name: String, cut: uint64): String {
 /// struct whose C name is the fragment.
 pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type {
     if str_list_has(&ctx.generics, frag.as_str()) { return generic_ty(frag, span) }
+    val borrowed = borrow_frag_inner(frag.as_str())
+    if borrowed.byte_len() > 0 {
+        return borrow_of(ty_from_frag_in_scope(borrowed, span, ctx), borrow_frag_is_mut(frag.as_str()), span)
+    }
     return ty_from_mangle_frag(frag, span, ctx.string_name())
 }
 
 pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     val s = frag.as_str()
+    val borrowed = borrow_frag_inner(s)
+    if borrowed.byte_len() > 0 {
+        return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), borrow_frag_is_mut(s), span)
+    }
     when s {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
         "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }

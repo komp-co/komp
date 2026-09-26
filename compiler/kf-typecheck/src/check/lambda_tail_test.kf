@@ -1,0 +1,75 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun typed_expr_stmt(kind: ExprKind, ty: Type): Stmt {
+    val expr: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *expr = new_expr(no_span(), kind) }
+    unsafe { expr.ty = ty }
+    return new_stmt(no_span(), StmtKind.Expression(expr))
+}
+
+fun arm_yielding(tail: Stmt): Arm {
+    val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *pattern = new_pattern(no_span(), PatternKind.Wildcard) }
+    var body = List.new<Stmt>()
+    body.push(tail)
+    return new_arm(no_span(), pattern, null, body)
+}
+
+fun when_over(first: Stmt, second: Stmt): List<Stmt> {
+    var arms = List.new<Arm>()
+    arms.push(arm_yielding(first))
+    arms.push(arm_yielding(second))
+    val subject: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *subject = new_expr(no_span(), ExprKind.LitInt(1)) }
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.When(subject, arms)))
+    return body
+}
+
+fun int_stmt(n: int64): Stmt {
+    return typed_expr_stmt(ExprKind.LitInt(n), int32_ty(no_span()))
+}
+
+fun void_call_stmt(): Stmt {
+    return typed_expr_stmt(ExprKind.Call(intern("log"), List.new<Expr>()), void_ty(no_span()))
+}
+
+@test fun a_trailing_when_yields_its_arms_value(): void {
+    var ctx = mk_ctx()
+    val body = when_over(int_stmt(1), int_stmt(0))
+    assert_eq(lambda_value_type(&body, no_span(), &var ctx).display_type(&ctx).as_str(), "int32", "the arms are int32")
+}
+
+@test fun a_void_arm_leaves_the_lambda_void(): void {
+    var ctx = mk_ctx()
+    val body = when_over(int_stmt(1), void_call_stmt())
+    assert_eq(ty_is_void(lambda_value_type(&body, no_span(), &var ctx)), true, "the when is a statement")
+}
+
+@test fun a_void_arm_is_not_reported(): void {
+    var ctx = mk_ctx()
+    val body = when_over(void_call_stmt(), int_stmt(1))
+    val _value = lambda_value_type(&body, no_span(), &var ctx)
+    assert_eq(unsafe { (*ctx.diags).size() }, 0, "statements need not agree")
+}
+
+@test fun each_arm_of_a_trailing_when_returns_its_value(): void {
+    val body = when_over(int_stmt(1), int_stmt(0))
+    val returned = (body.at(0)).returned_value_stmt(no_span())
+    val arm_tail = when (returned.kind) {
+        When(_s, arms) => arms.at(1).body.at(0).kind.is_return()
+        _ => false
+    }
+    assert_eq(arm_tail, true, "the second arm's value is returned")
+}
+
+fun StmtKind.is_return(): bool {
+    return when (self) {
+        Return(_) => true
+        _ => false
+    }
+}

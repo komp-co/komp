@@ -1,6 +1,6 @@
 import alloc.list.*
 
-fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr> {
+pub fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr> {
     val np: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *np = subst_expr(&*p, names, repls) }
     return np
@@ -15,7 +15,7 @@ fun clone_expr_box_opt(p: Ptr<Expr>?, names: &var List<String>, repls: &var List
 }
 
 /// An absent guard stays absent.
-fun clone_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Box<Expr>? {
+pub fun clone_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &var List<TypeRef>): Box<Expr>? {
     val p = p_opt ?: return null
     return clone_expr_ptr(p, names, repls)
 }

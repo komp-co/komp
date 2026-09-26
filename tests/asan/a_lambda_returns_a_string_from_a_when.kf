@@ -1,0 +1,13 @@
+//! asan: clean
+
+fun name_of<F: Call1<int32>>(f: F, x: int32): String { return f.call(x) }
+
+fun main(): int32 {
+    val word = name_of(|x: int32| {
+        when x {
+            1 => String.from("one")
+            _ => String.from("many")
+        }
+    }, 1)
+    return word.len() as int32 - 3
+}

@@ -87,8 +87,9 @@ fun is_numeric_literal(e: Expr): bool {
 fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
     if is_integer_literal(*self) { return true }
     when (self.kind) {
+        // A literal's binding, not an open call's or a `null`'s.
         Variable(name) => {
-            return ctx.flexible_init_at(name.as_str(), self.span).is_some()
+            return ctx.flexible_init_at(name.as_str(), self.span).is_some() && is_numeric(self.ty)
         }
         _ => return false
     }

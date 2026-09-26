@@ -150,10 +150,10 @@
 13 compiler/kf-typecheck/src/check/check_expect.kf
 37 compiler/kf-typecheck/src/check/check_expr.kf
 3 compiler/kf-typecheck/src/check/check_field_access.kf
-43 compiler/kf-typecheck/src/check/check_lambda.kf
+40 compiler/kf-typecheck/src/check/check_lambda.kf
 12 compiler/kf-typecheck/src/check/check_method_call.kf
 7 compiler/kf-typecheck/src/check/check_method_expr.kf
-36 compiler/kf-typecheck/src/check/check_stmt.kf
+35 compiler/kf-typecheck/src/check/check_stmt.kf
 7 compiler/kf-typecheck/src/check/check_struct_lit.kf
 5 compiler/kf-typecheck/src/check/check_unknown_bounds.kf
 2 compiler/kf-typecheck/src/check/check_value_call.kf
@@ -189,6 +189,7 @@
 5 compiler/kf-typecheck/src/check/lang_placeholder.kf
 1 compiler/kf-typecheck/src/check/method_generics.kf
 17 compiler/kf-typecheck/src/check/method_return_instance.kf
+4 compiler/kf-typecheck/src/check/open_binding.kf
 1 compiler/kf-typecheck/src/check/operator_diagnostics.kf
 4 compiler/kf-typecheck/src/check/operator_operand.kf
 14 compiler/kf-typecheck/src/check/rebind_call.kf

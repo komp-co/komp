@@ -165,9 +165,13 @@ impl Lexer {
         val v: int64 = self.read_decimal_digits()
         // A fraction needs a digit after the point, or `5.equals(x)` would
         // start a float.
-        if self.peek() == 46 && is_digit(self.peek_at(1)) {
+        val has_fraction = self.peek() == 46 && is_digit(self.peek_at(1))
+        if has_fraction {
             unsafe { self.advance() }
             val _frac: int64 = self.read_decimal_digits()
+        }
+        val has_exponent = self.read_exponent()
+        if has_fraction || has_exponent {
             val fend: uint32 = self.pos as uint32
             val fspan = Span { file_id: fid, start: start, end: fend }
             return new_token(TokenKind.FloatLiteral(digits_text(self.src.as_str(), start, fend)), fspan)
@@ -175,6 +179,20 @@ impl Lexer {
         val end: uint32 = self.pos as uint32
         val span = Span { file_id: fid, start: start, end: end }
         return new_token(TokenKind.IntLiteral(v), span)
+    }
+
+    /// `e` or `E`, an optional sign, then digits. Taken only when a digit
+    /// follows, so `1e` stays `1` and the name `e`.
+    mutating fun read_exponent(): bool {
+        val marker: uint8 = self.peek()
+        if marker != 101 && marker != 69 { return false }
+        val sign: uint8 = self.peek_at(1)
+        val signed = sign == 43 || sign == 45
+        val first_digit: uint8 = if signed { self.peek_at(2) } else { sign }
+        if !is_digit(first_digit) { return false }
+        self.advance_n(if signed { 2 } else { 1 })
+        val _exponent: int64 = self.read_decimal_digits()
+        return true
     }
 
     mutating fun read_decimal_digits(): int64 {

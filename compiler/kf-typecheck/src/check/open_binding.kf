@@ -1,0 +1,123 @@
+// An unannotated binding of an open generic call, `var xs = List.new()`, is
+// typed by its first use: a method call whose arguments fix every type
+// parameter (`xs.push(3)` makes it a `List<int32>`), or a slot of known type
+// (`fill(&var xs)`, `return xs`). A `null` binding is typed by an optional
+// slot the same way. Otherwise the initializer stays open and is reported at
+// the end of the body.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.types.bind_generic_from_param
+import kf_typecheck.types.open_call_pending
+import kf_typecheck.types.type_to_type_ref
+
+/// How many arguments were checked on the way, for `pretyped_args`: none
+/// unless the receiver is an open binding at its first use.
+/// CONSTRAINT: after the receiver is checked, which records its first use.
+mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx: &var TypeCtx): uint64 {
+    val name = self.variable_name()
+    if name.byte_len() == 0 { return 0 }
+    val init_ptr = ctx.flexible_init_at(name.as_str(), self.span) ?: return 0
+    // The binding's own initializer, which the flexible binding points at.
+    val init: &var Expr = unsafe { &var *init_ptr }
+    val base = init.open_call_base(ctx)
+    if base.byte_len() == 0 { return 0 }
+    val sig = unsafe { (*ctx.sigs).find_signature("${base}_${method_name}".as_str()) } ?: return 0
+    if sig.is_static || sig.params.size() != args.size() + 1 { return 0 }
+    while arg in &args {
+        if arg.is_lambda() { return 0 }
+    }
+    val arity = base.static_recv_arity(ctx)
+    if arity == 0 || sig.generics.size() < arity { return 0 }
+    while i in 0..args.size() {
+        args.at_mut(i).check_call_argument(ctx)
+    }
+    var type_args = List.new<TypeRef>()
+    while g in 0..arity {
+        val bound = sig.bind_from_args(sig.generics.at(g).as_str(), args, ctx)
+        if bound.is_poison() { return args.size() }
+        type_args.push(bound.type_to_type_ref(self.span))
+    }
+    val inst = GenericInst { mangled: String.from(""), base: base.clone(), args: type_args }
+    if !init.rebind_static_call(&inst, ctx) { return args.size() }
+    val pinned = init.ty.clone()
+    ctx.pin_binding(name.as_str(), pinned.clone())
+    self.ty = pinned
+    return args.size()
+}
+
+/// Types the binding from a slot, through one borrow; true when it did.
+pub mutating fun Expr.pin_open_binding(expected: Type, ctx: &var TypeCtx): bool {
+    val name = self.variable_name()
+    if name.byte_len() == 0 { return false }
+    val init_ptr = ctx.flexible_init_at(name.as_str(), self.span) ?: return false
+    val init: &var Expr = unsafe { &var *init_ptr }
+    val inst = autoderef_ty(expected).expected_inst(ctx) ?: return false
+    if init.is_bare_null() {
+        if !inst.inst_is_option(ctx) { return false }
+        init.rewrite_null_to_none(&inst, ctx)
+    } else {
+        val base = init.open_call_base(ctx)
+        if base.byte_len() == 0 || inst.base.as_str() != base.as_str() { return false }
+        if !init.rebind_static_call(&inst, ctx) { return false }
+    }
+    val pinned = init.ty.clone()
+    ctx.pin_binding(name.as_str(), pinned.clone())
+    self.ty = pinned
+    return true
+}
+
+/// A method call on a binding whose open call no use has typed: its element
+/// types are the template's, and the call is reported at the end of the body.
+fun Expr.receiver_still_open(ctx: &TypeCtx): bool {
+    val recv = when (self.kind) {
+        MethodCall(receiver, _method, _args) => receiver.variable_name()
+        _ => String.from("")
+    }
+    if recv.byte_len() == 0 { return false }
+    val init = ctx.flexible_init_of(recv.as_str()) ?: return false
+    return open_call_pending(unsafe { init.span }, ctx)
+}
+
+fun Expr.variable_name(): String {
+    return when (self.kind) {
+        Variable(name) => name.as_string()
+        _ => String.from("")
+    }
+}
+
+fun Expr.is_bare_null(): bool {
+    return when (self.kind) {
+        Variable(name) => name.as_str() == "null"
+        _ => false
+    }
+}
+
+fun Expr.is_lambda(): bool {
+    return when (self.kind) {
+        Lambda(_params, _body) => true
+        _ => false
+    }
+}
+
+/// `List` for a `List.new()` no slot has typed yet; "" otherwise.
+fun Expr.open_call_base(ctx: &TypeCtx): String {
+    if !open_call_pending(self.span, ctx) { return String.from("") }
+    return when (self.kind) {
+        MethodCall(recv, _method, _args) => recv.variable_name()
+        _ => String.from("")
+    }
+}
+
+/// The first parameter that names `gname` binds it from its argument.
+fun FnSignature.bind_from_args(gname: str, args: &List<Expr>, ctx: &var TypeCtx): Type {
+    while i in 0..args.size() {
+        val arg_ty = args.at(i).ty.clone()
+        if !arg_ty.is_poison() {
+            val bound = (self.params.at(i + 1)).bind_generic_from_param(&arg_ty, gname, ctx)
+            if !bound.is_poison() { return bound }
+        }
+    }
+    return poison_ty()
+}

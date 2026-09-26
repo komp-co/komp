@@ -54,11 +54,15 @@ be printed or interpolated directly.
 `float32` and `float64` are IEEE 754 single and double precision. Arithmetic
 and comparison work through the operator traits just like integers do.
 
-`3.14` lexes as a float literal. Exponent notation does not yet ([#17]), so
-`1e10` has to be written out or built by multiplication:
+`3.14` lexes as a float literal, and so does exponent notation: `e` or `E`,
+an optional sign, then digits. A number with an exponent is a float even
+without a fraction, so `1e10` is ten billion, not the integer `1` beside a
+name:
 
 ```kflat
 val pi = 3.14
+val avogadro = 6.022e23
+val tolerance = 1e-9
 val third = (1 as float64) / (3 as float64)
 ```
 
@@ -252,4 +256,3 @@ and "quotes" need no escape"""
 than the string's. So `\$` means a literal dollar, in both forms and whether or
 not another slot opens.
 
-[#17]: https://github.com/komp-co/komp/issues/17

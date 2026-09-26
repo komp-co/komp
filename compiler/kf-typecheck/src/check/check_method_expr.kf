@@ -266,13 +266,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 e.ty = check_variant_construction(enum_name, &var e.type_args, method_name, args, e.span, ctx)
                 e.is_variant_ctor = true
             } else {
-                check_expr(unsafe { &var *recv_ptr }, ctx)
+                val receiver: &var Expr = unsafe { &var *recv_ptr }
+                check_expr(receiver, ctx)
+                val pretyped = receiver.pin_open_receiver(method_name.as_str(), args, ctx)
                 val recv = unsafe { *recv_ptr }
                 if dyn_or_extension_call(e, recv_ptr, &recv, method_name_sym, args, ctx) { return }
                 // A `mutating` method needs a writable receiver.
                 check_receiver_is_writable(recv_ptr, &recv.ty, method_name.clone(), args.size(), e.span, ctx)
                 // Projections in the return type are resolved now, since the
                 // result is used in this body.
+                ctx.pretyped_args = pretyped
                 val called = check_method_call(recv.ty, method_name.clone(), args, e.span, ctx, e)
                 e.ty = called.resolved_projection_type("", ctx.sigs)
                 val trait_callee = trait_callee_unless_inherent(recv.ty, method_name, args, ctx)

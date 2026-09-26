@@ -15,6 +15,7 @@ import kf_typecheck.traits.try_dyn_coerce
 /// True when the node was transformed or coerced.
 pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.pin_at_first_use(expected.clone(), ctx) { return true }
+    val _typed_by_slot = self.pin_open_binding(expected.clone(), ctx)
     // Each branch independently.
     var was_if = false
     var if_hit = false

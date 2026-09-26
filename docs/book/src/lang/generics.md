@@ -213,17 +213,27 @@ count(List.new())                                  // a parameter
 fun empty_of<T>(): List<T> { return List.new() }   // a generic function's own
 ```
 
-Inference does **not** run backwards from a later use:
+Without an annotation, the binding's **first use** decides instead: a method
+call whose arguments fix every type argument, or a slot of known type. A
+`null` bound the same way is typed by the first optional slot it reaches:
 
 ```kflat
-fun main(): int32 {
-    var xs = List.new()      // no argument, no annotation, and no slot
-    xs.push(1)               // the later push is not consulted
-    return 0
-}
+var xs = List.new()
+xs.push(1)                   // a List<int32> from here on
+
+var ages = HashMap.new()
+ages.insert(String.from("ada"), 36)   // both type arguments at once
+
+var filled = List.new()
+fill(&var filled)            // fill(xs: &var List<int32>)
+
+val none = null
+takes(none)                  // takes(p: int32?)
 ```
 
-That is reported, naming both repairs:
+Only the first use counts. A use that says nothing, such as `xs.size()`
+before any `push`, leaves the call open, and an open call is reported,
+naming both repairs:
 
 ```console
 $ komp check .
@@ -233,10 +243,8 @@ $ komp check .
 check: found errors
 ```
 
-It used to be accepted, and the C compiler was the first to object — to
-`List__T`, an instance that was never made concrete. Backward inference is
-tracked as [#6].
+Once the first use has decided, later ones are checked against it:
+`xs.push(true)` after `xs.push(1)` is an error.
 
 [#2]: https://github.com/komp-co/komp/issues/2
 [#3]: https://github.com/komp-co/komp/issues/3
-[#6]: https://github.com/komp-co/komp/issues/6

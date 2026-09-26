@@ -242,11 +242,11 @@ is typed as the trait rather than as a list ([#73]):
 error: no method `push` on `Shape`
 ```
 
-A `List<&T>` of plain borrows fails too, in the C compiler, because a pushed
-`&x` is passed by value ([#1]). Holding a mixed collection is the usual reason
-to want dynamic dispatch, so this is where the gap bites hardest; and since a
-borrow cannot be stored in a struct, there is no workaround yet beyond passing
-the objects one at a time.
+A `List<&Square>` of borrows of one concrete type does work. Holding a mixed
+collection is the usual reason to want dynamic dispatch, so this is where the
+gap bites hardest; and since a borrow cannot be stored in a struct, there is
+no workaround yet beyond one list per concrete type, or passing the objects
+one at a time.
 
 **One trait per object.** There is no `&dyn Read + Write`, and no root
 `Object` trait. If you need two traits' worth of behaviour, declare a trait
@@ -255,6 +255,5 @@ that requires both and implement it.
 **Borrowed only.** There is no `Box<dyn Trait>`, so an object cannot outlive
 the value it points at, and no downcasting back to the concrete type.
 
-[#1]: https://github.com/komp-co/komp/issues/1
 [#36]: https://github.com/komp-co/komp/issues/36
 [#73]: https://github.com/komp-co/komp/issues/73

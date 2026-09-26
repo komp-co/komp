@@ -1,0 +1,15 @@
+//! run: exit 0
+// Exponent notation lexes as one float literal, with or without a fraction,
+// and with a signed exponent.
+
+fun main(): int32 {
+    val avogadro = 6.022e23
+    val big = 1e10
+    val small = 2.5E-3
+    val single: float32 = 1.5e+2
+    if avogadro < 6.0e23 { return 1 }
+    if big != 10000000000.0 { return 2 }
+    if small > 0.003 { return 3 }
+    if single != 150.0 { return 4 }
+    return 0
+}

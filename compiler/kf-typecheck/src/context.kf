@@ -173,6 +173,17 @@ impl TypeCtx {
         return null
     }
 
+    /// The initializer while the binding is flexible, at any use.
+    pub fun flexible_init_of(name: str): Ptr<Expr>? {
+        var i: uint64 = self.locals.size()
+        while i > 0 {
+            i = i - 1
+            val binding = self.locals.at(i)
+            if binding.name.as_str().equals(name) { return binding.flexible_init }
+        }
+        return null
+    }
+
     pub mutating fun pin_binding(name: str, ty: Type): void {
         var i: uint64 = self.locals.size()
         while i > 0 {

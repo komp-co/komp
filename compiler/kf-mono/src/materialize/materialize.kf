@@ -51,6 +51,7 @@ pub mutating fun Module.materialize_generics(): void {
     // impls the loop mints are caught by the module pass at the end.
     val proj_sigs = assoc_projection_registry(self)
     self.trait_impl_registry(proj_sigs)
+    val copy_name = self.lang_trait_name(lang_copy_key())
     // Seeded from non-generic bodies only; templates are walked once cloned.
     while td in &self.decls {
         if td.generics.size() == 0 {
@@ -80,7 +81,7 @@ pub mutating fun Module.materialize_generics(): void {
                     val tmpl = *self.decls.at(ti)
                     if tmpl.generics.size() > 0 {
                         if tmpl.answers_to(inst.base.as_str()) {
-                          if tmpl.template_accepts_args(&inst.args, proj_sigs) {
+                          if tmpl.template_accepts_args(&inst.args, proj_sigs, copy_name) {
                             var newdecl = clone_subst_decl(tmpl, inst.args, mangled_name.clone())
                             if !is_poison_decl(newdecl) {
                                 // CONSTRAINT: in a separate build every TU that

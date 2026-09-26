@@ -3,7 +3,7 @@ import alloc.list.*
 import kf_core.span.no_span
 
 /// A deep copy: the rebuilt arm and the original both drop their pattern.
-fun fresh_pattern_box(pp: Ptr<Pattern>): Ptr<Pattern> {
+pub fun fresh_pattern_box(pp: Ptr<Pattern>): Ptr<Pattern> {
     val np: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *np = (*pp).clone() }
     return np

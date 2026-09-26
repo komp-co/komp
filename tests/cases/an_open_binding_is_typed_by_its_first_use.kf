@@ -1,0 +1,54 @@
+//! run: exit 0
+//! deps: core, alloc
+// `List.new()` with no type argument, or a bare `null`, bound without an
+// annotation: the binding's first use says what it holds.
+
+import alloc.list.*
+import alloc.hash_map.HashMap
+
+struct Point { pub val x: int32 }
+
+fun fill(xs: &var List<int32>): void {
+    xs.push(4)
+    xs.push(5)
+}
+
+fun total(xs: List<int32>): int32 {
+    var sum = 0
+    while i in 0..xs.size() { sum = sum + xs.get(i) }
+    return sum
+}
+
+fun empty_names(): List<String> {
+    val names = List.new()
+    return names
+}
+
+fun takes(p: int32?): int32 { return p ?: -1 }
+
+fun main(): int32 {
+    // A method call whose arguments fix the element type.
+    var xs = List.new()
+    xs.push(1)
+    xs.push(2)
+    if xs.get(1) != 2 { return 1 }
+    var points = List.new()
+    if xs.size() > 0 {
+        points.push(Point { x: 7 })
+    }
+    if points.at(0).x != 7 { return 2 }
+    var ages = HashMap.new()
+    ages.insert(String.from("ada"), 36)
+    if ages.size() != 1 { return 3 }
+    // A slot of known type.
+    var filled = List.new()
+    fill(&var filled)
+    if filled.size() != 2 { return 4 }
+    val empty = List.new()
+    if total(empty) != 0 { return 5 }
+    if empty_names().size() != 0 { return 6 }
+    // A `null` in an optional slot.
+    val none = null
+    if takes(none) != -1 { return 7 }
+    return 0
+}

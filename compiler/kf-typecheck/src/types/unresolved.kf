@@ -180,6 +180,11 @@ fun open_call_recorded(calls: &List<OpenGenericCall>, span: Span): bool {
     return false
 }
 
+/// Recorded as open and not typed since.
+pub fun open_call_pending(span: Span, ctx: &TypeCtx): bool {
+    return open_call_recorded(&ctx.open_calls, span) && !span_list_contains(&ctx.open_typed, span)
+}
+
 pub fun note_open_call_typed(span: Span, ctx: &var TypeCtx): void {
     if span_list_contains(&ctx.open_typed, span) { return }
     ctx.open_typed.push(span)
