@@ -45,6 +45,9 @@ people.
 | `stage` | `path`, `text` | `null` |
 | `unstage` | `path` | `null` |
 | `check` | `target_dir`, `crate` | `errors`, a count, and `diagnostics`, an array |
+| `symbols` | `path` | the file's declarations, nested |
+| `folding` | `path` | the file's foldable ranges |
+| `selection` | `path`, `offset` | the ranges around `offset`, innermost first |
 | `shutdown` | none | `null`, then the server exits 0 |
 
 **`hello` comes first.** It names the protocol version the client speaks, and
@@ -53,7 +56,7 @@ not speak is refused as `unsupported_protocol`, and the message says which it
 does, so the client can tell its user which of the two to update.
 
 **`stage` supplies a file's text** in place of what is on disk: an editor's
-unsaved buffer. It stays staged, for every later `check`, until the same path
+unsaved buffer. It stays staged, for every later request, until the same path
 is staged again or `unstage`d. Staging empty text is an empty file, not an
 absent one. The path is spelled as the checker spells it: the crate's `root`
 followed by the file's path under it, such as `/home/me/app/src/main.kf`.
@@ -70,6 +73,12 @@ them there. Each diagnostic is the object `komp check
 [Structured fixes](cli.md#structured-fixes). A lint row that names no lint is
 reported as an error diagnostic, as `kf.toml` reports it.
 
+**`symbols`, `folding` and `selection` only parse** the file, from its staged
+text or from disk, so they answer on a file that does not type-check, and
+cost milliseconds. Each result is the object
+[`komp query`](cli.md#komp-query) prints for the same question, byte offsets
+included; `offset` is a byte offset too.
+
 **The server stops** after answering `shutdown`, or when its standard input
 ends. Either way it exits 0.
 
@@ -82,6 +91,7 @@ ends. Either way it exits 0.
 | `unsupported_protocol` | `hello` named a version this kflatc does not speak |
 | `unknown_method` | No method has that name |
 | `invalid_params` | A required field is missing or has the wrong type |
+| `no_such_file` | A file named in the params is neither staged nor on disk |
 | `check_failed` | The crate could not be checked at all, such as a dependency's interface missing from `target_dir` |
 
 A `check` that finds errors in the code is not an error answer: it is a

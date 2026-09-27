@@ -621,6 +621,10 @@ serve_file="$serve_root/src/main.kf"
     echo "{\"id\":5,\"method\":\"check\",\"params\":$serve_check}"
     echo "{\"id\":6,\"method\":\"unstage\",\"params\":{\"path\":\"$serve_file\"}}"
     echo "{\"id\":7,\"method\":\"check\",\"params\":$serve_check}"
+    echo "{\"id\":\"sym\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":\"fold\",\"method\":\"folding\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":\"sel\",\"method\":\"selection\",\"params\":{\"path\":\"$serve_file\",\"offset\":40}}"
+    echo "{\"id\":\"gone\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_root/src/gone.kf\"}}"
     echo "{\"id\":8,\"method\":\"check\",\"params\":{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"missing\"],\"lints\":[]}}}"
     echo '{"id":9,"method":"stage","params":{"text":""}}'
     echo '{"id":10,"method":"compile"}'
@@ -641,6 +645,10 @@ serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"
     echo '{"id":5,"result":{"errors":0,"diagnostics":\[\]}}'
     echo '{"id":6,"result":null}'
     echo '{"id":7,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
+    echo '{"id":"sym","result":{"schema_version":1,"file":"'"$serve_file"'","symbols":\[{"name":"main","kind":"function","detail":"(): int32","byte_start":0,"byte_end":[0-9]*,"children":\[\]}\]}}'
+    echo '{"id":"fold","result":{"schema_version":1,"file":"'"$serve_file"'","ranges":\[{"byte_start":0,"byte_end":[0-9]*,"kind":"region"}\]}}'
+    echo '{"id":"sel","result":{"schema_version":1,"file":"'"$serve_file"'","offset":40,"ranges":\[{"byte_start":39,"byte_end":45},{"byte_start":0,"byte_end":[0-9]*}\]}}'
+    echo '{"id":"gone","error":{"code":"no_such_file","message":"[^"]*"}}'
     echo '{"id":8,"error":{"code":"check_failed","message":"[^"]*"}}'
     echo '{"id":9,"error":{"code":"invalid_params","message":"[^"]*"}}'
     echo '{"id":10,"error":{"code":"unknown_method","message":"[^"]*"}}'

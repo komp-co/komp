@@ -41,6 +41,9 @@ impl ServeSession {
             "stage" => self.stage(id, line)
             "unstage" => self.unstage(id, line)
             "check" => self.check(id, line)
+            "symbols" => outline_answer(id, method, line, &self.buffers)
+            "folding" => outline_answer(id, method, line, &self.buffers)
+            "selection" => outline_answer(id, method, line, &self.buffers)
             "shutdown" => {
                 self.stopping = true
                 result_line(id, "null")

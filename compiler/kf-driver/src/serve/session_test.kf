@@ -61,3 +61,29 @@ fun shutdown_answers_null_and_stops(): void {
     val line = session.answer("{\"id\":5,\"method\":\"shutdown\"}")
     assert_eq(line.as_str() == "{\"id\":5,\"result\":null}" && session.stopping, true, "stops after answering")
 }
+
+@test
+fun symbols_answer_from_staged_text(): void {
+    var session = greeted()
+    val stage = String.from("{\"id\":6,\"method\":\"stage\",\"params\":") +
+        "{\"path\":\"/nowhere/a.kf\",\"text\":\"fun f(): int32 { return 1 }\"}}"
+    val _staged = session.answer(stage.as_str())
+    val line = session.answer("{\"id\":7,\"method\":\"symbols\",\"params\":{\"path\":\"/nowhere/a.kf\"}}")
+    assert_eq(line.as_str().contains("\"name\":\"f\",\"kind\":\"function\""), true, "the staged function")
+}
+
+@test
+fun a_file_neither_staged_nor_on_disk_is_named(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":8,\"method\":\"folding\",\"params\":{\"path\":\"/nowhere/b.kf\"}}")
+    assert_eq(line.as_str().contains("\"code\":\"no_such_file\""), true, "no such file")
+}
+
+@test
+fun selection_needs_an_offset(): void {
+    var session = greeted()
+    val stage = "{\"id\":9,\"method\":\"stage\",\"params\":{\"path\":\"/nowhere/c.kf\",\"text\":\"\"}}"
+    val _staged = session.answer(stage.as_str())
+    val line = session.answer("{\"id\":10,\"method\":\"selection\",\"params\":{\"path\":\"/nowhere/c.kf\"}}")
+    assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "an offset is required")
+}

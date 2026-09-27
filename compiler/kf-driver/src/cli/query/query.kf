@@ -19,7 +19,12 @@ extern "C" fun access(path: str, mode: int32): int32
 /// a line or column.
 pub fun query_parse_file(path: str, overlay_path: str): Module {
     val src = query_source(path, overlay_path)
-    val toks = tokenize(src.as_str(), 1)
+    return parse_source(src.as_str())
+}
+
+/// `text` parsed alone, as `query_parse_file` parses a file.
+pub fun parse_source(text: str): Module {
+    val toks = tokenize(text, 1)
     val p = new_parser(toks)
     return p.parse_module(List.new<String>())
 }

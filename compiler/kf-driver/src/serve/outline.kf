@@ -1,0 +1,49 @@
+// The parse-only questions `kflatc serve` answers about one file: its
+// symbols, its folding ranges, and the selection ranges around an offset.
+// Each answer is the object `komp query` prints for the same question.
+
+import json.reader.*
+import kf_assemble.Overlay
+import kf_assemble.is_staged
+import kf_assemble.overlay_read
+import kf_driver.cli.query.parse_source
+import kf_driver.cli.query.render_folding_json
+import kf_driver.cli.query.render_selection_json
+import kf_driver.cli.query.render_symbols_json
+import std.fs.exists
+
+/// `method` is `symbols`, `folding` or `selection`; `line` the request.
+pub fun outline_answer(id: str, method: str, line: str, buffers: &Overlay): String {
+    val params = read_file_params(line) ?: return error_line(id, "invalid_params", "`${method}` needs a `path`")
+    val path = params.path.as_str()
+    if !buffers.is_staged(path) && !exists(path) {
+        return error_line(id, "no_such_file", "there is no file at `${path}`")
+    }
+    val module = parse_source(buffers.overlay_read(path).as_str())
+    if method == "symbols" { return result_line(id, render_symbols_json(path, &module).as_str()) }
+    if method == "folding" { return result_line(id, render_folding_json(path, &module).as_str()) }
+    val offset = params.offset ?: return error_line(id, "invalid_params", "`selection` needs an `offset`")
+    return result_line(id, render_selection_json(path, offset, &module).as_str())
+}
+
+struct FileParams {
+    val path: String
+    val offset: uint32?
+}
+
+fun read_file_params(line: str): FileParams? {
+    var reader = params_of(line) ?: return null
+    if !reader.begin_object() { return null }
+    var path = String.from("")
+    var offset: uint32? = null
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        when key.as_str() {
+            "path" => path = reader.read_string()
+            "offset" => offset = Option.Some(reader.read_uint64() as uint32)
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || path.is_empty() { return null }
+    return Option.Some(FileParams { path: path, offset: offset })
+}

@@ -39,6 +39,10 @@ pub mutating fun Overlay.unstage(path: str): void {
     val _content = self.contents.remove(at)
 }
 
+pub fun Overlay.is_staged(path: str): bool {
+    return self.staged_index(path).is_some()
+}
+
 pub fun Overlay.staged_count(): uint64 {
     return self.paths.size()
 }
