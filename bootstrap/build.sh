@@ -25,8 +25,10 @@
 # stage2.c == stage3.c and kflatc2.c == kflatc3.c: two compilers from the same
 # source agree.
 #
-# `--seed-out` packs the pair the fixpoint just proved as
-# kflat-seed-<version>.tar.gz. A release publishes that file.
+# `--seed-out` writes the release archives packed from the pair the fixpoint
+# proved: kflat-seed-<version>.tar.gz, and kflat-<version>.tar.gz, which
+# installs. A release publishes both. The install archive is checked on every
+# run, by installing it and building a program with what it installed.
 #
 # Each step fails for its own reason, named with its remedy.
 #
@@ -211,16 +213,61 @@ else
     echo "NOTE: the seed is behind the current source; a release would catch it up."
 fi
 
+# The release archives, packed from what the fixpoint proved: the seed, which
+# bootstraps the next tree, and the install archive, the seed with the
+# libraries and bootstrap/install.sh beside it. Byte-identical from identical
+# input: sorted, a fixed date, no owner, gzip -n.
+version="$("$proven_komp" version | sed -n 's/^komp //p')"
+pack() {
+    (cd "$WORK/out" && tar --sort=name --mtime='2000-01-01 00:00Z' --owner=0 --group=0 --numeric-owner -cf - "$1" \
+        | gzip -n -9 > "$1.tar.gz")
+}
+seed_name="kflat-seed-$version"
+install_name="kflat-$version"
+rm -rf "$WORK/out"
+mkdir -p "$WORK/out/$seed_name" "$WORK/out/$install_name"
+cp "$proven_komp_c" "$WORK/out/$seed_name/komp.c"
+cp "$proven_kflatc_c" "$WORK/out/$seed_name/kflatc.c"
+pack "$seed_name"
+cp "$proven_komp_c" "$WORK/out/$install_name/komp.c"
+cp "$proven_kflatc_c" "$WORK/out/$install_name/kflatc.c"
+cp "$ROOT/bootstrap/install.sh" "$WORK/out/$install_name/install.sh"
+echo "$version" > "$WORK/out/$install_name/VERSION"
+# The libraries as tracked, so no build output rides along.
+if git -C "$ROOT" rev-parse --git-dir > /dev/null 2>&1; then
+    (cd "$ROOT" && git ls-files libs) > "$WORK/out/libs.list"
+else
+    (cd "$ROOT" && find libs -type f ! -path '*/target/*') > "$WORK/out/libs.list"
+fi
+(cd "$ROOT" && tar -cf - -T "$WORK/out/libs.list") | tar -xf - -C "$WORK/out/$install_name"
+pack "$install_name"
+
+# The install archive installs, and what it installs builds a program that
+# uses std. At -O0, since this proves the archive, not the optimizer, and the
+# fixpoint compiled the same C already.
+echo "      checking that $install_name.tar.gz installs"
+mkdir -p "$WORK/install-check/unpacked" "$WORK/install-check/app/src"
+tar -xzf "$WORK/out/$install_name.tar.gz" -C "$WORK/install-check/unpacked"
+if ! KFLAT_HOME="$WORK/install-check/home" CFLAGS=-O0 sh "$WORK/install-check/unpacked/$install_name/install.sh" \
+        > "$WORK/install-check/install.log" 2>&1; then
+    cat "$WORK/install-check/install.log"
+    fail "the install archive does not install; bootstrap/install.sh failed as above."
+fi
+printf '[project]\nname = "installed"\nversion = "0.1.0"\nkind = "bin"\n' > "$WORK/install-check/app/kf.toml"
+printf 'import std.io.eprintln\n\nfun main(): int32 {\n    eprintln(&"installed")\n    return 0\n}\n' \
+    > "$WORK/install-check/app/src/main.kf"
+if ! (cd "$WORK/install-check" && "$WORK/install-check/home/bin/komp" run app > run.log 2>&1) || \
+        ! grep -qx installed "$WORK/install-check/run.log"; then
+    cat "$WORK/install-check/run.log"
+    fail "the installed komp could not build and run a program that uses std."
+fi
+echo "OK: $install_name.tar.gz installs, and the installed komp builds a program"
+
 if [ -n "$SEED_OUT" ]; then
-    version="$("$proven_komp" version | sed -n 's/^komp //p')"
-    name="kflat-seed-$version"
-    mkdir -p "$WORK/out/$name" "$SEED_OUT"
-    cp "$proven_komp_c" "$WORK/out/$name/komp.c"
-    cp "$proven_kflatc_c" "$WORK/out/$name/kflatc.c"
-    # Byte-identical from identical C: sorted, a fixed date, no owner, gzip -n.
-    (cd "$WORK/out" && tar --sort=name --mtime='2000-01-01 00:00Z' --owner=0 --group=0 --numeric-owner -cf - "$name" \
-        | gzip -n -9 > "$name.tar.gz")
-    cp "$WORK/out/$name.tar.gz" "$SEED_OUT/"
-    (cd "$SEED_OUT" && seed_sha256 "$name.tar.gz" | sed "s/\$/  $name.tar.gz/" > "$name.tar.gz.sha256")
-    echo "OK: wrote $SEED_OUT/$name.tar.gz"
+    mkdir -p "$SEED_OUT"
+    for archive in "$seed_name" "$install_name"; do
+        cp "$WORK/out/$archive.tar.gz" "$SEED_OUT/"
+        (cd "$SEED_OUT" && seed_sha256 "$archive.tar.gz" | sed "s/\$/  $archive.tar.gz/" > "$archive.tar.gz.sha256")
+        echo "OK: wrote $SEED_OUT/$archive.tar.gz"
+    done
 fi

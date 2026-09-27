@@ -52,7 +52,8 @@ only step a person takes:
    branch, and a version that does not go up.
 3. **Merge the release PR.** The release workflow builds the seed from the
    pinned one, checks the fixpoint, publishes `vX.Y.Z` with
-   `kflat-seed-X.Y.Z.tar.gz`, and opens the PR pinning that seed in
+   `kflat-seed-X.Y.Z.tar.gz` and the install archive `kflat-X.Y.Z.tar.gz`,
+   and opens the PR pinning that seed in
    `bootstrap/stage0.toml`, which merges itself once CI bootstraps from it.
 
 The automated PRs are pushed and opened with the organization secret
