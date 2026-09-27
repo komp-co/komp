@@ -40,3 +40,28 @@ fun an_overlay_may_stage_an_empty_buffer(): void {
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "",
               "an emptied buffer reads empty, not as what disk still holds")
 }
+
+@test
+fun several_files_can_be_staged_at_once(): void {
+    prepare_overlay_fixture()
+    var ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "one")
+    ov.stage(scratch_path("kf_overlay/other.kf"), "two")
+    assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "one", "the first stays staged")
+}
+
+@test
+fun staging_a_path_again_replaces_its_text(): void {
+    prepare_overlay_fixture()
+    var ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "old")
+    ov.stage(scratch_path("kf_overlay/on_disk.kf"), "new")
+    assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "new", "the latest edit wins")
+}
+
+@test
+fun an_unstaged_file_is_read_from_disk_again(): void {
+    prepare_overlay_fixture()
+    var ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "edited")
+    ov.unstage(scratch_path("kf_overlay/on_disk.kf"))
+    assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "fun f(): int32 { return 1 }\n",
+              "closing the buffer drops its text")
+}
