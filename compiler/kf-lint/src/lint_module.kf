@@ -1,0 +1,63 @@
+// The lints that read the source as written: every declaration of the crate
+// being checked, and every file it comes from.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// What the lints find in `m`'s own declarations and files, at each lint's
+/// default severity; the caller applies the configured levels. Declarations
+/// from other crates, loaded from their interfaces, are left alone.
+pub fun lint_module(m: &Module, smap: &SourceMap, options: &LintOptions): List<Diagnostic> {
+    var walk = new_lint_walk(options)
+    var files = List.new<uint32>()
+    while decl in &m.decls {
+        if decl.crate.raw != m.crate.raw || decl.linkage.is_imported() || decl.linkage.is_template() { continue }
+        decl.lint_decl(smap, &var walk)
+        val file = decl.span.file_id
+        if file != 0 && !files.contains_file(file) { files.push(file) }
+    }
+    while file in &files {
+        val source = smap.files[(file - 1) as uint64].content.as_str()
+        check_source_text(file, source, options, &var walk.found)
+    }
+    return walk.found
+}
+
+fun TopDecl.lint_decl(smap: &SourceMap, walk: &var LintWalk): void {
+    val name = if self.ext_name.as_str().is_empty() { self.name.as_str() } else { self.ext_name.as_str() }
+    val at = if self.name_span.is_none() { self.span } else { self.name_span }
+    when (self.kind) {
+        Function(params, _ret, body, _pub, _unsafe, _mutating, _static) => {
+            if !self.from_trait_impl { check_function_name(name, params.is_empty(), at, walk) }
+            check_parameter_count(name, at, &params, walk)
+            check_function_length(name, at, self, smap, walk)
+            walk.function(&params, &body)
+        }
+        Struct(_fields, _pub) => check_type_name(name, at, walk)
+        EnumDecl(variants, _pub) => {
+            check_type_name(name, at, walk)
+            while variant in &variants { check_variant_name(variant.name.as_str(), variant.span, walk) }
+        }
+        ImplBlock(methods) => lint_members(&methods, smap, walk)
+        TraitDecl(methods, _pub, _supers) => {
+            check_type_name(name, at, walk)
+            lint_members(&methods, smap, walk)
+        }
+        TraitImpl(_trait, methods) => lint_members(&methods, smap, walk)
+        _ => {}
+    }
+}
+
+fun lint_members(methods: &List<TopDecl>, smap: &SourceMap, walk: &var LintWalk): void {
+    while method in &methods { method.lint_decl(smap, walk) }
+}
+
+fun List<uint32>.contains_file(file: uint32): bool {
+    while item in &self {
+        if item == file { return true }
+    }
+    return false
+}

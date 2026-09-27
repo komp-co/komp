@@ -67,7 +67,7 @@ pub fun kflatc_cli(): int32 {
             continue
         }
         if flag == "-A" || flag == "-W" || flag == "-D" || flag == "--lint" || flag == "--lint-toml" ||
-            flag == "--lint-toml-error" {
+            flag == "--lint-toml-error" || flag == "--lint-toml-option" {
             i = i + 2
             continue
         }

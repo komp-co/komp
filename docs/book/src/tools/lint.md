@@ -18,8 +18,10 @@ lint: 0 errors, 2 warnings
 ```
 
 It exits 1 when anything was reported as an error, a lint set to `deny`
-included, and 0 otherwise. `komp check` reports the same lints at the same
-levels, without the tally.
+included, and 0 otherwise. `komp check` and the editor report the same lints
+at the same levels, without the tally. `komp build` reports only the lints
+the compiler meets while compiling, such as `implicit_copy`: the ones that
+read the source as written run when it is checked.
 
 ## Levels and groups
 
@@ -54,14 +56,41 @@ correctness
 
 suspicious
   deref_through_temporary  warn                  `*` through a `Box` owned by a call's result, freed at the end of the statement
+  empty_if                 warn                  an `if` whose branches are both empty
+  self_assignment          warn                  a variable assigned to itself
+  unused_variable          warn                  a local that is bound and never read
 
 style
   unused_import            warn                  an import whose module contributes no name this file writes
   wildcard_import          warn                  a `.*` import supplying few enough names to write out
+  bool_comparison          warn                  a comparison with `true` or `false`
+  collapsible_if           allow                 an `if` whose only statement is another `if`
+  non_snake_case_function  warn                  a function not named in lower_snake_case
+  non_snake_case_variable  warn                  a local or parameter not named in lower_snake_case
+  non_camel_case_type      warn                  a struct, enum or trait not named in UpperCamelCase
+  non_camel_case_variant   warn                  an enum variant not named in UpperCamelCase
+
+complexity
+  too_many_parameters      warn                  a function taking more parameters than `max`, `self` aside
+      max = 7                                  the most parameters a function may take
+  long_function            allow                 a function spanning more lines than `max_lines`
+      max_lines = 100                          the most lines a function may span
+  deep_nesting             allow                 blocks nested deeper than `max_depth` inside one function
+      max_depth = 5                            the most blocks that may enclose a statement
 
 perf
   implicit_copy            warn                  a value read through a borrow is copied to fill a by-value slot
   copy_after_move          warn                  an earlier move is copied instead, to keep the original readable
+
+pedantic
+  redundant_else           allow                 an `else` after a branch that ends in `return`, `break` or `continue`
+
+restriction
+  long_line                allow                 a line wider than `max_columns` characters
+      max_columns = 120                        the most characters a line may hold
+  long_file                allow                 a file longer than `max_lines` lines
+      max_lines = 400                          the most lines a file may hold
+  todo_comment             allow                 a `TODO` or `FIXME` comment, which is work an issue should hold
 ```
 
 ## lint.toml
@@ -77,13 +106,50 @@ style = "deny"
 wildcard_import = "warn"
 ```
 
-`[groups]` sets whole groups and `[lints]` single lints. Every group row
-applies before every lint row, so a lint named on its own keeps its level
+`[groups]` sets whole groups and `[lints]` single lints. A lint that takes
+options, as `--list` shows under it, is set with a table instead, giving its
+level, its options, or both:
+
+```toml
+[groups]
+complexity = "warn"
+
+[lints]
+too_many_parameters = { max = 2 }
+long_line = { level = "deny", max_columns = 100 }
+```
+
+With that lint.toml, over this `src/main.kf`:
+
+```kflat
+fun main(): int32 {
+    return add_all(1, 2, 3)
+}
+
+fun add_all(a: int32, b: int32, c: int32): int32 {
+    return a + b + c
+}
+```
+
+```console
+$ komp lint shapes
+/home/me/shapes/src/main.kf:5:5: warning: `add_all` takes 3 parameters; the most is 2
+    fun add_all(a: int32, b: int32, c: int32): int32 {
+        ^~~~~~~
+lint: 0 errors, 1 warning
+  too_many_parameters  1
+```
+
+An option's value is a whole number; `--list` shows the value in force and,
+when lint.toml changed it, the default.
+
+Every group row applies before every lint row, so a lint named on its own keeps its level
 whatever its group is set to, wherever the two rows sit in the file.
 
 In a workspace, a `lint.toml` beside the workspace's `kf.toml` applies to every
 member, and a member's own `lint.toml` applies after it. A malformed line, a
-section other than `[groups]` and `[lints]`, or a name that is no lint or group
+section other than `[groups]` and `[lints]`, a name that is no lint or group,
+or an option the lint does not take
 is an error that names the file, and fails the command.
 
 ## Where a level comes from

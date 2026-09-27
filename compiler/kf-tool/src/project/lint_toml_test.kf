@@ -36,3 +36,22 @@ fun a_row_before_any_section_is_a_problem(): void {
     val file = parse_lint_toml("unused_import = \"deny\"\n", "lint.toml")
     assert_eq(file.problems.size(), 1, "it belongs to no table")
 }
+
+@test
+fun a_table_row_gives_a_level_and_options(): void {
+    val file = parse_lint_toml("[lints]\ntoo_many_parameters = { level = \"deny\", max = 5 }\n", "lint.toml")
+    assert_eq("${file.lints[0]} ${file.options[0]}".as_str(), "too_many_parameters=deny too_many_parameters.max=5",
+        "the level as a row, the option as another")
+}
+
+@test
+fun a_table_row_may_give_only_options(): void {
+    val file = parse_lint_toml("[lints]\nlong_line = { max_columns = 100 }\n", "lint.toml")
+    assert_eq(file.lints.size() * 10 + file.options.size(), 1, "no level row, one option row")
+}
+
+@test
+fun an_unclosed_table_row_is_a_problem(): void {
+    val file = parse_lint_toml("[lints]\nlong_line = { max_columns = 100\n", "lint.toml")
+    assert_eq(file.problems[0].as_str(), "lint.toml:2: the `{` after `long_line` is never closed", "by line")
+}

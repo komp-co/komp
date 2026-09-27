@@ -121,8 +121,9 @@ fun kflatc_missing(path: &String): bool {
     return true
 }
 
-/// The project's lint.toml rows as `--lint-toml NAME=LEVEL`, and what is
-/// wrong with the file as `--lint-toml-error`, then its `[lint]` table as
+/// The project's lint.toml rows as `--lint-toml NAME=LEVEL` and
+/// `--lint-toml-option NAME.KEY=VALUE`, and what is wrong with the file as
+/// `--lint-toml-error`, then its `[lint]` table as
 /// `--lint NAME=LEVEL`, then komp's own quiet and lint flags, which the
 /// compiler reads off its command line: `-q`, `--deny-warnings`,
 /// `-A/-W/-D <lint>`. Only those before `--`.
@@ -138,6 +139,10 @@ fun forward_compiler_flags(command: &var Command, project: str): void {
     }
     while row in &file.lints {
         command.arg("--lint-toml")
+        command.arg(row.as_str())
+    }
+    while row in &file.options {
+        command.arg("--lint-toml-option")
         command.arg(row.as_str())
     }
     val manifest = manifest_of(project)

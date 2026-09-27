@@ -6,7 +6,8 @@ import alloc.list.*
 import kf_core.diagnostic.*
 
 /// One group heading per group, then a row per lint: its name, its level
-/// and, when configuration changed that, its default, then what it reports.
+/// and, when configuration changed that, its default, then what it reports;
+/// under it, a row for each option it takes, alike.
 pub fun lint_table(cfg: &LintConfig): String {
     val all = lint_registry()
     var width: uint64 = 0
@@ -34,6 +35,15 @@ pub fun lint_table(cfg: &LintConfig): String {
             out.append(cell.as_str())
             while _ in cell.byte_len()..22 { out.push_byte(32) }
             out.append("${info.description}\n")
+            while option in &info.options {
+                val value = cfg.options.get(info.name.as_str(), option.key.as_str())
+                var cell = "${option.key} = ${value}"
+                if value != option.default { cell.append(" (default ${option.default})") }
+                out.append("      ")
+                out.append(cell.as_str())
+                while _ in cell.byte_len()..width + 18 { out.push_byte(32) }
+                out.append("${option.description}\n")
+            }
         }
     }
     return out

@@ -5,24 +5,30 @@
 //
 //   [lints]
 //   unused_import = "deny"
+//   too_many_parameters = { level = "warn", max = 5 }
 //
-// komp reads it and hands kflatc each row as `--lint-toml NAME=LEVEL`;
-// kflatc knows the lints, so it checks the names and levels.
+// komp reads it and hands kflatc each level as `--lint-toml NAME=LEVEL` and
+// each option as `--lint-toml-option NAME.KEY=VALUE`; kflatc knows the
+// lints, so it checks the names, levels and options.
 
 import alloc.list.*
 import kf_shared.join_path
 import std.fs.is_file
 import std.fs.read_to_string
 
-/// A lint.toml's rows, each `name=level`, and what is wrong with its shape.
+/// A lint.toml's rows, each `name=level` or, for an option,
+/// `name.key=value`, and what is wrong with its shape.
 pub struct LintToml {
     pub var groups: List<String>
     pub var lints: List<String>
+    pub var options: List<String>
     pub var problems: List<String>
 }
 
 pub fun empty_lint_toml(): LintToml {
-    return LintToml { groups: List.new<String>(), lints: List.new<String>(), problems: List.new<String>() }
+    return LintToml {
+        groups: List.new<String>(), lints: List.new<String>(), options: List.new<String>(), problems: List.new<String>()
+    }
 }
 
 /// `src` read as the lint.toml at `path`, which names it in problems.
@@ -42,6 +48,10 @@ pub fun parse_lint_toml(src: str, path: str): LintToml {
             continue
         }
         val key = read_key(line.clone())
+        if section.as_str() == "lints" && line.as_str().index_of("{").is_some() {
+            out.read_lint_table(key.as_str(), line.as_str(), where_.as_str())
+            continue
+        }
         val level = read_string_value(line.clone())
         if key.is_empty() || level.is_empty() {
             out.problems.push("${where_}: expected `name = \"level\"`")
@@ -56,6 +66,29 @@ pub fun parse_lint_toml(src: str, path: str): LintToml {
         }
     }
     return out
+}
+
+/// `name = { level = "warn", max = 5 }`: a level, options, or both.
+mutating fun LintToml.read_lint_table(name: str, line: str, where_: str): void {
+    val open = line.index_of("{") ?: 0
+    val close = line.index_of("}") ?: {
+        self.problems.push("${where_}: the `{` after `${name}` is never closed")
+        return
+    }
+    val pairs = line.substring(open + 1, close).as_str().split(",")
+    while pair in &pairs {
+        val eq = pair.as_str().index_of("=") ?: {
+            if !pair.as_str().trim().is_empty() { self.problems.push("${where_}: expected `key = value` in `${pair}`") }
+            continue
+        }
+        val key = pair.as_str().substring(0, eq).as_str().trim()
+        val value = pair.as_str().substring(eq + 1, pair.byte_len()).as_str().trim()
+        if key.as_str() == "level" {
+            self.lints.push("${name}=${value.as_str().replace("\"", "")}")
+        } else {
+            self.options.push("${name}.${key}=${value}")
+        }
+    }
 }
 
 /// The lint.toml in `dir`, or an empty one when there is none.
@@ -81,6 +114,7 @@ pub fun lint_toml_for(crate_dir: str): LintToml {
     var out = lint_toml_in(ws.as_str())
     out.groups.append_all(&own.groups)
     out.lints.append_all(&own.lints)
+    out.options.append_all(&own.options)
     out.problems.append_all(&own.problems)
     return out
 }

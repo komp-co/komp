@@ -23,10 +23,14 @@ pub struct LintConfig {
     pub var names:  List<String>
     pub var levels: List<LintLevel>
     pub var deny_warnings: bool
+    /// lint.toml's option rows, over the registry's defaults.
+    pub var options: LintOptions
 }
 
 pub fun new_lint_config(): LintConfig {
-    return LintConfig { names: List.new<String>(), levels: List.new<LintLevel>(), deny_warnings: false }
+    return LintConfig {
+        names: List.new<String>(), levels: List.new<LintLevel>(), deny_warnings: false, options: no_lint_options()
+    }
 }
 
 /// Later callers win, so a CLI flag overrides kf.toml.
@@ -167,6 +171,10 @@ pub mutating fun LintConfig.apply_table_lint_flags(diags: &var List<Diagnostic>)
             diags.push(error_at(no_span(), String.from(problem)))
             continue
         }
+        if flag == "--lint-toml-option" && i + 1 < arg_count() {
+            self.apply_option_row(arg_at(i + 1), diags)
+            continue
+        }
         val origin = if flag == "--lint" { "kf.toml [lint]" } else if flag == "--lint-toml" { "lint.toml" } else { "" }
         if origin == "" || i + 1 >= arg_count() { continue }
         val row = arg_at(i + 1)
@@ -190,6 +198,44 @@ pub mutating fun LintConfig.apply_table_lint(origin: str, name: str, level: str,
     } else {
         self.set_level_of(name, lint_level_named(level))
     }
+}
+
+/// `--lint-toml-option NAME.KEY=VALUE`: one of a lint's options, as
+/// lint.toml sets it. The lint, the option and a whole-number value are
+/// checked here, where the registry is.
+pub mutating fun LintConfig.apply_option_row(row: str, diags: &var List<Diagnostic>): void {
+    val eq = row.index_of("=") ?: 0
+    val dot = row.index_of(".") ?: 0
+    if eq == 0 || dot == 0 || dot > eq {
+        diags.push(error_at(no_span(), "`--lint-toml-option ${row}`: expected NAME.KEY=VALUE"))
+        return
+    }
+    val name = row.substring(0, dot)
+    val key = row.substring(dot + 1, eq)
+    val text = row.substring(eq + 1, row.byte_len())
+    if !lint_exists(name.as_str()) {
+        diags.push(error_at(no_span(), "lint.toml: no lint named `${name}`"))
+    } else if lookup_lint_option(name.as_str(), key.as_str()).is_none() {
+        diags.push(error_at(no_span(), "lint.toml: `${name}` has no option `${key}`"))
+    } else {
+        val value = whole_number(text.as_str()) ?: {
+            diags.push(error_at(no_span(), "lint.toml: `${name}.${key}` is `${text}`; expected a whole number"))
+            return
+        }
+        self.options.set(name.as_str(), key.as_str(), value)
+    }
+}
+
+/// Decimal digits as a number; null for anything else, or none.
+fun whole_number(text: str): int64? {
+    if text.byte_len() == 0 || text.byte_len() > 18 { return null }
+    var value: int64 = 0
+    while i in 0..text.byte_len() {
+        val byte = text.byte(i)
+        if byte < 48 || byte > 57 { return null }
+        value = value * 10 + (byte - 48) as int64
+    }
+    return Option.Some(value)
 }
 
 /// `-A/-W/-D <lint>` and `--deny-warnings`, over kf.toml. An unknown lint is

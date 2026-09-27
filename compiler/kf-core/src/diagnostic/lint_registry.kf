@@ -39,6 +39,15 @@ pub struct LintInfo {
     pub val default:     LintLevel
     /// One line, in the diagnostic's own voice.
     pub val description: String
+    /// What lint.toml may tune, beside the level.
+    pub var options:     List<LintOptionInfo>
+}
+
+/// A number a lint reads, such as the most parameters a function may take.
+pub struct LintOptionInfo {
+    pub val key:         String
+    pub val default:     int64
+    pub val description: String
 }
 
 /// The groups, in the order `komp lint --list` shows them. `all` names every
@@ -72,8 +81,24 @@ pub fun LintInfo.in_group(group: str): bool {
 
 fun lint_info(name: str, group: str, default: LintLevel, description: str): LintInfo {
     return LintInfo {
-        name: String.from(name), group: String.from(group), default: default, description: String.from(description)
+        name: String.from(name), group: String.from(group), default: default, description: String.from(description),
+        options: List.new<LintOptionInfo>()
     }
+}
+
+fun LintInfo.with_option(key: str, default: int64, description: str): LintInfo {
+    var out = self.clone()
+    out.options.push(LintOptionInfo { key: String.from(key), default: default, description: String.from(description) })
+    return out
+}
+
+/// The option `key` of lint `name`, or null when it has none by that name.
+pub fun lookup_lint_option(name: str, key: str): LintOptionInfo? {
+    val info = lookup_lint(name)
+    while option in &info.options {
+        if option.key.as_str() == key { return Option.Some(option.clone()) }
+    }
+    return null
 }
 
 pub fun lint_registry(): List<LintInfo> {
@@ -90,6 +115,43 @@ pub fun lint_registry(): List<LintInfo> {
         "a copy is inserted into a type that does not implement `Clone`"))
     out.push(lint_info("deref_through_temporary", "suspicious", LintLevel.Warn,
         "`*` through a `Box` owned by a call's result, freed at the end of the statement"))
+    out.push(lint_info("empty_if", "suspicious", LintLevel.Warn,
+        "an `if` whose branches are both empty"))
+    out.push(lint_info("self_assignment", "suspicious", LintLevel.Warn,
+        "a variable assigned to itself"))
+    out.push(lint_info("unused_variable", "suspicious", LintLevel.Warn,
+        "a local that is bound and never read"))
+    out.push(lint_info("bool_comparison", "style", LintLevel.Warn,
+        "a comparison with `true` or `false`"))
+    out.push(lint_info("collapsible_if", "style", LintLevel.Allow,
+        "an `if` whose only statement is another `if`"))
+    out.push(lint_info("non_snake_case_function", "style", LintLevel.Warn,
+        "a function not named in lower_snake_case"))
+    out.push(lint_info("non_snake_case_variable", "style", LintLevel.Warn,
+        "a local or parameter not named in lower_snake_case"))
+    out.push(lint_info("non_camel_case_type", "style", LintLevel.Warn,
+        "a struct, enum or trait not named in UpperCamelCase"))
+    out.push(lint_info("non_camel_case_variant", "style", LintLevel.Warn,
+        "an enum variant not named in UpperCamelCase"))
+    out.push(lint_info("too_many_parameters", "complexity", LintLevel.Warn,
+        "a function taking more parameters than `max`, `self` aside")
+        .with_option("max", 7, "the most parameters a function may take"))
+    out.push(lint_info("long_function", "complexity", LintLevel.Allow,
+        "a function spanning more lines than `max_lines`")
+        .with_option("max_lines", 100, "the most lines a function may span"))
+    out.push(lint_info("deep_nesting", "complexity", LintLevel.Allow,
+        "blocks nested deeper than `max_depth` inside one function")
+        .with_option("max_depth", 5, "the most blocks that may enclose a statement"))
+    out.push(lint_info("redundant_else", "pedantic", LintLevel.Allow,
+        "an `else` after a branch that ends in `return`, `break` or `continue`"))
+    out.push(lint_info("long_line", "restriction", LintLevel.Allow,
+        "a line wider than `max_columns` characters")
+        .with_option("max_columns", 120, "the most characters a line may hold"))
+    out.push(lint_info("long_file", "restriction", LintLevel.Allow,
+        "a file longer than `max_lines` lines")
+        .with_option("max_lines", 400, "the most lines a file may hold"))
+    out.push(lint_info("todo_comment", "restriction", LintLevel.Allow,
+        "a `TODO` or `FIXME` comment, which is work an issue should hold"))
     return out
 }
 

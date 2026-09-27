@@ -1,0 +1,50 @@
+// `unused_variable`: a local that is bound and never read.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// The locals one function binds, and every name it reads. A name read
+/// anywhere in the function counts for every local spelled that way, so a
+/// shadowed binding can go unreported, never the other way round.
+pub struct LocalUses {
+    var names: List<Sym>
+    var spans: List<Span>
+    var used: List<Sym>
+}
+
+pub fun no_locals(): LocalUses {
+    return LocalUses { names: List.new<Sym>(), spans: List.new<Span>(), used: List.new<Sym>() }
+}
+
+impl LocalUses {
+    pub mutating fun declare(name: Sym, at: Span): void {
+        self.names.push(name)
+        self.spans.push(at)
+    }
+
+    pub mutating fun use_name(name: Sym): void {
+        self.used.push(name)
+    }
+
+    /// One diagnostic per local never read. A name starting with `_` says it
+    /// is meant to go unread.
+    pub fun report(out: &var List<Diagnostic>): void {
+        while i in 0..self.names.size() {
+            val name = self.names[i]
+            if name.as_str().starts_with("_") || self.was_read(name) { continue }
+            val text = name.as_str()
+            val message = "`${text}` is never read; remove it, or name it `_${text}`"
+            out.push(lint_at("unused_variable", self.spans[i], message))
+        }
+    }
+
+    fun was_read(name: Sym): bool {
+        while used in &self.used {
+            if used.id == name.id { return true }
+        }
+        return false
+    }
+}

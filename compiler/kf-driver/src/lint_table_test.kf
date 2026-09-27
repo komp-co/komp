@@ -14,3 +14,10 @@ fun a_configured_level_shows_its_default_beside_it(): void {
     assert_eq(lint_table(&cfg).as_str().contains("unused_import            deny (default warn)"), true,
         "the level, then what it would be")
 }
+
+@test
+fun an_option_is_listed_under_its_lint(): void {
+    var cfg = new_lint_config()
+    cfg.options.set("too_many_parameters", "max", 4)
+    assert_eq(lint_table(&cfg).as_str().contains("\n      max = 4 (default 7)"), true, "with its value and default")
+}

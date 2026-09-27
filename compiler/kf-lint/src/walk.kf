@@ -1,0 +1,190 @@
+// One pass over a function's body, handing each statement and expression to
+// the lints that look at it.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// What the walk has found, and where it is.
+pub struct LintWalk {
+    pub val options: LintOptions
+    pub var found: List<Diagnostic>
+    /// How many blocks enclose the statement being walked.
+    var depth: int64
+    /// Whether this function's nesting has been reported, so it is once.
+    var nesting_reported: bool
+    var locals: LocalUses
+}
+
+pub fun new_lint_walk(options: &LintOptions): LintWalk {
+    return LintWalk {
+        options: options.clone(), found: List.new<Diagnostic>(), depth: 0, nesting_reported: false, locals: no_locals()
+    }
+}
+
+impl LintWalk {
+    /// Walks one function's body, reporting its locals when it is done.
+    pub mutating fun function(params: &List<Param>, body: &List<Stmt>): void {
+        self.depth = 0
+        self.nesting_reported = false
+        self.locals = no_locals()
+        while param in &params {
+            if param.name.as_str() != "self" { check_variable_name(param.name, param.span, self) }
+        }
+        body.visit(self)
+        self.locals.report(&var self.found)
+    }
+
+    /// Into a block, reporting `deep_nesting` the first time the function
+    /// goes past its limit.
+    mutating fun enter(at: Span): void {
+        self.depth = self.depth + 1
+        val max = self.options.get("deep_nesting", "max_depth")
+        if self.depth <= max || self.nesting_reported { return }
+        self.nesting_reported = true
+        self.found.push(lint_at("deep_nesting", at, "blocks nest ${self.depth} deep here; the most is ${max}"))
+    }
+
+    mutating fun leave(): void {
+        self.depth = self.depth - 1
+    }
+
+    mutating fun block(at: Span, body: &List<Stmt>): void {
+        self.enter(at)
+        body.visit(self)
+        self.leave()
+    }
+
+    mutating fun local(name: Sym, at: Span): void {
+        check_variable_name(name, at, self)
+        self.locals.declare(name, at)
+    }
+}
+
+fun List<Stmt>.visit(walk: &var LintWalk): void {
+    while s in &self { s.visit(walk) }
+}
+
+fun Stmt.visit(walk: &var LintWalk): void {
+    when (self.kind) {
+        LetVal(name, _ty, init) => {
+            walk.local(name, self.binder)
+            visit_optional(&init, walk)
+        }
+        LetVar(name, _ty, init) => {
+            walk.local(name, self.binder)
+            visit_optional(&init, walk)
+        }
+        Assign(name, value) => {
+            check_self_assignment(name, value.kind_is_variable(name), self.span, walk)
+            value.visit(walk)
+        }
+        AssignTo(place, value) => {
+            place.visit(walk)
+            value.visit(walk)
+        }
+        Return(value) => visit_optional(&value, walk)
+        If(cond, then_body, else_body) => {
+            check_if_shape(self.span, &then_body, &else_body, walk)
+            cond.visit(walk)
+            walk.block(self.span, &then_body)
+            // `else if` is a chain, not a level deeper.
+            if else_body.size() == 1 && else_body[0].is_if() {
+                else_body[0].visit(walk)
+            } else if !else_body.is_empty() {
+                walk.block(self.span, &else_body)
+            }
+        }
+        While(cond, body) => {
+            cond.visit(walk)
+            walk.block(self.span, &body)
+        }
+        ForEach(binder, subject, body) => {
+            subject.visit(walk)
+            walk.local(binder, if self.binder.is_none() { self.span } else { self.binder })
+            walk.block(self.span, &body)
+        }
+        When(subject, arms) => {
+            subject.visit(walk)
+            visit_arms(&arms, walk)
+        }
+        Expression(e) => e.visit(walk)
+        _ => {}
+    }
+}
+
+fun Stmt.is_if(): bool {
+    return when (self.kind) {
+        If(_c, _t, _e) => true
+        _ => false
+    }
+}
+
+fun visit_optional(value: &Box<Expr>?, walk: &var LintWalk): void {
+    when (value) {
+        Some(e) => e.visit(walk)
+        None => {}
+    }
+}
+
+fun visit_arms(arms: &List<Arm>, walk: &var LintWalk): void {
+    while arm in &arms {
+        visit_optional(&arm.guard, walk)
+        walk.block(arm.span, &arm.body)
+    }
+}
+
+fun Expr.visit(walk: &var LintWalk): void {
+    when (self.kind) {
+        Variable(name) => walk.locals.use_name(name)
+        Binary(left, op, right) => {
+            check_bool_comparison(self.span, &op, left.kind_is_bool(), right.kind_is_bool(), walk)
+            left.visit(walk)
+            right.visit(walk)
+        }
+        Unary(_op, inner) => inner.visit(walk)
+        Deref(inner) => inner.visit(walk)
+        Call(name, args) => {
+            walk.locals.use_name(name)
+            while arg in &args { arg.visit(walk) }
+        }
+        MethodCall(receiver, _name, args) => {
+            receiver.visit(walk)
+            while arg in &args { arg.visit(walk) }
+        }
+        FieldAccess(inner, _field) => inner.visit(walk)
+        IfExpr(cond, then_value, else_value) => {
+            cond.visit(walk)
+            then_value.visit(walk)
+            else_value.visit(walk)
+        }
+        WhenExpr(subject, arms) => {
+            subject.visit(walk)
+            visit_arms(&arms, walk)
+        }
+        StructLit(_name, inits) => {
+            while init in &inits { init.value.visit(walk) }
+        }
+        Cast(inner, _ty) => inner.visit(walk)
+        Lambda(_params, body) => walk.block(self.span, &body)
+        Block(body) => body.visit(walk)
+        _ => {}
+    }
+}
+
+fun Expr.kind_is_variable(name: Sym): bool {
+    return when (self.kind) {
+        Variable(other) => other.id == name.id
+        _ => false
+    }
+}
+
+/// `true`, `false`, or neither as -1.
+fun Expr.kind_is_bool(): int32 {
+    return when (self.kind) {
+        LitBool(value) => if value { 1 } else { 0 }
+        _ => -1
+    }
+}

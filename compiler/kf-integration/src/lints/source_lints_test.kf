@@ -1,0 +1,160 @@
+// Each source lint, over a file parsed from text: what it reports, and what
+// it leaves alone.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.new_crate_id
+import kf_core.diagnostic.*
+import kf_parse.lexer.tokenize
+import kf_parse.parser.*
+import kf_assemble.stamp_module_owner
+import kf_lint.lint_module
+
+/// The codes the source lints report over `src`, in order, space-separated.
+fun lint_codes_with(src: str, options: &LintOptions): String {
+    var smap = new_source_map()
+    val file = smap.add_file(new_source_file(String.from("lint_fixture.kf"), String.from(src)))
+    var parser = new_parser(tokenize(src, file))
+    var path = List.new<String>()
+    path.push(String.from("fixture"))
+    var m = parser.parse_module(path)
+    stamp_module_owner(&var m, new_crate_id("fixture"))
+    val found = lint_module(&m, &smap, options)
+    var codes = String.from("")
+    while d in &found {
+        if !codes.is_empty() { codes.append(" ") }
+        codes.append(d.code.as_str())
+    }
+    return codes
+}
+
+fun lint_codes(src: str): String {
+    return lint_codes_with(src, &no_lint_options())
+}
+
+@test
+fun clean_code_reports_nothing(): void {
+    assert_eq(lint_codes("fun add(a: int32, b: int32): int32 {\n    val sum = a + b\n    return sum\n}\n").as_str(), "",
+        "a small, well-named function")
+}
+
+@test
+fun a_local_never_read_is_unused(): void {
+    assert_eq(lint_codes("fun f(): int32 {\n    val kept = 1\n    return 0\n}\n").as_str(), "unused_variable",
+        "`kept` is bound and dropped")
+}
+
+@test
+fun an_underscore_local_is_meant_to_go_unread(): void {
+    assert_eq(lint_codes("fun f(): int32 {\n    val _kept = 1\n    return 0\n}\n").as_str(), "", "named to say so")
+}
+
+@test
+fun a_local_read_in_an_interpolation_is_used(): void {
+    val src = "fun f(): String {\n    val n = 1\n    return \"\${n}\"\n}\n"
+    assert_eq(lint_codes(src).as_str(), "", "the slot reads it")
+}
+
+@test
+fun comparing_with_true_is_reported(): void {
+    assert_eq(lint_codes("fun f(a: bool): bool {\n    return a == true\n}\n").as_str(), "bool_comparison", "write `a`")
+}
+
+@test
+fun assigning_a_variable_to_itself_is_reported(): void {
+    assert_eq(lint_codes("fun f(): int32 {\n    var a = 1\n    a = a\n    return a\n}\n").as_str(), "self_assignment",
+        "`a = a`")
+}
+
+@test
+fun an_if_with_nothing_in_it_is_reported(): void {
+    assert_eq(lint_codes("fun f(a: bool): void {\n    if a { }\n}\n").as_str(), "empty_if", "both branches empty")
+}
+
+@test
+fun an_if_holding_only_an_if_is_collapsible(): void {
+    val src = "fun f(a: bool, b: bool): void {\n    if a {\n        if b { g() }\n    }\n}\nfun g(): void { }\n"
+    assert_eq(lint_codes(src).as_str(), "collapsible_if", "join with &&")
+}
+
+@test
+fun an_else_after_a_return_is_redundant(): void {
+    val src = "fun f(a: bool): int32 {\n    if a {\n        return 1\n    } else {\n        return 2\n    }\n}\n"
+    assert_eq(lint_codes(src).as_str(), "redundant_else", "the else can go")
+}
+
+@test
+fun a_camel_case_function_is_reported(): void {
+    assert_eq(lint_codes("fun parseExpr(): void { }\n").as_str(), "non_snake_case_function", "lower_snake_case")
+}
+
+@test
+fun a_snake_case_type_and_variant_are_reported(): void {
+    assert_eq(lint_codes("enum token_kind {\n    word_tok\n}\n").as_str(), "non_camel_case_type non_camel_case_variant",
+        "UpperCamelCase for both")
+}
+
+@test
+fun a_camel_case_local_is_reported(): void {
+    assert_eq(lint_codes("fun f(): int32 {\n    val someValue = 1\n    return someValue\n}\n").as_str(),
+        "non_snake_case_variable", "lower_snake_case")
+}
+
+@test
+fun too_many_parameters_is_counted_against_the_option(): void {
+    var options = no_lint_options()
+    options.set("too_many_parameters", "max", 1)
+    assert_eq(lint_codes_with("fun f(a: int32, b: int32): int32 {\n    return a + b\n}\n", &options).as_str(),
+        "too_many_parameters", "two is more than one")
+}
+
+@test
+fun deep_nesting_is_counted_against_the_option(): void {
+    var options = no_lint_options()
+    options.set("deep_nesting", "max_depth", 1)
+    val src = "fun f(a: bool): void {\n    if a {\n        while a { g() }\n    }\n}\nfun g(): void { }\n"
+    assert_eq(lint_codes_with(src, &options).as_str(), "deep_nesting", "the while is two deep")
+}
+
+@test
+fun an_else_if_chain_is_not_nesting(): void {
+    var options = no_lint_options()
+    options.set("deep_nesting", "max_depth", 1)
+    val src = "fun f(a: int32): void {\n    if a == 1 { g() } else if a == 2 { g() } else { g() }\n}\n"
+    assert_eq(lint_codes_with(src, &options).as_str(), "", "each branch is one deep")
+}
+
+@test
+fun a_long_function_is_counted_against_the_option(): void {
+    var options = no_lint_options()
+    options.set("long_function", "max_lines", 2)
+    assert_eq(lint_codes_with("fun f(): int32 {\n    val a = 1\n    return a\n}\n", &options).as_str(),
+        "long_function", "four lines is more than two")
+}
+
+@test
+fun a_long_line_is_counted_against_the_option(): void {
+    var options = no_lint_options()
+    options.set("long_line", "max_columns", 10)
+    assert_eq(lint_codes_with("fun a_long_name(): void { }\n", &options).as_str(), "long_line", "wider than ten")
+}
+
+@test
+fun a_long_file_is_counted_against_the_option(): void {
+    var options = no_lint_options()
+    options.set("long_file", "max_lines", 1)
+    assert_eq(lint_codes_with("fun f(): void { }\n\nfun g(): void { }\n", &options).as_str(), "long_file",
+        "three lines is more than one")
+}
+
+@test
+fun a_todo_comment_is_reported(): void {
+    assert_eq(lint_codes("// TODO: tidy\nfun f(): void { }\n").as_str(), "todo_comment", "an issue should hold it")
+}
+
+@test
+fun a_function_taking_nothing_may_be_named_as_a_constant(): void {
+    assert_eq(lint_codes("fun TAG_INT8(): uint8 { return 0 }\n").as_str(), "", "UPPER_SNAKE_CASE stands for a constant")
+}

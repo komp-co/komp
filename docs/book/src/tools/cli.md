@@ -272,7 +272,7 @@ the direct ones reach. `--project DIR` names
 the project being built: warnings about files outside it are hidden. kflatc
 never reads `kf.toml` or `lint.toml`: komp passes each row of
 [`lint.toml`](lint.md#linttoml) as `--lint-toml NAME=LEVEL`, groups first,
-anything wrong with the file's shape as `--lint-toml-error MESSAGE`, and each
+each lint option as `--lint-toml-option NAME.KEY=VALUE`, anything wrong with the file's shape as `--lint-toml-error MESSAGE`, and each
 row of the `[lint]` table as `--lint NAME=LEVEL`; a wrong row is reported as a
 row of its file. `-q`, `--deny-warnings` and `-A/-W/-D <lint>` mean what they
 mean to komp, which passes its own along.

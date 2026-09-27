@@ -1,0 +1,28 @@
+// Lints on the shape of one statement or expression: comparing with a
+// boolean literal, and assigning a variable to itself.
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// `bool_comparison`: `x == true` and its kin. `left` and `right` are 1 for
+/// `true`, 0 for `false` and -1 for anything else.
+pub fun check_bool_comparison(at: Span, op: &BinOp, left: int32, right: int32, walk: &var LintWalk): void {
+    val equal = when (op) {
+        Eq => 1
+        NotEq => 0
+        _ => -1
+    }
+    if equal < 0 || (left < 0 && right < 0) { return }
+    val literal = if left >= 0 { left } else { right }
+    val same = (literal == 1) == (equal == 1)
+    val advice = if same { "write the condition itself" } else { "negate the condition with `!`" }
+    val written = if literal == 1 { "true" } else { "false" }
+    walk.found.push(lint_at("bool_comparison", at, "comparing with `${written}`: ${advice}"))
+}
+
+/// `self_assignment`: `x = x`.
+pub fun check_self_assignment(name: Sym, reads_itself: bool, at: Span, walk: &var LintWalk): void {
+    if !reads_itself { return }
+    walk.found.push(lint_at("self_assignment", at, "`${name.as_str()}` is assigned to itself"))
+}

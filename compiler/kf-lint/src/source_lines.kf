@@ -1,0 +1,55 @@
+// Lints read off a file's text rather than its tree: lines too long, files
+// too long, and comments that leave work for later.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.diagnostic.*
+
+/// `long_line`, `long_file` and `todo_comment` over the file `file_id`.
+pub fun check_source_text(file_id: uint32, text: str, options: &LintOptions, out: &var List<Diagnostic>): void {
+    val max_columns = options.get("long_line", "max_columns")
+    var line_start: uint64 = 0
+    var lines: int64 = 0
+    while line_start < text.byte_len() {
+        var line_end = line_start
+        while line_end < text.byte_len() && text.byte(line_end) != 10 { line_end = line_end + 1 }
+        lines = lines + 1
+        val columns = columns_between(text, line_start, line_end)
+        if columns > max_columns {
+            val at = Span { file_id: file_id, start: line_start as uint32, end: line_end as uint32 }
+            out.push(lint_at("long_line", at, "this line is ${columns} columns wide; the most is ${max_columns}"))
+        }
+        check_todo(file_id, text, line_start, line_end, out)
+        line_start = line_end + 1
+    }
+    val max_lines = options.get("long_file", "max_lines")
+    if lines > max_lines {
+        val at = Span { file_id: file_id, start: 0, end: 0 }
+        out.push(lint_at("long_file", at, "this file is ${lines} lines long; the most is ${max_lines}"))
+    }
+}
+
+/// Characters, not bytes: a UTF-8 continuation byte adds no column.
+fun columns_between(text: str, from: uint64, to: uint64): int64 {
+    var columns: int64 = 0
+    while i in from..to {
+        val byte = text.byte(i)
+        if byte < 128 || byte >= 192 { columns = columns + 1 }
+    }
+    return columns
+}
+
+/// `todo_comment`: `TODO` or `FIXME` in a `//` comment.
+fun check_todo(file_id: uint32, text: str, from: uint64, to: uint64, out: &var List<Diagnostic>): void {
+    val line = text.substring(from, to)
+    val comment = line.as_str().index_of("//") ?: return
+    val after = line.as_str().substring(comment, line.byte_len())
+    val todo = after.as_str().index_of("TODO")
+    val fixme = after.as_str().index_of("FIXME")
+    if todo.is_none() && fixme.is_none() { return }
+    val marker = if todo.is_some() { todo.unwrap() } else { fixme.unwrap() }
+    val start = (from + comment + marker) as uint32
+    val at = Span { file_id: file_id, start: start, end: start + 4 }
+    out.push(lint_at("todo_comment", at, String.from("a comment leaves work for later; file an issue for it instead")))
+}

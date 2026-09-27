@@ -341,3 +341,28 @@ fun a_row_is_reported_as_the_file_it_came_from(): void {
     val expected = "lint.toml: `perf` is set to `loud`; expected `allow`, `warn` or `deny`"
     assert_eq(diags.at(0).primary.message.as_str(), expected, "named by its file")
 }
+
+@test
+fun an_option_row_sets_the_option(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_option_row("too_many_parameters.max=3", &var diags)
+    assert_eq(cfg.options.get("too_many_parameters", "max"), 3, "read back through the options")
+}
+
+@test
+fun an_option_the_lint_lacks_is_reported(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_option_row("too_many_parameters.min=3", &var diags)
+    assert_eq(diags.at(0).primary.message.as_str(), "lint.toml: `too_many_parameters` has no option `min`", "named")
+}
+
+@test
+fun an_option_value_must_be_a_whole_number(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_option_row("long_line.max_columns=wide", &var diags)
+    val expected = "lint.toml: `long_line.max_columns` is `wide`; expected a whole number"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the value is named")
+}

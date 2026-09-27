@@ -1,0 +1,31 @@
+// Lints on how big a function is: how many parameters it takes and how many
+// lines it spans.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// `too_many_parameters`: more than `max`, `self` aside.
+pub fun check_parameter_count(name: str, at: Span, params: &List<Param>, walk: &var LintWalk): void {
+    val max = walk.options.get("too_many_parameters", "max")
+    var count: int64 = 0
+    while param in &params {
+        if param.name.as_str() != "self" { count = count + 1 }
+    }
+    if count <= max { return }
+    walk.found.push(lint_at("too_many_parameters", at, "`${name}` takes ${count} parameters; the most is ${max}"))
+}
+
+/// `long_function`: a declaration spanning more than `max_lines` lines.
+pub fun check_function_length(name: str, at: Span, decl: &TopDecl, smap: &SourceMap, walk: &var LintWalk): void {
+    if decl.decl_end <= decl.span.start { return }
+    val first = smap.span_to_location(decl.span)?.line ?: return
+    val end = Span { file_id: decl.span.file_id, start: decl.decl_end, end: decl.decl_end }
+    val last = smap.span_to_location(end)?.line ?: return
+    val lines = (last - first + 1) as int64
+    val max = walk.options.get("long_function", "max_lines")
+    if lines <= max { return }
+    walk.found.push(lint_at("long_function", at, "`${name}` is ${lines} lines long; the most is ${max}"))
+}

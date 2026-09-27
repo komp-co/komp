@@ -1,0 +1,9 @@
+[project]
+name = "kf_lint"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }
+kf_core = { path = "../kf-core" }
