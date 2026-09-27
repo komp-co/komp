@@ -1,0 +1,37 @@
+// Whether a crate uses `std`: a file of it imports it. Imports are the only
+// way to reach another crate, so this is exact, and `std` is compiled only
+// for the programs that use it.
+
+import alloc.list.*
+import kf_shared.walk_kf_files_inc
+
+/// Whether a `.kf` file under `crate_root/src`, tests included, has a line
+/// starting `import std`.
+pub fun crate_imports_std(crate_root: str): bool {
+    var files = List.new<String>()
+    walk_kf_files_inc("${crate_root}/src".as_str(), &var files, true)
+    while file in &files {
+        if imports_std(read_file(file.as_str()).as_str()) { return true }
+    }
+    return false
+}
+
+/// Whether a line of `text` imports `std` or something in it.
+pub fun imports_std(text: str): bool {
+    var start: uint64 = 0
+    while at in 0..(text.byte_len() + 1) {
+        if at < text.byte_len() && text.byte(at) != 10 { continue }
+        var first = start
+        while first < at && (text.byte(first) == 32 || text.byte(first) == 9) { first = first + 1 }
+        if line_imports_std(text.substring(first, at).as_str()) { return true }
+        start = at + 1
+    }
+    return false
+}
+
+fun line_imports_std(line: str): bool {
+    if !line.starts_with("import std") { return false }
+    if line.byte_len() == 10 { return true }
+    val next = line.byte(10)
+    return next == 46 || next == 32 || next == 9 || next == 13
+}

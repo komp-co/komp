@@ -1,0 +1,21 @@
+import core.assert.assert_eq
+
+@test
+fun an_import_of_a_std_module_is_a_use(): void {
+    assert_eq(imports_std("import alloc.list.*\nimport std.fs.read_to_string\n"), true, "std.fs")
+}
+
+@test
+fun an_indented_import_counts(): void {
+    assert_eq(imports_std("  import std.io.*\n"), true, "leading spaces")
+}
+
+@test
+fun a_crate_named_like_std_is_not_std(): void {
+    assert_eq(imports_std("import stdx.thing\n"), false, "stdx is another crate")
+}
+
+@test
+fun a_mention_outside_an_import_is_not_a_use(): void {
+    assert_eq(imports_std("// import std.fs is not needed\nval s = \"std\"\n"), false, "a comment and a string")
+}

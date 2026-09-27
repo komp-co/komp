@@ -91,8 +91,14 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
         (*error) = "error: invalid manifest ${manifest_path}: ${mf.error}"
         return
     }
+    val uses_std = deps_have_alias(&mf.deps, "std") || crate_imports_std(root.as_str())
+    if freestanding && mf.name.as_str() != "std" && uses_std {
+        val why = "which needs an operating system, and this program is freestanding (`freestanding = true`)"
+        (*error) = "error: ${root} uses std, ${why}"
+        return
+    }
     in_progress.push(root.clone())
-    val eff_deps = mf.effective_deps(root.as_str())
+    val eff_deps = mf.effective_deps(root.as_str(), freestanding)
     var dep_names = List.new<String>()
     while eff_dep in &eff_deps {
         val dep_root = dependency_root(root.as_str(), eff_dep, &sources.lock, sources.cache.as_str())
@@ -152,19 +158,25 @@ fun name_listed(names: &List<String>, name: str): bool {
     return false
 }
 
-// Declared dependencies, plus `core` and `alloc` for a dependency-free hosted
-// crate from the bundled sysroot (`<self_dir>/../libs`). A crate with
-// dependencies inherits their tier; injecting another core would duplicate
-// trait impls. A crate naming `core` or `alloc` manages its own tier.
-fun Manifest.effective_deps(crate_root: str): List<Dependency> {
+// Declared dependencies, plus from the bundled sysroot (`<self_dir>/../libs`):
+// `core` and `alloc` for a dependency-free crate, and `std` for a crate of a
+// hosted program that imports it. A crate with dependencies inherits their
+// `core` and `alloc`; injecting another would duplicate trait impls. A crate
+// naming `core`, `alloc` or `std` manages its own tier.
+fun Manifest.effective_deps(crate_root: str, freestanding: bool): List<Dependency> {
     var out = List.new<Dependency>()
     val cname = self.name.as_str()
-    val declares_stdlib = deps_have_alias(&self.deps, "core") || deps_have_alias(&self.deps, "alloc")
-    if cname != "core" && cname != "alloc" && !declares_stdlib && self.deps.size() == 0 {
+    val is_stdlib = cname == "core" || cname == "alloc" || cname == "std"
+    val declares_stdlib = deps_have_alias(&self.deps, "core") || deps_have_alias(&self.deps, "alloc") ||
+        deps_have_alias(&self.deps, "std")
+    if !is_stdlib && !declares_stdlib {
         val libs = bundled_libs_root(crate_root)
-        if libs.as_str().byte_len() > 0 {
-            out.push(new_dependency(String.from("core"), libs.clone() + String.from("/core")))
-            out.push(new_dependency(String.from("alloc"), libs.clone() + String.from("/alloc")))
+        if libs.byte_len() > 0 && self.deps.size() == 0 {
+            out.push(new_dependency(String.from("core"), "${libs}/core"))
+            out.push(new_dependency(String.from("alloc"), "${libs}/alloc"))
+        }
+        if libs.byte_len() > 0 && !freestanding && crate_imports_std(crate_root) {
+            out.push(new_dependency(String.from("std"), "${libs}/std"))
         }
     }
     while dep in &self.deps {

@@ -166,8 +166,12 @@ covers every member.
 
 `core` and `alloc` do not need an entry — the compiler injects them into any
 crate that declares no dependencies of its own, and a crate that *does* have
-dependencies inherits theirs. `std` is the exception: it is never implicit,
-so a project that uses it must name it. See [std](../libs/std.md).
+dependencies inherits theirs. `std` needs no entry either: any crate of a
+hosted program that imports from it gets it, and only those crates are
+compiled against it. See [std](../libs/std.md).
+
+A `path` dependency whose directory holds no `kf.toml` is an error naming it,
+from every command that reads the dependencies.
 
 ## Workspaces
 

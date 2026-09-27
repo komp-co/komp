@@ -106,7 +106,11 @@ pub fun sync_sources(crate_root: str, policy: &FetchPolicy, cache: str): String 
                 if !rows.holds(&fetched.entry) { rows.push(fetched.entry.clone()) }
                 queue.push(root)
             } else {
-                queue.push(dependency_root(dir.as_str(), dep, &rows, cache))
+                val root = dependency_root(dir.as_str(), dep, &rows, cache)
+                if !exists("${root}/kf.toml".as_str()) {
+                    return "error: dependency `${dep.name}` of ${dir}: ${root} holds no kf.toml"
+                }
+                queue.push(root)
             }
         }
     }

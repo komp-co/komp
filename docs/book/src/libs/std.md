@@ -3,25 +3,28 @@
 `std` provides filesystem, environment, input, stream, process and time utilities. Its modules
 are independent — import what you need.
 
-## std is not implicit
+## Using std
 
-`core` and `alloc` are injected automatically. **`std` is not** — a project
-that imports it has to name it:
+A program that runs on an operating system has `std` without naming it in
+`kf.toml`: importing from it is enough.
 
-```toml
-[project]
-name = "my-project"
-version = "0.1.0"
-kind = "bin"
+```kflat
+import std.io.eprintln
 
-[dependencies]
-std = { path = "/path/to/kflat/libs/std" }
+fun main(): int32 {
+    eprintln(&"to stderr")
+    return 0
+}
 ```
 
-`core` and `alloc` stay available: `std` declares them, and a crate inherits
-its dependencies' stdlib tier. Without the `std` entry, every `std` name
-reports as not found in scope, with nothing pointing at the manifest as the
-cause.
+komp compiles `std` only for the crates that import it, so a program that
+never does pays nothing for it. The `std` is always the one bundled with the
+compiler; an explicit `std = { path = ... }` entry still works, and is not
+needed.
+
+A [freestanding](../start/projects.md#the-freestanding-tier) program has no
+`std`: processes, files and streams need an operating system. A crate of one
+that imports `std`, or names it, is an error that says so.
 
 ## std.fs
 
