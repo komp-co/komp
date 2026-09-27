@@ -1,0 +1,65 @@
+// The questions `kflatc serve` answers from the typed crates around a file:
+// hover, so far. Each answer is the object `komp query` prints for it.
+
+import alloc.list.*
+import json.reader.*
+import kf_driver.build.CrateSource
+
+/// What a typed request names: the file, the byte offset in it, and the
+/// crates to type, dependencies first and the file's own crate last, as
+/// `komp query` passes them.
+pub struct TypedParams {
+    pub val path: String
+    pub val offset: uint32
+    pub val crates: List<CrateSource>
+    /// The crates as one string, to tell whether a cached typing still
+    /// applies.
+    pub val key: String
+}
+
+/// `null` when `path`, `offset` or a crate's `name` or `root` is missing.
+pub fun read_typed_params(line: str): TypedParams? {
+    var reader = params_of(line) ?: return null
+    if !reader.begin_object() { return null }
+    var path = String.from("")
+    var offset: int64 = -1
+    var crates = List.new<CrateSource>()
+    var key = String.from("")
+    while reader.object_has_next() {
+        val field = reader.read_key()
+        when field.as_str() {
+            "path" => path = reader.read_string()
+            "offset" => offset = reader.read_int64()
+            "crates" => {
+                if !reader.begin_array() { return null }
+                while reader.array_has_next() {
+                    if !read_crate_source(&var reader, &var crates) { return null }
+                    val last = crates.size() - 1
+                    key.append("${crates[last].name}=${crates[last].root}\n")
+                }
+            }
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || path.is_empty() || offset < 0 || crates.is_empty() { return null }
+    return Option.Some(TypedParams { path: path, offset: offset as uint32, crates: crates, key: key })
+}
+
+/// Adds the crate the reader stands at to `into`; false when it names no
+/// `name` or `root`.
+fun read_crate_source(reader: &var JsonReader, into: &var List<CrateSource>): bool {
+    if !reader.begin_object() { return false }
+    var name = String.from("")
+    var root = String.from("")
+    while reader.object_has_next() {
+        val field = reader.read_key()
+        when field.as_str() {
+            "name" => name = reader.read_string()
+            "root" => root = reader.read_string()
+            _ => reader.skip_value()
+        }
+    }
+    if name.is_empty() || root.is_empty() { return false }
+    into.push(CrateSource { name: name, root: root })
+    return true
+}

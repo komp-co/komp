@@ -612,6 +612,7 @@ printf 'fun main(): int32 {\n    val x: int32 = "text"\n    return x\n}\n' > "$s
 serve_crate="{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"core\",\"alloc\"],\"lints\":[],\"kind\":\"bin\"}"
 serve_check="{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":$serve_crate}"
 serve_file="$serve_root/src/main.kf"
+serve_crates="[{\"name\":\"core\",\"root\":\"$ROOT/libs/core\"},{\"name\":\"alloc\",\"root\":\"$ROOT/libs/alloc\"},{\"name\":\"serve_project\",\"root\":\"$serve_root\"}]"
 {
     echo '{"id":1,"method":"check"}'
     echo '{"id":2,"method":"hello","params":{"protocol":1}}'
@@ -625,6 +626,8 @@ serve_file="$serve_root/src/main.kf"
     echo "{\"id\":\"fold\",\"method\":\"folding\",\"params\":{\"path\":\"$serve_file\"}}"
     echo "{\"id\":\"sel\",\"method\":\"selection\",\"params\":{\"path\":\"$serve_file\",\"offset\":40}}"
     echo "{\"id\":\"gone\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_root/src/gone.kf\"}}"
+    echo "{\"id\":\"hov\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_file\",\"offset\":39,\"crates\":$serve_crates}}"
+    echo "{\"id\":\"far\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_root/src/gone.kf\",\"offset\":0,\"crates\":$serve_crates}}"
     echo "{\"id\":8,\"method\":\"check\",\"params\":{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"missing\"],\"lints\":[]}}}"
     echo '{"id":9,"method":"stage","params":{"text":""}}'
     echo '{"id":10,"method":"compile"}'
@@ -649,6 +652,8 @@ serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"
     echo '{"id":"fold","result":{"schema_version":1,"file":"'"$serve_file"'","ranges":\[{"byte_start":0,"byte_end":[0-9]*,"kind":"region"}\]}}'
     echo '{"id":"sel","result":{"schema_version":1,"file":"'"$serve_file"'","offset":40,"ranges":\[{"byte_start":39,"byte_end":45},{"byte_start":0,"byte_end":[0-9]*}\]}}'
     echo '{"id":"gone","error":{"code":"no_such_file","message":"[^"]*"}}'
+    echo '{"id":"hov","result":{"schema_version":2,"file":"'"$serve_file"'","offset":39,"type":"[^"]*","signature":null,"documentation":null,"byte_start":39,"byte_end":45}}'
+    echo '{"id":"far","error":{"code":"not_in_crate","message":"[^"]*"}}'
     echo '{"id":8,"error":{"code":"check_failed","message":"[^"]*"}}'
     echo '{"id":9,"error":{"code":"invalid_params","message":"[^"]*"}}'
     echo '{"id":10,"error":{"code":"unknown_method","message":"[^"]*"}}'

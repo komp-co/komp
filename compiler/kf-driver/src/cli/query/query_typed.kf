@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_assemble.Overlay
 import kf_assemble.no_overlay
 import kf_assemble.overlay_for
 import kf_resolve.*
@@ -35,7 +36,15 @@ pub struct QueryCrate {
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
 /// run dependencies first, the queried crate last.
 pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &List<CrateSource>): QueryCrate {
+    // Keyed to the path the assembly will spell.
     val abs_file = absolutize(file_path)
+    val overlay = if staged { overlay_for(abs_file.as_str(), buffer) } else { no_overlay() }
+    return typed_crate_with(file_path, &overlay, crates)
+}
+
+/// `crates` typed, with `overlay` standing in for any file it stages, and
+/// focused on `file_path`.
+pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateSource>): QueryCrate {
     if crates.size() == 0 {
         return QueryCrate {
             ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty_sig_table(), source: "",
@@ -44,11 +53,8 @@ pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &L
     }
     val smap = fresh_source_map()
     val pdiags = fresh_diag_list()
-    // With the root's tests, since the buffer is often a `_test.kf`. Keyed to
-    // the path the assembly will spell.
-    var overlay = no_overlay()
-    if staged { overlay = overlay_for(abs_file.as_str(), buffer) }
-    var merged = merge_module_list(assemble_crate_list(crates, smap, pdiags, true, &overlay))
+    // With the root's tests, since the buffer is often a `_test.kf`.
+    var merged = merge_module_list(assemble_crate_list(crates, smap, pdiags, true, overlay))
 
     // Diagnostics are dropped: they would interleave with the answer on
     // stdout, and the editor has them from `komp check`.
@@ -60,14 +66,26 @@ pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &L
     resolve_module(&var merged, &var table)
     val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names)
 
-    val fid = file_id_for_path(smap, abs_file.as_str())
+    val root = crates.at(crates.size() - 1).root.clone()
+    var crate = QueryCrate { ok: false, file_id: 0, module: merged, sigs: typed.sigs, source: "", smap: smap, root: root }
+    val _found = crate.focus(file_path)
+    return crate
+}
+
+/// Points the answers at `file_path`, one of the typed crates' files: false,
+/// and `ok` false, when it is not one.
+pub mutating fun QueryCrate.focus(file_path: str): bool {
+    val abs_file = absolutize(file_path)
+    val fid = file_id_for_path(self.smap, abs_file.as_str())
     var text = ""
-    when (unsafe { smap.get_file(fid) }) {
+    when (unsafe { self.smap.get_file(fid) }) {
         Some(f) => text = f.content.clone()
         None => {}
     }
-    val root = crates.at(crates.size() - 1).root.clone()
-    return QueryCrate { ok: fid != 0, file_id: fid, module: merged, sigs: typed.sigs, source: text, smap: smap, root: root }
+    self.ok = fid != 0
+    self.file_id = fid
+    self.source = text
+    return self.ok
 }
 
 /// kflatc's query: the crates are the `--crate` rows komp passed.

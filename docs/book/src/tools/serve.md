@@ -48,6 +48,7 @@ people.
 | `symbols` | `path` | the file's declarations, nested |
 | `folding` | `path` | the file's foldable ranges |
 | `selection` | `path`, `offset` | the ranges around `offset`, innermost first |
+| `hover` | `path`, `offset`, `crates` | what is at `offset`: its type, its declaration and that declaration's documentation |
 | `shutdown` | none | `null`, then the server exits 0 |
 
 **`hello` comes first.** It names the protocol version the client speaks, and
@@ -79,6 +80,15 @@ cost milliseconds. Each result is the object
 [`komp query`](cli.md#komp-query) prints for the same question, byte offsets
 included; `offset` is a byte offset too.
 
+**`hover` types the crates around the file.** `crates` lists them as
+`{"name", "root"}` objects, dependencies first and the file's own crate
+last: a crate's `loads` from `komp metadata`, then the crate itself. They
+are typed from source, staged text included, once; every later typed request
+naming the same crates reuses that until a `stage` or `unstage` changes a
+buffer, so hovering around a file that is not being edited costs no more
+checking. The result is the object `komp query hover` prints. A file the
+last crate does not compile is refused as `not_in_crate`.
+
 **The server stops** after answering `shutdown`, or when its standard input
 ends. Either way it exits 0.
 
@@ -91,6 +101,7 @@ ends. Either way it exits 0.
 | `unsupported_protocol` | `hello` named a version this kflatc does not speak |
 | `unknown_method` | No method has that name |
 | `invalid_params` | A required field is missing or has the wrong type |
+| `not_in_crate` | A typed request's file is not one the last of its `crates` compiles |
 | `no_such_file` | A file named in the params is neither staged nor on disk |
 | `check_failed` | The crate could not be checked at all, such as a dependency's interface missing from `target_dir` |
 

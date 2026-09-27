@@ -87,3 +87,18 @@ fun selection_needs_an_offset(): void {
     val line = session.answer("{\"id\":10,\"method\":\"selection\",\"params\":{\"path\":\"/nowhere/c.kf\"}}")
     assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "an offset is required")
 }
+
+@test
+fun hover_without_crates_is_invalid(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":11,\"method\":\"hover\",\"params\":{\"path\":\"/nowhere/a.kf\",\"offset\":0}}")
+    assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "crates are required")
+}
+
+@test
+fun typed_params_keep_the_crates_in_order(): void {
+    val line = String.from("{\"id\":12,\"method\":\"hover\",\"params\":{\"path\":\"/w/a/src/lib.kf\",\"offset\":4,") +
+        "\"crates\":[{\"name\":\"core\",\"root\":\"/k/core\"},{\"name\":\"a\",\"root\":\"/w/a\"}]}}"
+    val params = read_typed_params(line.as_str())
+    assert_eq(params?.key ?: "", "core=/k/core\na=/w/a\n", "dependencies first")
+}

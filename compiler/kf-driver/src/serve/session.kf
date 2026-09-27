@@ -8,6 +8,9 @@ import kf_assemble.stage
 import kf_assemble.unstage
 import kf_core.diagnostic.*
 import kf_driver.build.CompileUnit
+import kf_driver.cli.query.QueryCrate
+import kf_driver.cli.query.render_hover_json
+import kf_driver.cli.query.typed_crate_with
 import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
 import kf_driver.new_lint_config
@@ -21,13 +24,20 @@ pub fun serve_protocol(): int64 {
 pub struct ServeSession {
     var greeted: bool
     var buffers: Overlay
+    /// The crates last typed for a typed request, kept until a buffer
+    /// changes: empty, or one.
+    var typed: List<QueryCrate>
+    /// Which crates `typed` holds.
+    var typed_key: String
     /// Set by `shutdown`: the loop stops after answering it.
     pub var stopping: bool
 }
 
 impl ServeSession {
     pub static fun new(): ServeSession {
-        return ServeSession { greeted: false, buffers: no_overlay(), stopping: false }
+        return ServeSession {
+            greeted: false, buffers: no_overlay(), typed: List.new<QueryCrate>(), typed_key: "", stopping: false
+        }
     }
 
     /// The one line answering `line`.
@@ -44,6 +54,7 @@ impl ServeSession {
             "symbols" => outline_answer(id, method, line, &self.buffers)
             "folding" => outline_answer(id, method, line, &self.buffers)
             "selection" => outline_answer(id, method, line, &self.buffers)
+            "hover" => self.hover(id, line)
             "shutdown" => {
                 self.stopping = true
                 result_line(id, "null")
@@ -75,13 +86,30 @@ impl ServeSession {
     mutating fun stage(id: str, line: str): String {
         val staged = read_path_and_text(line) ?: return invalid_params(id, "stage")
         self.buffers.stage(staged.path.as_str(), staged.text.as_str())
+        self.typed = List.new<QueryCrate>()
         return result_line(id, "null")
     }
 
     mutating fun unstage(id: str, line: str): String {
         val staged = read_path_and_text(line) ?: return invalid_params(id, "unstage")
         self.buffers.unstage(staged.path.as_str())
+        self.typed = List.new<QueryCrate>()
         return result_line(id, "null")
+    }
+
+    /// Types the crates once and answers every hover about them from that,
+    /// until a buffer changes.
+    mutating fun hover(id: str, line: str): String {
+        val params = read_typed_params(line) ?: return invalid_params(id, "hover")
+        if self.typed.is_empty() || self.typed_key.as_str() != params.key.as_str() {
+            self.typed = List.new<QueryCrate>()
+            self.typed.push(typed_crate_with(params.path.as_str(), &self.buffers, &params.crates))
+            self.typed_key = params.key.clone()
+        }
+        if !self.typed[0].focus(params.path.as_str()) {
+            return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")
+        }
+        return result_line(id, render_hover_json(params.path.as_str(), params.offset, &self.typed[0]).as_str())
     }
 
     fun check(id: str, line: str): String {
