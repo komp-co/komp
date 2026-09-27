@@ -36,7 +36,7 @@
 3 compiler/kf-core/src/ast/type_mangle_frag.kf
 3 compiler/kf-core/src/diagnostic/renderer.kf
 2 compiler/kf-driver/src/build/crate_sources.kf
-7 compiler/kf-driver/src/build/interface_project.kf
+8 compiler/kf-driver/src/build/interface_project.kf
 4 compiler/kf-driver/src/build/module_list.kf
 3 compiler/kf-driver/src/build/unity_crates.kf
 2 compiler/kf-driver/src/cli/diagnostic_color.kf

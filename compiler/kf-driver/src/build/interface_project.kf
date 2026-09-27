@@ -20,31 +20,54 @@ import kf_shared.render_json_error
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number
 /// of errors.
 pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool): int32 {
+    var cfg_diags = List.new<Diagnostic>()
+    val cfg = project_lint_config(&var cfg_diags)
+    val checked = self.check_crate(tdir, &no_overlay(), &cfg)
+    if checked.failure.byte_len() > 0 {
+        val message = checked.failure.as_str()
+        if as_json { println(render_json_error(message)) } else { println("kflatc check: ${message}") }
+        return 1
+    }
+    val cfg_errors = report_config_diags(&cfg_diags, checked.smap, as_json)
+    while d in &checked.diagnostics {
+        if as_json { d.print_json_diag(checked.smap) } else { d.print_diag(checked.smap) }
+    }
+    return cfg_errors + count_errors(&checked.diagnostics)
+}
+
+/// What checking one crate found. `failure` says why it could not be checked
+/// at all, and is "" when it was.
+pub struct CrateCheck {
+    pub val failure: String
+    pub val diagnostics: List<Diagnostic>
+    /// Where the diagnostics' spans point.
+    pub val smap: Ptr<SourceMap>
+}
+
+/// The crate with its tests, from disk or `overlay`, checked against the
+/// interfaces of `self.loads` in `tdir`. Parse errors stop it before Resolve.
+pub fun CompileUnit.check_crate(tdir: str, overlay: &Overlay, cfg: &LintConfig): CrateCheck {
     val smap = fresh_source_map()
-    val diagnostics = fresh_diag_list()
+    val parse_diags = fresh_diag_list()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = crate_interface_path(tdir, dependency.as_str())
         val loaded = load_compiled_crate(path.as_str(), smap)
         if !loaded.ok {
-            val message = "failed to load ${path}: ${loaded.error}"
-            if as_json { println(render_json_error(message.as_str())) } else { println("kflatc check: ${message}") }
-            return 1
+            val failure = "failed to load ${path}: ${loaded.error}"
+            return CrateCheck { failure: failure, diagnostics: List.new<Diagnostic>(), smap: smap }
         }
         append_modules(&var modules, &loaded.modules)
     }
-    val source_crate = assemble_crate_tests(self.root.as_str(), String.from(self.name.as_str()), smap, diagnostics)
+    val name = String.from(self.name.as_str())
+    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, parse_diags, true, overlay)
     append_modules(&var modules, &source_crate.modules)
-    val parse_errors = report_parse_errors(diagnostics, smap, as_json)
-    if parse_errors > 0 { return parse_errors }
+    val parsed: List<Diagnostic> = unsafe { (*parse_diags).clone() }
+    if parsed.size() > 0 { return CrateCheck { failure: "", diagnostics: parsed, smap: smap } }
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
     merged.crate = new_crate_id(self.name.as_str())
-    var cfg_diags = List.new<Diagnostic>()
-    var cfg = project_lint_config(&var cfg_diags)
-    val cfg_errors = report_config_diags(&cfg_diags, smap, as_json)
-    if as_json { return cfg_errors + merged.check_module_json_leveled(smap, &cfg) }
-    return cfg_errors + merged.check_module_leveled(smap, &cfg)
+    return CrateCheck { failure: "", diagnostics: merged.checked_diagnostics(smap, cfg), smap: smap }
 }
 
 fun append_modules(output: &var List<Module>, input: &List<Module>): void {
