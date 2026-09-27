@@ -8,4 +8,4 @@ core = { path = "../core" }
 alloc = { path = "../alloc" }
 
 [native]
-c_sources = ["native/fs.c", "native/fs_checked.c", "native/process.c", "native/env.c", "native/time.c", "native/io.c"]
+c_sources = ["native/fs.c", "native/fs_checked.c", "native/process.c", "native/env.c", "native/time.c", "native/io.c", "native/stream.c"]

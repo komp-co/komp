@@ -1,6 +1,6 @@
 # std
 
-`std` provides filesystem, environment, input, process and time utilities. Its modules
+`std` provides filesystem, environment, input, stream, process and time utilities. Its modules
 are independent — import what you need.
 
 ## std is not implicit
@@ -121,6 +121,10 @@ fun main(): int32 {
 `read_bytes(n)` reads up to `n` bytes, and `at_end()` says whether the last
 read reached the end of input.
 
+These read through the C library's buffer. A program that waits on standard
+input alongside other streams reads it with a `Reader` over `Stream.stdin()`
+instead (below), and not with both.
+
 ## std.process
 
 Running a command:
@@ -155,6 +159,37 @@ is rejected by `komp check`: `cannot call method `status` on `void``.
 
 Arguments never pass through a shell, so no quoting or escaping is involved.
 `status()` runs the command synchronously and blocks until the child exits.
+
+## std.stream, std.reader and std.poll
+
+Waiting on several streams at once, from one thread. Three pieces, each
+doing one thing:
+
+- **`Stream`** is an open descriptor: a pipe end, or one of this process's
+  standard streams. `read_available(max)` never blocks. It answers `Data`,
+  `Pending` when the other end is open but quiet, `End`, or `Failed`.
+  `write(text)` blocks until everything is taken, and writing to a pipe whose
+  reader has gone is an `Err`, not a signal that ends the program.
+- **`Reader`** buffers a stream into lines and counted runs of bytes. The
+  `take_*` methods answer only from what is already buffered and never block.
+  `fill()` pulls in whatever is waiting, and `read_line()` and
+  `read_bytes(n)` wait for the rest.
+- **`Poll`** waits on several streams at once, each added under a token you
+  pick. `wait(timeout)` answers the tokens whose stream has input or has
+  closed, or none when the timeout passed first. It reads nothing itself.
+
+**Drain a reader before you wait on its stream.** A line that is already in a
+`Reader`'s buffer does not make its stream ready, so a loop that waits
+without taking it first can wait forever for input that has already arrived.
+
+`pipe()` makes a connected `reader` and `writer` inside the program. A
+struct's field cannot be moved out, so `take()` moves a stream out of the
+`Pipe` that holds it and leaves a closed one in its place. Assigning
+`Stream.closed()` to a stream closes the one it replaces.
+
+This is single-threaded on purpose. `Poll` reports readiness and the caller
+does the reading, which is the layer an async runtime is later built on, so
+code written against it keeps working when one arrives.
 
 ## std.time
 

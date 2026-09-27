@@ -1,0 +1,41 @@
+import core.assert.assert_eq
+
+@test
+fun a_quiet_stream_times_out(): void {
+    val ends = pipe().unwrap()
+    var poll = Poll.new()
+    poll.add(&ends.reader, 7)
+    val ready = poll.wait(Option.Some(Duration.from_millis(10))).unwrap()
+    assert_eq(ready.size(), 0, "nothing was written")
+}
+
+@test
+fun only_the_stream_with_input_is_ready(): void {
+    val first = pipe().unwrap()
+    val second = pipe().unwrap()
+    var poll = Poll.new()
+    poll.add(&first.reader, 1)
+    poll.add(&second.reader, 2)
+    val _written = second.writer.write("x")
+    val ready = poll.wait(null).unwrap()
+    assert_eq(ready.size() == 1 && ready[0] == 2, true, "token 2 alone")
+}
+
+@test
+fun a_closed_writer_makes_its_reader_ready(): void {
+    var ends = pipe().unwrap()
+    var poll = Poll.new()
+    poll.add(&ends.reader, 3)
+    ends.writer = Stream.closed()
+    assert_eq(poll.wait(Option.Some(Duration.from_millis(1000))).unwrap().size(), 1, "the end is news")
+}
+
+@test
+fun a_removed_stream_is_not_waited_on(): void {
+    val ends = pipe().unwrap()
+    var poll = Poll.new()
+    poll.add(&ends.reader, 4)
+    poll.remove(4)
+    val _written = ends.writer.write("x")
+    assert_eq(poll.wait(Option.Some(Duration.from_millis(10))).unwrap().size(), 0, "removed")
+}

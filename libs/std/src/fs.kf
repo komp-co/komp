@@ -59,6 +59,7 @@ pub fun scratch_path(name: str): str {
 
 /// Why a filesystem operation failed: the operating system's error, and the
 /// path it was about.
+@derive(Clone)
 pub struct IoError {
     pub val path: String
     /// The `errno` value.

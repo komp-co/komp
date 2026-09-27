@@ -1,0 +1,37 @@
+import core.assert.assert_eq
+
+fun read_text(stream: &Stream): String {
+    return when (stream.read_available(64)) {
+        Data(bytes) => bytes
+        Pending => "pending"
+        End => "end"
+        Failed(error) => error.message
+    }
+}
+
+@test
+fun a_pipe_carries_what_was_written(): void {
+    val ends = pipe().unwrap()
+    val _written = ends.writer.write("hello")
+    assert_eq(read_text(&ends.reader).as_str(), "hello", "the bytes arrive")
+}
+
+@test
+fun an_empty_pipe_is_pending_not_ended(): void {
+    val ends = pipe().unwrap()
+    assert_eq(read_text(&ends.reader).as_str(), "pending", "nothing yet")
+}
+
+@test
+fun a_pipe_ends_once_its_writer_is_dropped(): void {
+    var ends = pipe().unwrap()
+    ends.writer = Stream.closed()
+    assert_eq(read_text(&ends.reader).as_str(), "end", "the writer closed")
+}
+
+@test
+fun writing_to_a_pipe_without_a_reader_fails(): void {
+    var ends = pipe().unwrap()
+    ends.reader = Stream.closed()
+    assert_eq(ends.writer.write("lost").is_err(), true, "EPIPE, not SIGPIPE")
+}
