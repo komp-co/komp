@@ -15,6 +15,7 @@
 //   komp install [<name>[@<req>]]      build a program from an index into
 //                                      ~/.kflat/bin, or list what is there
 //   komp uninstall <name>              remove an installed program
+//   komp self update [<version>]       install the newest komp release
 //   komp <command> [args]              run the installed komp-<command>
 //   komp publish [--status] [<project-dir>]
 //                                      add this version to a package index
@@ -305,6 +306,7 @@ pub fun run_cli(): int32 {
         "init" => return init_project()
         "install" => return install_command(nargs)
         "uninstall" => return uninstall_command(nargs)
+        "self" => return self_command(nargs)
         _ => { }
     }
 

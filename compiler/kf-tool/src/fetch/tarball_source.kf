@@ -66,7 +66,7 @@ fun unpack(archive: str, into: str): String {
     return ""
 }
 
-fun extract(archive: str, into: str, strip_one: bool): bool {
+pub fun extract(archive: str, into: str, strip_one: bool): bool {
     var mkdir = Command.new("mkdir")
     mkdir.arg("-p")
     mkdir.arg(into)
@@ -81,7 +81,7 @@ fun extract(archive: str, into: str, strip_one: bool): bool {
 }
 
 /// Lowercase hex, or "" when no hashing tool ran.
-fun sha256_of(file: str): String {
+pub fun sha256_of(file: str): String {
     val out = "${file}.sha256"
     var sha = Command.new("sha256sum")
     sha.arg(file)

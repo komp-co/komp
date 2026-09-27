@@ -1,9 +1,10 @@
 // `komp install [<name>[@<requirement>]] [--index <url>]`,
-// `komp uninstall <name>`, and `komp <command>` running an installed
-// `komp-<command>`.
+// `komp uninstall <name>`, `komp self update`, and `komp <command>` running
+// an installed `komp-<command>`.
 
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
+import kf_tool.install.self_update
 import kf_tool.install.install_package
 import kf_tool.install.installed_bin_dir
 import kf_tool.install.installed_binary_name
@@ -11,6 +12,7 @@ import kf_tool.install.installed_packages
 import kf_tool.install.uninstall_package
 import kf_tool.project.default_index_url
 import kf_shared.cli_arg_get
+import kf_shared.kflat_version
 import std.env.env_var
 import std.fs.exists
 import std.process.Command
@@ -111,4 +113,23 @@ fun on_path(dir: str): bool {
         }
     }
     return false
+}
+
+/// `komp self update [<version>]`.
+pub fun self_command(nargs: int32): int32 {
+    if nargs < 2 || nargs > 3 || cli_arg_get(1) != "update" { return usage_error("self") }
+    val version = if nargs == 3 { cli_arg_get(2) } else { "" }
+    if starts_with_dash(version) { return usage_error("self") }
+    val home = install_home()
+    val done = self_update(version, kflat_version(), home.as_str(), cache_root().as_str())
+    if done.error.byte_len() > 0 {
+        runtime_println("error: ${done.error}")
+        return 1
+    }
+    if !done.installed {
+        runtime_println("komp ${done.version} is the newest release")
+        return 0
+    }
+    runtime_println("installed komp ${done.version}; ${installed_bin_dir(home.as_str())}/komp now runs it")
+    return 0
 }

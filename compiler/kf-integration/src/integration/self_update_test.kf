@@ -1,0 +1,59 @@
+// `komp self update` against releases laid out as GitHub lays them out, in
+// scratch space: `download/v<version>/kflat-<version>.tar.gz` and its
+// `.sha256`. The archive's install.sh only leaves a mark, so no C builds.
+
+import core.assert.assert_eq
+import kf_tool.install.self_update
+import std.fs.exists
+
+/// A release of `version` under `releases`, whose install.sh writes
+/// `$KFLAT_HOME/bin/komp`; `honest` false publishes a wrong sha256.
+fun fake_release(releases: &String, version: str, honest: bool): void {
+    val name = "kflat-${version}"
+    val dir = "${releases}/download/v${version}"
+    val work = "${releases}_work"
+    sh("rm -rf ${work} && mkdir -p ${work}/${name} ${dir}".as_str())
+    write_file("${work}/${name}/install.sh".as_str(),
+        "mkdir -p \"$KFLAT_HOME/bin\" && echo ${version} > \"$KFLAT_HOME/bin/komp\"\n".as_str())
+    sh("cd ${work} && tar -czf ${dir}/${name}.tar.gz ${name}".as_str())
+    val sum = if honest { "cd ${dir} && sha256sum ${name}.tar.gz > ${name}.tar.gz.sha256" } else {
+        "echo 0000 > ${dir}/${name}.tar.gz.sha256"
+    }
+    sh(sum.as_str())
+}
+
+fun release_dir(name: str): String {
+    val releases = dir_of(name)
+    sh("rm -rf ${releases}".as_str())
+    val _set = unsafe { setenv("KFLAT_RELEASES", "file://${releases}".as_str(), 1) }
+    return releases
+}
+
+@test
+fun a_named_release_is_installed_by_its_script(): void {
+    val releases = release_dir("kf_self_releases_a")
+    fake_release(&releases, "9.9.9", true)
+    val home = dir_of("kf_self_home_a")
+    sh("rm -rf ${home}".as_str())
+    val done = self_update("9.9.9", "0.5.0", home.as_str(), test_cache().as_str())
+    val mark = read_file("${home}/bin/komp".as_str())
+    assert_eq(done.installed && mark.as_str() == "9.9.9\n", true, "its install.sh ran")
+}
+
+@test
+fun an_archive_that_does_not_match_its_sha256_is_refused(): void {
+    val releases = release_dir("kf_self_releases_b")
+    fake_release(&releases, "9.9.8", false)
+    val home = dir_of("kf_self_home_b")
+    sh("rm -rf ${home}".as_str())
+    val done = self_update("9.9.8", "0.5.0", home.as_str(), test_cache().as_str())
+    assert_eq(done.error.contains("sha256") && !exists("${home}/bin/komp".as_str()), true, "nothing installed")
+}
+
+@test
+fun a_release_that_does_not_exist_says_so(): void {
+    val _releases = release_dir("kf_self_releases_c")
+    val home = dir_of("kf_self_home_c")
+    val done = self_update("9.9.7", "0.5.0", home.as_str(), test_cache().as_str())
+    assert_eq(done.error.contains("9.9.7"), true, "names the version")
+}

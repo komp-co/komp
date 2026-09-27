@@ -14,6 +14,7 @@ pub fun command_usage(command: str): str {
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
         "uninstall" => "komp uninstall <name>"
+        "self" => "komp self update [<version>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
         "init" => "komp init"
@@ -68,6 +69,12 @@ komp-<command>, so installing komp_fmt gives `komp fmt`.
                     without one, the highest published
   --index <url>     the index to look in, instead of the default"""
         "uninstall" => """Remove a program `komp install` put in ~/.kflat/bin, and its record."""
+        "self" => """Install the newest komp release, or the version named, from its
+release archive, checked against the sha256 published beside it. It goes in
+~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
+points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
+
+  <version>   that release, such as 0.5.1, instead of the newest"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
@@ -118,6 +125,7 @@ pub fun print_usage(): void {
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  install   build a program from a package index into ~/.kflat/bin")
     runtime_println("  uninstall remove an installed program")
+    runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
     runtime_println("  new       create a new project")

@@ -24,6 +24,9 @@ it is the one directory to put on `PATH`. `KFLAT_HOME` moves all of it
 somewhere other than `~/.kflat`. Installing a version again replaces it;
 other versions stay where they are.
 
+From then on, [`komp self update`](../tools/cli.md#komp-self-update) installs
+each new release the same way.
+
 ## Building from the seed
 
 To build komp from a checkout of its source instead:

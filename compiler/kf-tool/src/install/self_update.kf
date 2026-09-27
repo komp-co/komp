@@ -1,0 +1,120 @@
+// `komp self update`: a release's install archive, downloaded, checked
+// against its published sha256 and installed by its own install.sh, which
+// links the new komp into `bin/` under the install home. Toolchains already
+// installed stay.
+
+import alloc.path.Path
+import kf_tool.fetch.extract
+import kf_tool.fetch.first_word
+import kf_tool.fetch.fresh_staging
+import kf_tool.fetch.remove_tree
+import kf_tool.fetch.sha256_of
+import std.env.env_var
+import std.fs.exists
+import std.fs.scratch_path
+import std.process.Command
+
+/// What an update did: `version` installed, nothing when already current,
+/// or `error` saying why not.
+pub struct SelfUpdate {
+    pub val version: String
+    pub val installed: bool
+    pub val error: String
+}
+
+fun update_failed(message: String): SelfUpdate {
+    return SelfUpdate { version: "", installed: false, error: message }
+}
+
+/// `$KFLAT_RELEASES`, else komp's releases on GitHub: `<url>/latest` names
+/// the newest, and `<url>/download/v<version>/` holds each one's archives.
+pub fun releases_url(): String {
+    val explicit = env_var("KFLAT_RELEASES") ?: String.from("")
+    if explicit.byte_len() > 0 { return explicit }
+    return String.from("https://github.com/komp-co/komp/releases")
+}
+
+/// The version a release page's URL names, as `.../tag/v0.5.1` does; "" for
+/// any other URL.
+pub fun version_in_release_url(url: str): String {
+    val page = String.from(url)
+    val at = page.index_of("/tag/v") ?: return String.from("")
+    return page.substring(at + 6, page.byte_len())
+}
+
+/// The newest release's version, from where `<releases>/latest` redirects;
+/// "" when that cannot be read.
+pub fun latest_release(releases: str): String {
+    val out = fresh_staging_file("latest")
+    var ask = Command.new("curl")
+    ask.arg("-fsSLI")
+    ask.arg("-o")
+    ask.arg("/dev/null")
+    ask.arg("-w")
+    ask.arg("%{url_effective}")
+    ask.arg("${releases}/latest".as_str())
+    ask.stdout_to(Path.new(out.as_str()))
+    val ok = ask.status().success()
+    val landed = read_file(out.as_str())
+    remove_tree(out.as_str())
+    if !ok { return String.from("") }
+    return version_in_release_url(landed.as_str())
+}
+
+/// Installs release `requested`, or the newest when it is "", into `home`.
+/// The newest is not installed again when it is `current`.
+pub fun self_update(requested: str, current: str, home: str, cache: str): SelfUpdate {
+    val releases = releases_url()
+    val version = if requested.byte_len() > 0 { String.from(requested) } else { latest_release(releases.as_str()) }
+    if version.byte_len() == 0 { return update_failed("cannot tell the newest release from ${releases}/latest") }
+    if requested.byte_len() == 0 && version.as_str() == current {
+        return SelfUpdate { version: version, installed: false, error: "" }
+    }
+    val staging = fresh_staging(cache, "self-update")
+    if staging.byte_len() == 0 { return update_failed("cannot create a directory under ${cache}") }
+    val name = "kflat-${version}.tar.gz"
+    val url = "${releases}/download/v${version}/${name}"
+    val archive = "${staging}.tar.gz"
+    val digest_file = "${staging}.tar.gz.published"
+    if !download(url.as_str(), archive.as_str()) || !download("${url}.sha256".as_str(), digest_file.as_str()) {
+        clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
+        return update_failed("cannot download ${url} and its .sha256; is ${version} a release?")
+    }
+    val published = first_word(read_file(digest_file.as_str()).as_str())
+    val got = sha256_of(archive.as_str())
+    if got.byte_len() == 0 || got.as_str() != published.as_str() {
+        clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
+        return update_failed("${name} does not match its published sha256")
+    }
+    val script = "${staging}/kflat-${version}/install.sh"
+    if !extract(archive.as_str(), staging.as_str(), false) || !exists(script.as_str()) {
+        clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
+        return update_failed("${name} holds no kflat-${version}/install.sh")
+    }
+    var install = Command.new("sh")
+    install.arg(script.as_str())
+    install.env("KFLAT_HOME", home)
+    val ok = install.status().success()
+    clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
+    if !ok { return update_failed("installing ${version} failed; its install.sh said why above") }
+    return SelfUpdate { version: version, installed: true, error: "" }
+}
+
+fun download(url: str, to: str): bool {
+    var fetch = Command.new("curl")
+    fetch.arg("-fsSL")
+    fetch.arg("-o")
+    fetch.arg(to)
+    fetch.arg(url)
+    return fetch.status().success()
+}
+
+fun clean_up(staging: str, archive: str, digest_file: str): void {
+    remove_tree(staging)
+    remove_tree(archive)
+    remove_tree(digest_file)
+}
+
+fun fresh_staging_file(kind: str): String {
+    return String.from(scratch_path("komp_self_update_${kind}".as_str()))
+}

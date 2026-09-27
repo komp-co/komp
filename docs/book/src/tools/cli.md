@@ -19,6 +19,7 @@ points, and then compiles and links the C with cc.
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
 | `komp uninstall <name>` | Remove an installed program |
 | `komp <command>` | Run the installed `komp-<command>` |
+| `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -226,6 +227,30 @@ a program and its row.
 Installing `komp_fmt` is what makes `komp fmt` work, whether or not
 `~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
 one of the same name.
+
+### komp self update
+
+`komp self update` installs the newest komp release, the way a release's
+[install script](../start/installing.md) installs it: it downloads
+`kflat-<version>.tar.gz`, checks it against the sha256 published beside it,
+builds komp and kflatc with `cc`, and puts them in
+`~/.kflat/toolchains/<version>/`, where `~/.kflat/bin/komp` then points.
+Toolchains already installed stay where they are. `komp self update 0.5.1`
+installs that release instead of the newest, which also goes back to an
+earlier one.
+
+```console
+$ komp self update
+building komp 0.5.1 with cc
+building kflatc 0.5.1 with cc
+installed kflat 0.5.1 in /home/me/.kflat/toolchains/0.5.1
+installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
+$ komp self update
+komp 0.5.1 is the newest release
+```
+
+It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
+place to take releases from, laid out as GitHub lays them out.
 
 ## kflatc
 
