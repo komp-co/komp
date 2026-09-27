@@ -121,6 +121,9 @@ fun main(): int32 {
 `read_bytes(n)` reads up to `n` bytes, and `at_end()` says whether the last
 read reached the end of input.
 
+`eprint` and `eprintln` are `print` and `println` for standard error, which is
+where a program whose standard output carries a protocol writes its logs.
+
 These read through the C library's buffer. A program that waits on standard
 input alongside other streams reads it with a `Reader` over `Stream.stdin()`
 instead (below), and not with both.
@@ -225,7 +228,6 @@ A non-positive duration returns immediately.
 
 `std` is thin — the modules above are all of it. Not available ([#58]):
 
-- Writing to standard error
 - Directory listing/walking
 - Networking of any kind
 - Threading or synchronization
