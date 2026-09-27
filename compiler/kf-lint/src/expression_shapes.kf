@@ -78,9 +78,40 @@ pub fun check_double_negation(at: Span, op: &UnaryOp, inner_is_not: bool, walk: 
     walk.found.push(lint_at("double_negation", at, String.from("this negates twice; write the value itself")))
 }
 
-/// `magic_number`: an integer other than 0, 1 and 2 written where it is
-/// used, rather than named by a constant.
+/// `magic_number`: an integer past `max_plain` written where it is used,
+/// rather than named by a constant.
 pub fun check_magic_number(at: Span, value: int64, walk: &var LintWalk): void {
-    if value >= 0 && value <= 2 { return }
+    if value >= 0 && value <= walk.options.get("magic_number", "max_plain") { return }
     walk.found.push(lint_at("magic_number", at, "`${value}` has no name; give it one with a constant"))
+}
+
+/// As `check_magic_number`, for a float: only a whole number up to
+/// `max_plain`, as `1.0`, reads plainly.
+pub fun check_magic_float(at: Span, spelling: str, walk: &var LintWalk): void {
+    val dot = spelling.index_of(".") ?: spelling.byte_len()
+    var whole: int64 = 0
+    var plain = dot > 0 && dot <= 9
+    while i in 0..spelling.byte_len() {
+        val byte = spelling.byte(i)
+        if i < dot {
+            if byte < 48 || byte > 57 { plain = false } else if plain { whole = whole * 10 + (byte - 48) as int64 }
+        } else if i > dot && byte != 48 {
+            plain = false
+        }
+    }
+    if plain && whole <= walk.options.get("magic_number", "max_plain") { return }
+    walk.found.push(lint_at("magic_number", at, "`${spelling}` has no name; give it one with a constant"))
+}
+
+/// `len_zero`: `xs.size() == 0` and its kin, which `is_empty()` says.
+pub fun check_len_zero(at: Span, op: &BinOp, left_is_length: bool, right: int64?, walk: &var LintWalk): void {
+    if !left_is_length || (right ?: -1) != 0 { return }
+    val compares = when (op) {
+        Eq => true
+        NotEq => true
+        Gt => true
+        _ => false
+    }
+    if !compares { return }
+    walk.found.push(lint_at("len_zero", at, String.from("comparing a length with zero; write `is_empty()`")))
 }

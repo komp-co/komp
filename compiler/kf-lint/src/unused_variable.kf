@@ -1,5 +1,6 @@
 // `unused_variable` and `unused_parameter`: a local, or a parameter, that
-// is never read; and `shadowed_variable`, a local bound twice.
+// is never read; `shadowed_variable`, a local bound twice; and
+// `needless_var`, a `var` nothing changes.
 
 import alloc.list.*
 
@@ -16,12 +17,16 @@ pub struct LocalUses {
     var params: List<Sym>
     var param_spans: List<Span>
     var used: List<Sym>
+    var vars: List<Sym>
+    var var_spans: List<Span>
+    /// Symbol ids assigned, borrowed with `&var`, or called a method on.
+    var changed: List<int64>
 }
 
 pub fun no_locals(): LocalUses {
     return LocalUses {
         names: List.new<Sym>(), spans: List.new<Span>(), params: List.new<Sym>(), param_spans: List.new<Span>(),
-        used: List.new<Sym>()
+        used: List.new<Sym>(), vars: List.new<Sym>(), var_spans: List.new<Span>(), changed: List.new<int64>()
     }
 }
 
@@ -32,6 +37,16 @@ impl LocalUses {
         self.names.push(name)
         self.spans.push(at)
         return shadows && !name.as_str().starts_with("_")
+    }
+
+    pub mutating fun declare_var(name: Sym, at: Span): void {
+        self.vars.push(name)
+        self.var_spans.push(at)
+    }
+
+    /// `id` is a symbol id, or -1 for nothing.
+    pub mutating fun change(id: int64): void {
+        if id >= 0 { self.changed.push(id) }
     }
 
     pub mutating fun declare_parameter(name: Sym, at: Span): void {
@@ -60,6 +75,24 @@ impl LocalUses {
             val message = "parameter `${text}` is never read; name it `_${text}` if it must stay"
             out.push(lint_at("unused_parameter", self.param_spans[i], message))
         }
+    }
+
+    /// `needless_var`: a `var` read but never changed. One never read is
+    /// `unused_variable`'s.
+    pub fun report_vars(out: &var List<Diagnostic>): void {
+        while i in 0..self.vars.size() {
+            val name = self.vars[i]
+            if !self.was_read(name) || self.was_changed(name) { continue }
+            val text = name.as_str()
+            out.push(lint_at("needless_var", self.var_spans[i], "`${text}` is never changed; declare it with `val`"))
+        }
+    }
+
+    fun was_changed(name: Sym): bool {
+        while id in &self.changed {
+            if id == name.id as int64 { return true }
+        }
+        return false
     }
 
     fun was_read(name: Sym): bool {

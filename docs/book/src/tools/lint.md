@@ -21,7 +21,9 @@ It exits 1 when anything was reported as an error, a lint set to `deny`
 included, and 0 otherwise. `komp check` and the editor report the same lints
 at the same levels, without the tally. `komp build` reports only the lints
 the compiler meets while compiling, such as `implicit_copy`: the ones that
-read the source as written run when it is checked.
+read the source as written run when it is checked. The lints that need to
+know a value's type, such as `unused_result`, run only once the crate has
+type-checked without an error.
 
 ## Levels and groups
 
@@ -62,10 +64,14 @@ suspicious
   unreachable_code         warn                  a statement after a `return`, `break` or `continue` in the same block
   self_comparison          warn                  a variable compared with itself
   double_negation          warn                  `!` applied to a `!`, as in `!(!x)`
+  unused_result            warn                  a `Result` an expression statement drops, error and all
+  float_equality           warn                  `==` or `!=` between floats other than zero
 
 style
   unused_import            warn                  an import whose module contributes no name this file writes
   wildcard_import          warn                  a `.*` import supplying few enough names to write out
+  needless_var             warn                  a `var` that is read and never changed
+  len_zero                 allow                 a length compared with zero, which `is_empty()` says
   needless_bool            warn                  branches that give `true` and `false`, which the condition already is
   manual_index_loop        allow                 a `while` loop that counts by hand what `while i in 0..n` counts
   bool_comparison          warn                  a comparison with `true` or `false`
@@ -76,6 +82,7 @@ style
   non_camel_case_variant   warn                  an enum variant not named in UpperCamelCase
 
 complexity
+  redundant_cast           warn                  a cast to the type the value already has
   too_many_parameters      warn                  a function taking more parameters than `max`, `self` aside
       max = 7                                  the most parameters a function may take
   identity_op              warn                  an operation that leaves its value as it is, as `x + 0` or `x * 1`
@@ -89,18 +96,21 @@ complexity
 perf
   implicit_copy            warn                  a value read through a borrow is copied to fill a by-value slot
   copy_after_move          warn                  an earlier move is copied instead, to keep the original readable
+  clone_on_copy            warn                  `.clone()` on a value whose type derives `Copy`, which copies anyway
 
 pedantic
   redundant_else           allow                 an `else` after a branch that ends in `return`, `break` or `continue`
   missing_docs             allow                 a public declaration with no `///` comment
   unused_parameter         allow                 a parameter the function never reads
+  unused_option            allow                 an `Option` an expression statement drops
 
 restriction
   long_line                allow                 a line wider than `max_columns` characters
       max_columns = 120                        the most characters a line may hold
   long_file                allow                 a file longer than `max_lines` lines
       max_lines = 400                          the most lines a file may hold
-  magic_number             allow                 an integer other than 0, 1 and 2 written where it is used
+  magic_number             allow                 a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside
+      max_plain = 2                            the largest number that may be written without a name
   shadowed_variable        allow                 a local bound again under a name the function already binds
   todo_comment             allow                 a `TODO` or `FIXME` comment, which is work an issue should hold
 ```

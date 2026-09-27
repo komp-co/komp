@@ -26,6 +26,60 @@ pub fun lint_module(m: &Module, smap: &SourceMap, options: &LintOptions): List<D
     return walk.found
 }
 
+/// What the lints that read types find in `m`'s own functions, once `m`
+/// has been type-checked without errors.
+pub fun lint_typed_module(m: &Module): List<Diagnostic> {
+    var walk = TypedWalk { found: List.new<Diagnostic>(), copy_types: m.copy_types() }
+    while decl in &m.decls {
+        if decl.crate.raw != m.crate.raw || decl.linkage.is_imported() || decl.linkage.is_template() { continue }
+        decl.lint_typed_decl(&var walk)
+    }
+    return walk.found
+}
+
+/// Every struct and enum, from any crate, that derives `Copy`.
+fun Module.copy_types(): List<String> {
+    var out = List.new<String>()
+    while decl in &self.decls {
+        val copies = decl.annotations.derives_copy()
+        when (decl.kind) {
+            Struct(_fields, _pub) => { if copies { out.push(decl.name.as_string()) } }
+            EnumDecl(_variants, _pub) => { if copies { out.push(decl.name.as_string()) } }
+            _ => {}
+        }
+    }
+    return out
+}
+
+/// `@derive(..., Copy, ...)` among them.
+fun List<String>.derives_copy(): bool {
+    while annotation in &self {
+        if !annotation.as_str().starts_with("derive(") { continue }
+        val inside = annotation.as_str().substring(7, annotation.byte_len()).as_str().replace(")", "")
+        val names = inside.as_str().split(",")
+        while name in &names {
+            if name.as_str().trim().as_str() == "Copy" { return true }
+        }
+    }
+    return false
+}
+
+fun TopDecl.lint_typed_decl(walk: &var TypedWalk): void {
+    when (self.kind) {
+        Function(_params, _ret, body, _pub, _unsafe, _mutating, _static) => body.visit_typed(walk)
+        ImplBlock(methods) => {
+            while method in &methods { method.lint_typed_decl(walk) }
+        }
+        TraitDecl(methods, _pub, _supers) => {
+            while method in &methods { method.lint_typed_decl(walk) }
+        }
+        TraitImpl(_trait, methods) => {
+            while method in &methods { method.lint_typed_decl(walk) }
+        }
+        _ => {}
+    }
+}
+
 fun TopDecl.lint_decl(smap: &SourceMap, walk: &var LintWalk): void {
     val name = if self.ext_name.as_str().is_empty() { self.name.as_str() } else { self.ext_name.as_str() }
     val at = if self.name_span.is_none() { self.span } else { self.name_span }
@@ -36,7 +90,7 @@ fun TopDecl.lint_decl(smap: &SourceMap, walk: &var LintWalk): void {
             if is_pub && !self.from_trait_impl { self.check_docs(name, at, smap, walk) }
             check_parameter_count(name, at, &params, walk)
             check_function_length(name, at, self, smap, walk)
-            walk.function(&params, &body, !self.from_trait_impl, is_constant)
+            walk.function(&params, &body, !self.from_trait_impl, is_constant || self.has_annotation("test"))
         }
         Struct(fields, is_pub) => {
             check_type_name(name, at, walk)

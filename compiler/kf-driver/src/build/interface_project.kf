@@ -16,6 +16,7 @@ import kf_codegen.emit.glue.deep_clone_module
 import kf_shared.crate_interface_path
 import kf_shared.render_json_error
 import kf_lint.lint_module
+import kf_lint.lint_typed_module
 
 /// kflatc's `check`: the crate, its tests included, type-checked against its
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number
@@ -76,6 +77,10 @@ pub fun CompileUnit.check_crate(tdir: str, overlay: &Overlay, cfg: &LintConfig):
     val source_lints = apply_lint_levels(lint_module(&merged, &*smap, &cfg.options), &merged, cfg)
     var diagnostics = merged.checked_diagnostics(smap, cfg)
     while d in &source_lints { diagnostics.push(d.clone()) }
+    if count_errors(&diagnostics) == 0 {
+        val typed_lints = apply_lint_levels(lint_typed_module(&merged), &merged, cfg)
+        while d in &typed_lints { diagnostics.push(d.clone()) }
+    }
     return CrateCheck { failure: "", diagnostics: diagnostics, smap: smap }
 }
 

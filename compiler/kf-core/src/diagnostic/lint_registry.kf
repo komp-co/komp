@@ -127,6 +127,18 @@ pub fun lint_registry(): List<LintInfo> {
         "a variable compared with itself"))
     out.push(lint_info("double_negation", "suspicious", LintLevel.Warn,
         "`!` applied to a `!`, as in `!(!x)`"))
+    out.push(lint_info("unused_result", "suspicious", LintLevel.Warn,
+        "a `Result` an expression statement drops, error and all"))
+    out.push(lint_info("float_equality", "suspicious", LintLevel.Warn,
+        "`==` or `!=` between floats other than zero"))
+    out.push(lint_info("needless_var", "style", LintLevel.Warn,
+        "a `var` that is read and never changed"))
+    out.push(lint_info("len_zero", "style", LintLevel.Allow,
+        "a length compared with zero, which `is_empty()` says"))
+    out.push(lint_info("clone_on_copy", "perf", LintLevel.Warn,
+        "`.clone()` on a value whose type derives `Copy`, which copies anyway"))
+    out.push(lint_info("redundant_cast", "complexity", LintLevel.Warn,
+        "a cast to the type the value already has"))
     out.push(lint_info("needless_bool", "style", LintLevel.Warn,
         "branches that give `true` and `false`, which the condition already is"))
     out.push(lint_info("manual_index_loop", "style", LintLevel.Allow,
@@ -163,6 +175,8 @@ pub fun lint_registry(): List<LintInfo> {
         "a public declaration with no `///` comment"))
     out.push(lint_info("unused_parameter", "pedantic", LintLevel.Allow,
         "a parameter the function never reads"))
+    out.push(lint_info("unused_option", "pedantic", LintLevel.Allow,
+        "an `Option` an expression statement drops"))
     out.push(lint_info("long_line", "restriction", LintLevel.Allow,
         "a line wider than `max_columns` characters")
         .with_option("max_columns", 120, "the most characters a line may hold"))
@@ -170,7 +184,8 @@ pub fun lint_registry(): List<LintInfo> {
         "a file longer than `max_lines` lines")
         .with_option("max_lines", 400, "the most lines a file may hold"))
     out.push(lint_info("magic_number", "restriction", LintLevel.Allow,
-        "an integer other than 0, 1 and 2 written where it is used"))
+        "a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside")
+        .with_option("max_plain", 2, "the largest number that may be written without a name"))
     out.push(lint_info("shadowed_variable", "restriction", LintLevel.Allow,
         "a local bound again under a name the function already binds"))
     out.push(lint_info("todo_comment", "restriction", LintLevel.Allow,

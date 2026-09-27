@@ -16,15 +16,18 @@ pub struct LintWalk {
     /// Whether this function's nesting has been reported, so it is once.
     var nesting_reported: bool
     var locals: LocalUses
-    /// Whether the function stands for a constant, whose literals are the
-    /// point of it.
-    var in_constant: bool
+    /// Whether the function stands for a constant or is a test, whose
+    /// literals are the point of it.
+    var numbers_allowed: bool
+    /// How many range bounds and indexes enclose the expression, whose
+    /// literals read plainly.
+    var numbers_shielded: int64
 }
 
 pub fun new_lint_walk(options: &LintOptions): LintWalk {
     return LintWalk {
         options: options.clone(), found: List.new<Diagnostic>(), depth: 0, nesting_reported: false, locals: no_locals(),
-        in_constant: false
+        numbers_allowed: false, numbers_shielded: 0
     }
 }
 
@@ -32,11 +35,13 @@ impl LintWalk {
     /// Walks one function's body, reporting its locals when it is done.
     /// `own_signature` is false where the parameters are another
     /// declaration's to name, as in a trait's impl, so none is reported unread.
-    pub mutating fun function(params: &List<Param>, body: &List<Stmt>, own_signature: bool, is_constant: bool): void {
+    pub mutating fun function(
+        params: &List<Param>, body: &List<Stmt>, own_signature: bool, numbers_allowed: bool
+    ): void {
         self.depth = 0
         self.nesting_reported = false
         self.locals = no_locals()
-        self.in_constant = is_constant
+        self.numbers_allowed = numbers_allowed
         while param in &params {
             if param.name.as_str() == "self" { continue }
             check_variable_name(param.name, param.span, self)
@@ -44,6 +49,7 @@ impl LintWalk {
         }
         body.visit(self)
         self.locals.report(&var self.found)
+        self.locals.report_vars(&var self.found)
     }
 
     /// Into a block, reporting `deep_nesting` the first time the function
@@ -64,6 +70,18 @@ impl LintWalk {
         self.enter(at)
         body.visit(self)
         self.leave()
+    }
+
+    fun numbers_checked(): bool {
+        return !self.numbers_allowed && self.numbers_shielded == 0
+    }
+
+    /// A call's arguments; `shielded` for a range's bounds or an index,
+    /// whose numbers are not reported.
+    mutating fun visit_arguments(args: &List<Expr>, shielded: bool): void {
+        if shielded { self.numbers_shielded = self.numbers_shielded + 1 }
+        while arg in &args { arg.visit(self) }
+        if shielded { self.numbers_shielded = self.numbers_shielded - 1 }
     }
 
     mutating fun local(name: Sym, at: Span): void {
@@ -96,13 +114,16 @@ fun Stmt.visit(walk: &var LintWalk): void {
         }
         LetVar(name, _ty, init) => {
             walk.local(name, self.binder)
+            walk.locals.declare_var(name, self.binder)
             visit_optional(&init, walk)
         }
         Assign(name, value) => {
             check_self_assignment(name, value.kind_is_variable(name), self.span, walk)
+            walk.locals.change(name.id as int64)
             value.visit(walk)
         }
         AssignTo(place, value) => {
+            walk.locals.change(place.root_variable())
             place.visit(walk)
             value.visit(walk)
         }
@@ -160,15 +181,24 @@ fun visit_arms(arms: &List<Arm>, walk: &var LintWalk): void {
 }
 
 fun Expr.visit(walk: &var LintWalk): void {
+    // A borrow may be handed to something that changes it, as `&var x.body`
+    // or a `&list` a function fills; which do is the callee's to say.
+    if self.coerce == coerce_written_amp() || self.coerce == coerce_written_amp_var() {
+        walk.locals.change(self.root_variable())
+    }
     when (self.kind) {
         Variable(name) => walk.locals.use_name(name)
         LitInt(value) => {
-            if !walk.in_constant { check_magic_number(self.span, value, walk) }
+            if walk.numbers_checked() { check_magic_number(self.span, value, walk) }
+        }
+        LitFloat(spelling) => {
+            if walk.numbers_checked() { check_magic_float(self.span, spelling.as_str(), walk) }
         }
         Binary(left, op, right) => {
             check_bool_comparison(self.span, &op, left.kind_is_bool(), right.kind_is_bool(), walk)
             check_identity_op(self.span, &op, left.literal_int(), right.literal_int(), walk)
             check_self_comparison(self.span, &op, left.variable_id(), right.variable_id(), walk)
+            check_len_zero(self.span, &op, left.is_length_call(), right.literal_int(), walk)
             left.visit(walk)
             right.visit(walk)
         }
@@ -179,11 +209,14 @@ fun Expr.visit(walk: &var LintWalk): void {
         Deref(inner) => inner.visit(walk)
         Call(name, args) => {
             walk.locals.use_name(name)
-            while arg in &args { arg.visit(walk) }
+            val shield = name.as_str() == "range" || name.as_str() == "range_inclusive"
+            walk.visit_arguments(&args, shield)
         }
-        MethodCall(receiver, _name, args) => {
+        MethodCall(receiver, name, args) => {
+            // Conservatively a change: which methods mutate is the type's to say.
+            walk.locals.change(receiver.root_variable())
             receiver.visit(walk)
-            while arg in &args { arg.visit(walk) }
+            walk.visit_arguments(&args, name.as_str() == "index")
         }
         FieldAccess(inner, _field) => inner.visit(walk)
         IfExpr(cond, then_value, else_value) => {
@@ -274,5 +307,25 @@ fun Expr.counted_below(): int64 {
             _ => -1
         }
         _ => -1
+    }
+}
+
+/// The variable an lvalue or receiver ends at, as `x` in `x.a[i]`, by
+/// symbol id; -1 when it ends at something else.
+fun Expr.root_variable(): int64 {
+    return when (self.kind) {
+        Variable(name) => name.id as int64
+        FieldAccess(inner, _field) => inner.root_variable()
+        MethodCall(receiver, _name, _args) => receiver.root_variable()
+        Deref(inner) => inner.root_variable()
+        _ => -1
+    }
+}
+
+/// `xs.size()` or `s.byte_len()`, taking nothing.
+fun Expr.is_length_call(): bool {
+    return when (self.kind) {
+        MethodCall(_receiver, name, args) => args.is_empty() && (name.as_str() == "size" || name.as_str() == "byte_len")
+        _ => false
     }
 }

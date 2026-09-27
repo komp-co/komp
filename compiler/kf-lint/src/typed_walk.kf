@@ -1,0 +1,141 @@
+// The lints that read types: a pass over a function's body once it has been
+// type-checked, each expression carrying its type.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+pub struct TypedWalk {
+    pub var found: List<Diagnostic>
+    /// The types that derive `Copy`, by name.
+    pub val copy_types: List<String>
+}
+
+fun List<Stmt>.visit_typed(walk: &var TypedWalk): void {
+    while s in &self { s.visit_typed(walk) }
+}
+
+fun Stmt.visit_typed(walk: &var TypedWalk): void {
+    when (self.kind) {
+        LetVal(_name, _ty, init) => visit_typed_optional(&init, walk)
+        LetVar(_name, _ty, init) => visit_typed_optional(&init, walk)
+        Assign(_name, value) => value.visit_typed(walk)
+        AssignTo(place, value) => {
+            place.visit_typed(walk)
+            value.visit_typed(walk)
+        }
+        Return(value) => visit_typed_optional(&value, walk)
+        If(cond, then_body, else_body) => {
+            cond.visit_typed(walk)
+            then_body.visit_typed(walk)
+            else_body.visit_typed(walk)
+        }
+        While(cond, body) => {
+            cond.visit_typed(walk)
+            body.visit_typed(walk)
+        }
+        ForEach(_binder, subject, body) => {
+            subject.visit_typed(walk)
+            body.visit_typed(walk)
+        }
+        When(subject, arms) => {
+            subject.visit_typed(walk)
+            visit_typed_arms(&arms, walk)
+        }
+        Expression(e) => {
+            check_dropped_value(e.span, &e.ty, walk)
+            e.visit_typed(walk)
+        }
+        _ => {}
+    }
+}
+
+fun visit_typed_optional(value: &Box<Expr>?, walk: &var TypedWalk): void {
+    when (value) {
+        Some(e) => e.visit_typed(walk)
+        None => {}
+    }
+}
+
+fun visit_typed_arms(arms: &List<Arm>, walk: &var TypedWalk): void {
+    while arm in &arms {
+        visit_typed_optional(&arm.guard, walk)
+        arm.body.visit_typed(walk)
+    }
+}
+
+fun Expr.visit_typed(walk: &var TypedWalk): void {
+    when (self.kind) {
+        Binary(left, op, right) => {
+            check_float_equality(self.span, &op, left.ty.is_float() || right.ty.is_float(),
+                left.is_float_zero() || right.is_float_zero(), walk)
+            left.visit_typed(walk)
+            right.visit_typed(walk)
+        }
+        Unary(_op, inner) => inner.visit_typed(walk)
+        Deref(inner) => inner.visit_typed(walk)
+        Call(_name, args) => {
+            while arg in &args { arg.visit_typed(walk) }
+        }
+        MethodCall(receiver, name, args) => {
+            if name.as_str() == "clone" && args.is_empty() {
+                check_clone_on_copy(self.span, receiver.ty.named(), walk)
+            }
+            receiver.visit_typed(walk)
+            while arg in &args { arg.visit_typed(walk) }
+        }
+        FieldAccess(inner, _field) => inner.visit_typed(walk)
+        IfExpr(cond, then_value, else_value) => {
+            cond.visit_typed(walk)
+            then_value.visit_typed(walk)
+            else_value.visit_typed(walk)
+        }
+        WhenExpr(subject, arms) => {
+            subject.visit_typed(walk)
+            visit_typed_arms(&arms, walk)
+        }
+        StructLit(_name, inits) => {
+            while init in &inits { init.value.visit_typed(walk) }
+        }
+        Cast(inner, _ty) => {
+            check_redundant_cast(self.span, &inner.ty, &self.ty, walk)
+            inner.visit_typed(walk)
+        }
+        Lambda(_params, body) => body.visit_typed(walk)
+        Block(body) => body.visit_typed(walk)
+        _ => {}
+    }
+}
+
+fun Type.is_float(): bool {
+    return when (self.kind) {
+        Float32 => true
+        Float64 => true
+        _ => false
+    }
+}
+
+fun Expr.is_float_zero(): bool {
+    return when (self.kind) {
+        LitFloat(spelling) => spelling.as_str().trim_end_matches_zero() == "0."
+        _ => false
+    }
+}
+
+/// `0.000` as `0.`, so every spelling of zero compares alike.
+fun str.trim_end_matches_zero(): String {
+    var end = self.byte_len()
+    while end > 0 && self.byte(end - 1) == 48 { end = end - 1 }
+    return self.substring(0, end)
+}
+
+
+/// A struct's or enum's name, or "".
+fun Type.named(): String {
+    return when (self.kind) {
+        Struct(name) => name.as_string()
+        EnumTy(name) => name.as_string()
+        _ => String.from("")
+    }
+}
