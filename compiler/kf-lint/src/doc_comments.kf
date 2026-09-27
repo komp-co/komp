@@ -1,0 +1,25 @@
+// `missing_docs`: a public declaration with no `///` comment above it.
+
+import kf_core.span.*
+import kf_core.diagnostic.*
+
+pub fun check_missing_docs(name: str, at: Span, text: str, start: uint64, walk: &var LintWalk): void {
+    if has_doc_comment(text, start) { return }
+    walk.found.push(lint_at("missing_docs", at, "`${name}` is public and has no `///` comment"))
+}
+
+/// Whether the lines above `start`, past any `@` annotations, end in a
+/// `///` comment.
+pub fun has_doc_comment(text: str, start: uint64): bool {
+    var line_end = start
+    while line_end > 0 && text.byte(line_end - 1) != 10 { line_end = line_end - 1 }
+    while line_end > 0 {
+        var line_start = line_end - 1
+        while line_start > 0 && text.byte(line_start - 1) != 10 { line_start = line_start - 1 }
+        val line = text.substring(line_start, line_end - 1).as_str().trim()
+        if line.as_str().starts_with("///") { return true }
+        if !line.as_str().starts_with("@") { return false }
+        line_end = line_start
+    }
+    return false
+}

@@ -1,5 +1,5 @@
-// Lints on how big a function is: how many parameters it takes and how many
-// lines it spans.
+// Lints on how big a declaration is: how many parameters a function takes
+// and how many lines it spans, and how many fields a struct holds.
 
 import alloc.list.*
 
@@ -28,4 +28,12 @@ pub fun check_function_length(name: str, at: Span, decl: &TopDecl, smap: &Source
     val max = walk.options.get("long_function", "max_lines")
     if lines <= max { return }
     walk.found.push(lint_at("long_function", at, "`${name}` is ${lines} lines long; the most is ${max}"))
+}
+
+/// `too_many_fields`: a struct holding more than `max`.
+pub fun check_field_count(name: str, at: Span, fields: &List<Field>, walk: &var LintWalk): void {
+    val max = walk.options.get("too_many_fields", "max")
+    val count = fields.size() as int64
+    if count <= max { return }
+    walk.found.push(lint_at("too_many_fields", at, "`${name}` holds ${count} fields; the most is ${max}"))
 }

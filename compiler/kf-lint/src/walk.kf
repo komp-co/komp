@@ -16,22 +16,31 @@ pub struct LintWalk {
     /// Whether this function's nesting has been reported, so it is once.
     var nesting_reported: bool
     var locals: LocalUses
+    /// Whether the function stands for a constant, whose literals are the
+    /// point of it.
+    var in_constant: bool
 }
 
 pub fun new_lint_walk(options: &LintOptions): LintWalk {
     return LintWalk {
-        options: options.clone(), found: List.new<Diagnostic>(), depth: 0, nesting_reported: false, locals: no_locals()
+        options: options.clone(), found: List.new<Diagnostic>(), depth: 0, nesting_reported: false, locals: no_locals(),
+        in_constant: false
     }
 }
 
 impl LintWalk {
     /// Walks one function's body, reporting its locals when it is done.
-    pub mutating fun function(params: &List<Param>, body: &List<Stmt>): void {
+    /// `own_signature` is false where the parameters are another
+    /// declaration's to name, as in a trait's impl, so none is reported unread.
+    pub mutating fun function(params: &List<Param>, body: &List<Stmt>, own_signature: bool, is_constant: bool): void {
         self.depth = 0
         self.nesting_reported = false
         self.locals = no_locals()
+        self.in_constant = is_constant
         while param in &params {
-            if param.name.as_str() != "self" { check_variable_name(param.name, param.span, self) }
+            if param.name.as_str() == "self" { continue }
+            check_variable_name(param.name, param.span, self)
+            if own_signature && !body.is_empty() { self.locals.declare_parameter(param.name, param.span) }
         }
         body.visit(self)
         self.locals.report(&var self.found)
@@ -59,12 +68,24 @@ impl LintWalk {
 
     mutating fun local(name: Sym, at: Span): void {
         check_variable_name(name, at, self)
-        self.locals.declare(name, at)
+        if self.locals.declare(name, at) {
+            self.found.push(lint_at("shadowed_variable", at, "`${name.as_str()}` is already bound in this function"))
+        }
     }
 }
 
+/// `unreachable_code` once per block: a statement after one that leaves it.
 fun List<Stmt>.visit(walk: &var LintWalk): void {
-    while s in &self { s.visit(walk) }
+    var left = false
+    while s in &self {
+        if left {
+            walk.found.push(lint_at("unreachable_code", s.span,
+                String.from("this is never reached: the statement before it leaves the block")))
+            left = false
+        }
+        s.visit(walk)
+        if s.leaves_the_block() { left = true }
+    }
 }
 
 fun Stmt.visit(walk: &var LintWalk): void {
@@ -88,6 +109,7 @@ fun Stmt.visit(walk: &var LintWalk): void {
         Return(value) => visit_optional(&value, walk)
         If(cond, then_body, else_body) => {
             check_if_shape(self.span, &then_body, &else_body, walk)
+            check_needless_bool(self.span, then_body.returned_bool(), else_body.returned_bool(), walk)
             cond.visit(walk)
             walk.block(self.span, &then_body)
             // `else if` is a chain, not a level deeper.
@@ -98,6 +120,7 @@ fun Stmt.visit(walk: &var LintWalk): void {
             }
         }
         While(cond, body) => {
+            check_manual_index_loop(self.span, cond.counted_below(), &body, walk)
             cond.visit(walk)
             walk.block(self.span, &body)
         }
@@ -139,12 +162,20 @@ fun visit_arms(arms: &List<Arm>, walk: &var LintWalk): void {
 fun Expr.visit(walk: &var LintWalk): void {
     when (self.kind) {
         Variable(name) => walk.locals.use_name(name)
+        LitInt(value) => {
+            if !walk.in_constant { check_magic_number(self.span, value, walk) }
+        }
         Binary(left, op, right) => {
             check_bool_comparison(self.span, &op, left.kind_is_bool(), right.kind_is_bool(), walk)
+            check_identity_op(self.span, &op, left.literal_int(), right.literal_int(), walk)
+            check_self_comparison(self.span, &op, left.variable_id(), right.variable_id(), walk)
             left.visit(walk)
             right.visit(walk)
         }
-        Unary(_op, inner) => inner.visit(walk)
+        Unary(op, inner) => {
+            check_double_negation(self.span, &op, inner.is_not(), walk)
+            inner.visit(walk)
+        }
         Deref(inner) => inner.visit(walk)
         Call(name, args) => {
             walk.locals.use_name(name)
@@ -156,6 +187,7 @@ fun Expr.visit(walk: &var LintWalk): void {
         }
         FieldAccess(inner, _field) => inner.visit(walk)
         IfExpr(cond, then_value, else_value) => {
+            check_needless_bool(self.span, then_value.kind_is_bool(), else_value.kind_is_bool(), walk)
             cond.visit(walk)
             then_value.visit(walk)
             else_value.visit(walk)
@@ -185,6 +217,62 @@ fun Expr.kind_is_variable(name: Sym): bool {
 fun Expr.kind_is_bool(): int32 {
     return when (self.kind) {
         LitBool(value) => if value { 1 } else { 0 }
+        _ => -1
+    }
+}
+
+/// A literal integer's value, or null.
+fun Expr.literal_int(): int64? {
+    return when (self.kind) {
+        LitInt(value) => Option.Some(value)
+        _ => null
+    }
+}
+
+/// A variable's symbol id, or -1.
+fun Expr.variable_id(): int64 {
+    return when (self.kind) {
+        Variable(name) => name.id as int64
+        _ => -1
+    }
+}
+
+fun Expr.is_not(): bool {
+    return when (self.kind) {
+        Unary(op, _inner) => when (op) {
+            Not => true
+            _ => false
+        }
+        _ => false
+    }
+}
+
+/// `true` or `false` returned by a branch that holds only that `return`,
+/// as 1 or 0; -1 for any other branch.
+fun List<Stmt>.returned_bool(): int32 {
+    if self.size() != 1 { return -1 }
+    return when (self[0].kind) {
+        Return(value) => bool_of(&value)
+        _ => -1
+    }
+}
+
+fun bool_of(value: &Box<Expr>?): int32 {
+    return when (value) {
+        Some(e) => e.kind_is_bool()
+        None => -1
+    }
+}
+
+/// The variable a `while` condition counts below a bound, as in `i < n`,
+/// or -1.
+fun Expr.counted_below(): int64 {
+    return when (self.kind) {
+        Binary(left, op, _right) => when (op) {
+            Lt => left.variable_id()
+            LtEq => left.variable_id()
+            _ => -1
+        }
         _ => -1
     }
 }

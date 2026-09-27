@@ -1,0 +1,33 @@
+// Lints on the shape of a loop: a counter kept by hand.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// `manual_index_loop`: `while i < n { ... i = i + 1 }`, which
+/// `while i in 0..n` says. `counter` is the symbol id the condition counts,
+/// or -1.
+pub fun check_manual_index_loop(at: Span, counter: int64, body: &List<Stmt>, walk: &var LintWalk): void {
+    if counter < 0 || body.is_empty() || !body[body.size() - 1].steps_by_one(counter) { return }
+    walk.found.push(lint_at("manual_index_loop", at, String.from("this loop counts by hand; write `while i in 0..n`")))
+}
+
+/// `i = i + 1` for the variable `counter`.
+fun Stmt.steps_by_one(counter: int64): bool {
+    return when (self.kind) {
+        Assign(name, value) => name.id as int64 == counter && value.adds_one_to(counter)
+        _ => false
+    }
+}
+
+fun Expr.adds_one_to(counter: int64): bool {
+    return when (self.kind) {
+        Binary(left, op, right) => when (op) {
+            Add => left.variable_id() == counter && (right.literal_int() ?: 0) == 1
+            _ => false
+        }
+        _ => false
+    }
+}

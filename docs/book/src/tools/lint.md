@@ -59,10 +59,15 @@ suspicious
   empty_if                 warn                  an `if` whose branches are both empty
   self_assignment          warn                  a variable assigned to itself
   unused_variable          warn                  a local that is bound and never read
+  unreachable_code         warn                  a statement after a `return`, `break` or `continue` in the same block
+  self_comparison          warn                  a variable compared with itself
+  double_negation          warn                  `!` applied to a `!`, as in `!(!x)`
 
 style
   unused_import            warn                  an import whose module contributes no name this file writes
   wildcard_import          warn                  a `.*` import supplying few enough names to write out
+  needless_bool            warn                  branches that give `true` and `false`, which the condition already is
+  manual_index_loop        allow                 a `while` loop that counts by hand what `while i in 0..n` counts
   bool_comparison          warn                  a comparison with `true` or `false`
   collapsible_if           allow                 an `if` whose only statement is another `if`
   non_snake_case_function  warn                  a function not named in lower_snake_case
@@ -73,6 +78,9 @@ style
 complexity
   too_many_parameters      warn                  a function taking more parameters than `max`, `self` aside
       max = 7                                  the most parameters a function may take
+  identity_op              warn                  an operation that leaves its value as it is, as `x + 0` or `x * 1`
+  too_many_fields          allow                 a struct holding more fields than `max`
+      max = 12                                 the most fields a struct may hold
   long_function            allow                 a function spanning more lines than `max_lines`
       max_lines = 100                          the most lines a function may span
   deep_nesting             allow                 blocks nested deeper than `max_depth` inside one function
@@ -84,12 +92,16 @@ perf
 
 pedantic
   redundant_else           allow                 an `else` after a branch that ends in `return`, `break` or `continue`
+  missing_docs             allow                 a public declaration with no `///` comment
+  unused_parameter         allow                 a parameter the function never reads
 
 restriction
   long_line                allow                 a line wider than `max_columns` characters
       max_columns = 120                        the most characters a line may hold
   long_file                allow                 a file longer than `max_lines` lines
       max_lines = 400                          the most lines a file may hold
+  magic_number             allow                 an integer other than 0, 1 and 2 written where it is used
+  shadowed_variable        allow                 a local bound again under a name the function already binds
   todo_comment             allow                 a `TODO` or `FIXME` comment, which is work an issue should hold
 ```
 

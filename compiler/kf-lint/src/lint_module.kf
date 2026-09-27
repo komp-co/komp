@@ -30,25 +30,39 @@ fun TopDecl.lint_decl(smap: &SourceMap, walk: &var LintWalk): void {
     val name = if self.ext_name.as_str().is_empty() { self.name.as_str() } else { self.ext_name.as_str() }
     val at = if self.name_span.is_none() { self.span } else { self.name_span }
     when (self.kind) {
-        Function(params, _ret, body, _pub, _unsafe, _mutating, _static) => {
+        Function(params, _ret, body, is_pub, _unsafe, _mutating, _static) => {
+            val is_constant = params.is_empty() && is_upper_snake_case(name)
             if !self.from_trait_impl { check_function_name(name, params.is_empty(), at, walk) }
+            if is_pub && !self.from_trait_impl { self.check_docs(name, at, smap, walk) }
             check_parameter_count(name, at, &params, walk)
             check_function_length(name, at, self, smap, walk)
-            walk.function(&params, &body)
+            walk.function(&params, &body, !self.from_trait_impl, is_constant)
         }
-        Struct(_fields, _pub) => check_type_name(name, at, walk)
-        EnumDecl(variants, _pub) => {
+        Struct(fields, is_pub) => {
             check_type_name(name, at, walk)
+            check_field_count(name, at, &fields, walk)
+            if is_pub { self.check_docs(name, at, smap, walk) }
+        }
+        EnumDecl(variants, is_pub) => {
+            check_type_name(name, at, walk)
+            if is_pub { self.check_docs(name, at, smap, walk) }
             while variant in &variants { check_variant_name(variant.name.as_str(), variant.span, walk) }
         }
         ImplBlock(methods) => lint_members(&methods, smap, walk)
-        TraitDecl(methods, _pub, _supers) => {
+        TraitDecl(methods, is_pub, _supers) => {
             check_type_name(name, at, walk)
+            if is_pub { self.check_docs(name, at, smap, walk) }
             lint_members(&methods, smap, walk)
         }
         TraitImpl(_trait, methods) => lint_members(&methods, smap, walk)
         _ => {}
     }
+}
+
+fun TopDecl.check_docs(name: str, at: Span, smap: &SourceMap, walk: &var LintWalk): void {
+    val file = self.span.file_id
+    if file == 0 || file as uint64 > smap.files.size() { return }
+    check_missing_docs(name, at, smap.files[(file - 1) as uint64].content.as_str(), self.span.start as uint64, walk)
 }
 
 fun lint_members(methods: &List<TopDecl>, smap: &SourceMap, walk: &var LintWalk): void {

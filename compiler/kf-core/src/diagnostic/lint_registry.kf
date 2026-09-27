@@ -121,6 +121,16 @@ pub fun lint_registry(): List<LintInfo> {
         "a variable assigned to itself"))
     out.push(lint_info("unused_variable", "suspicious", LintLevel.Warn,
         "a local that is bound and never read"))
+    out.push(lint_info("unreachable_code", "suspicious", LintLevel.Warn,
+        "a statement after a `return`, `break` or `continue` in the same block"))
+    out.push(lint_info("self_comparison", "suspicious", LintLevel.Warn,
+        "a variable compared with itself"))
+    out.push(lint_info("double_negation", "suspicious", LintLevel.Warn,
+        "`!` applied to a `!`, as in `!(!x)`"))
+    out.push(lint_info("needless_bool", "style", LintLevel.Warn,
+        "branches that give `true` and `false`, which the condition already is"))
+    out.push(lint_info("manual_index_loop", "style", LintLevel.Allow,
+        "a `while` loop that counts by hand what `while i in 0..n` counts"))
     out.push(lint_info("bool_comparison", "style", LintLevel.Warn,
         "a comparison with `true` or `false`"))
     out.push(lint_info("collapsible_if", "style", LintLevel.Allow,
@@ -136,6 +146,11 @@ pub fun lint_registry(): List<LintInfo> {
     out.push(lint_info("too_many_parameters", "complexity", LintLevel.Warn,
         "a function taking more parameters than `max`, `self` aside")
         .with_option("max", 7, "the most parameters a function may take"))
+    out.push(lint_info("identity_op", "complexity", LintLevel.Warn,
+        "an operation that leaves its value as it is, as `x + 0` or `x * 1`"))
+    out.push(lint_info("too_many_fields", "complexity", LintLevel.Allow,
+        "a struct holding more fields than `max`")
+        .with_option("max", 12, "the most fields a struct may hold"))
     out.push(lint_info("long_function", "complexity", LintLevel.Allow,
         "a function spanning more lines than `max_lines`")
         .with_option("max_lines", 100, "the most lines a function may span"))
@@ -144,12 +159,20 @@ pub fun lint_registry(): List<LintInfo> {
         .with_option("max_depth", 5, "the most blocks that may enclose a statement"))
     out.push(lint_info("redundant_else", "pedantic", LintLevel.Allow,
         "an `else` after a branch that ends in `return`, `break` or `continue`"))
+    out.push(lint_info("missing_docs", "pedantic", LintLevel.Allow,
+        "a public declaration with no `///` comment"))
+    out.push(lint_info("unused_parameter", "pedantic", LintLevel.Allow,
+        "a parameter the function never reads"))
     out.push(lint_info("long_line", "restriction", LintLevel.Allow,
         "a line wider than `max_columns` characters")
         .with_option("max_columns", 120, "the most characters a line may hold"))
     out.push(lint_info("long_file", "restriction", LintLevel.Allow,
         "a file longer than `max_lines` lines")
         .with_option("max_lines", 400, "the most lines a file may hold"))
+    out.push(lint_info("magic_number", "restriction", LintLevel.Allow,
+        "an integer other than 0, 1 and 2 written where it is used"))
+    out.push(lint_info("shadowed_variable", "restriction", LintLevel.Allow,
+        "a local bound again under a name the function already binds"))
     out.push(lint_info("todo_comment", "restriction", LintLevel.Allow,
         "a `TODO` or `FIXME` comment, which is work an issue should hold"))
     return out
