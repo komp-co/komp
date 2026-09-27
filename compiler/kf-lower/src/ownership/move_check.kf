@@ -10,22 +10,18 @@ import kf_core.diagnostic.*
 pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: Ptr<List<Diagnostic>>, list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
     // Built once and shared by pointer: it holds move-only lists.
-    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *tp = self.build_param_table() }
+    var param_table = self.build_param_table()
     // Module-scoped: mono turns one source line into many functions.
-    val wp: Ptr<WarnState> = unsafe { alloc<WarnState>() }
-    unsafe { *wp = self.new_warn_state() }
+    var warnings = self.new_warn_state()
     while i in 0..self.decls.size() {
         var td = *self.decls.at(i)
-        td.move_check_top_decl(diags, names, tp, mob_count, smap, wp)
+        td.move_check_top_decl(diags, names, &var param_table, mob_count, smap, &var warnings)
     }
     // Hands the module's advisories to the caller's channel, which the driver
     // levels and prints. Each is copied explicitly: pushing one by value
     // would be a move out of a borrow.
-    var k = 0
-    while k < unsafe { (*wp).lints.size() } {
-        unsafe { lints.push((*wp).lints.at(k).clone()) }
-        k = k + 1
+    while lint in &warnings.lints {
+        unsafe { lints.push(lint.clone()) }
     }
 }
 

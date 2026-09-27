@@ -7,14 +7,12 @@ import kf_core.ast.*
 import kf_lower.ownership.*
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
-    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *tp = self.build_param_table() }
-    val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
-    unsafe { *vp = self.variant_payloads_of() }
+    var param_table = self.build_param_table()
+    var payloads = self.variant_payloads_of()
     val string_name = self.lang_type_name(lang_string_key())
     val free = self.borrow_free_names(string_name)
     while i in 0..self.decls.size() {
-        rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name, &free)
+        rc_insert_top_decl_pv(self.decls.at_mut(i), names, &var param_table, &var payloads, string_name, &free)
     }
 }
 

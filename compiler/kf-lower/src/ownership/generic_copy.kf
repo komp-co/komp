@@ -26,26 +26,20 @@ pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym,
     desugar_block_expr_module(&var templates)
     desugar_when_expr_module(&var templates)
     alpha_rename_module(&var templates)
-    val table: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *table = build_param_table(m) }
-    val warn: Ptr<WarnState> = unsafe { alloc<WarnState>() }
-    unsafe { *warn = WarnState {
+    var param_table = build_param_table(m)
+    var warnings = WarnState {
         warned: List.new<Span>(), reached: new_reached(), prune: false,
         clone_names: List.new<String>(), lints: List.new<Diagnostic>()
-    } }
-    val discarded: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *discarded = List.new<Diagnostic>() }
-    val mob: Ptr<MobCount> = unsafe { alloc<MobCount>() }
-    unsafe { *mob = MobCount { n: 0 } }
+    }
+    var discarded = List.new<Diagnostic>()
+    var moves_out_of_borrows = MobCount { n: 0 }
     val bounds = TemplateBounds { clone_trait: clone_trait, copy_trait: copy_trait }
     while td in &templates.decls {
-        check_template(td, &List.new<TypeParam>(), &bounds, discarded, table, mob, smap, warn)
+        check_template(td, &List.new<TypeParam>(), &bounds, &var discarded, &var param_table,
+                       &var moves_out_of_borrows, smap, &var warnings)
     }
-    var k = 0
-    while k < unsafe { (*warn).lints.size() } {
-        val d = unsafe { (*warn).lints.at(k) }
+    while d in &warnings.lints {
         if d.code.as_str().equals("unauthorized_copy") { unsafe { lints.push(d.clone()) } }
-        k = k + 1
     }
 }
 

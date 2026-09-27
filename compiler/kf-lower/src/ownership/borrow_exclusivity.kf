@@ -23,10 +23,9 @@ struct Claim {
 }
 
 pub fun Module.borrow_exclusivity_module(diags: Ptr<List<Diagnostic>>): void {
-    val ptable: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *ptable = self.build_param_table() }
+    var param_table = self.build_param_table()
     while decl in &self.decls {
-        decl.bx_check_top_decl(ptable, diags)
+        decl.bx_check_top_decl(&var param_table, diags)
     }
 }
 

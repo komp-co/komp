@@ -24,10 +24,9 @@ pub fun Module.borrow_liveness_module(diags: Ptr<List<Diagnostic>>): void {
     self.collect_mutating_methods(&var muts)
     // Which parameters consume their argument. By pointer: it holds move-only
     // lists.
-    val ptable: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *ptable = self.build_param_table() }
+    var param_table = self.build_param_table()
     while decl in &self.decls {
-        bl_check_top_decl(decl, &muts, ptable, diags)
+        bl_check_top_decl(decl, &muts, &var param_table, diags)
     }
 }
 

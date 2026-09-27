@@ -8,14 +8,11 @@ import kf_lower.refcount.rc_insert_module
 
 /// Returns every diagnostic the sub-passes raise.
 pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List<Diagnostic> {
-    val diags = List.new<Diagnostic>()
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = diags }
-    // Counts move-out-of-borrow errors. The analysis-only channel (diag_ptr)
+    var discarded = List.new<Diagnostic>()
+    // Counts move-out-of-borrow errors. The analysis-only channel (discarded)
     // carries use-after-move and friends, which are not liveness-accurate and
     // are discarded.
-    val mob_ptr: Ptr<MobCount> = unsafe { alloc<MobCount>() }
-    unsafe { *mob_ptr = MobCount { n: 0 } }
+    var moves_out_of_borrows = MobCount { n: 0 }
     // Block values first, so a `when` in a block's tail is still found.
     self.desugar_block_expr_module()
     // `when` values next, so no later pass meets the expression form.
@@ -24,16 +21,15 @@ pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List
     self.alpha_rename_module()
     // The diagnostics that are kept, opened before the move check so its
     // registered lints land here.
-    val live_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *live_ptr = List.new<Diagnostic>() }
-    self.move_check_module(diag_ptr, mob_ptr, smap, live_ptr, list_name)
-    self.borrow_liveness_module(live_ptr)
+    var live = List.new<Diagnostic>()
+    self.move_check_module(&var discarded, &var moves_out_of_borrows, smap, &var live, list_name)
+    self.borrow_liveness_module(&var live)
     // An auto-clone of a type whose `drop` frees a raw pointer would be
     // shallow; reject it.
-    self.derive_clone_check_module(live_ptr)
-    self.borrow_exclusivity_module(live_ptr)
+    self.derive_clone_check_module(&var live)
+    self.borrow_exclusivity_module(&var live)
     // Move-out-of-borrow is repaired with an auto-clone and a warning.
     self.desugar_module()
     self.rc_insert_module(list_name)
-    return unsafe { *live_ptr }
+    return live
 }
