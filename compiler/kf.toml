@@ -2,6 +2,7 @@
 members = [
     "komp",
     "kflatc",
+    "kflat-lsp",
     "kf-core",
     "kf-parse",
     "kf-assemble",

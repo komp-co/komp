@@ -1,0 +1,51 @@
+// The base protocol's wire format: header lines, a blank line, then exactly
+// Content-Length bytes of JSON.
+
+import std.io.read_bytes
+import std.io.read_line
+
+/// The next message's body; `null` at end of input, or when a header block
+/// names no length, since nothing after it can be framed.
+pub fun read_message(): String? {
+    var length: uint64? = null
+    while true {
+        val line = read_line() ?: return null
+        val header = line.as_str().trim_end()
+        if header.is_empty() { break }
+        val named = content_length(header.as_str())
+        if named != null { length = named }
+    }
+    val size = length ?: return null
+    val body = read_bytes(size)
+    if (body?.byte_len() ?: 0) < size { return null }
+    return body
+}
+
+/// The length a `Content-Length` header names; `null` for any other header
+/// or a value that is not a decimal number. Header names ignore case.
+pub fun content_length(header: str): uint64? {
+    val name = "content-length:"
+    if header.byte_len() < name.byte_len() { return null }
+    while i in 0..name.byte_len() {
+        if header.byte(i).ascii_lower() != name.byte(i) { return null }
+    }
+    val digits = header.substring(name.byte_len(), header.byte_len()).trim()
+    if digits.is_empty() { return null }
+    var value: uint64 = 0
+    while d in 0..digits.byte_len() {
+        val byte = digits.byte(d)
+        if byte < 48 || byte > 57 { return null }
+        value = value * 10 + ((byte - 48) as uint64)
+    }
+    return Option.Some(value)
+}
+
+/// `body` with the header block in front of it.
+pub fun framed(body: str): String {
+    return "Content-Length: ${body.byte_len()}\r\n\r\n${body}"
+}
+
+fun uint8.ascii_lower(): uint8 {
+    if self >= 65 && self <= 90 { return self + 32 }
+    return self
+}

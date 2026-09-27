@@ -104,4 +104,4 @@ jobs:
                   compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
                   compiler/kf-lower compiler/kf-codegen compiler/kf-interface
                   compiler/kf-shared compiler/kf-driver compiler/kf-tool
-                  libs/core libs/alloc libs/std ../json" sh scripts/check.sh --sweep
+                  compiler/kflat-lsp libs/core libs/alloc libs/std ../json" sh scripts/check.sh --sweep

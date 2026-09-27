@@ -1,0 +1,24 @@
+@test
+fun a_content_length_header_names_its_length(): void {
+    assert_eq(content_length("Content-Length: 52") ?: 0, 52, "the length is read")
+}
+
+@test
+fun a_header_name_ignores_case(): void {
+    assert_eq(content_length("content-LENGTH:7") ?: 0, 7, "case does not matter")
+}
+
+@test
+fun another_header_names_no_length(): void {
+    assert_eq(content_length("Content-Type: application/vscode-jsonrpc").is_none(), true, "not a length")
+}
+
+@test
+fun a_length_that_is_not_a_number_names_none(): void {
+    assert_eq(content_length("Content-Length: 5x").is_none(), true, "not a number")
+}
+
+@test
+fun a_framed_body_counts_bytes_not_characters(): void {
+    assert_eq(framed("\"é\"").as_str(), "Content-Length: 4\r\n\r\n\"é\"", "é is two bytes")
+}

@@ -1,0 +1,84 @@
+// The server's lifecycle: which requests it answers, and when it stops.
+
+import json.writer.*
+import kf_shared.kflat_version
+
+/// Where the server is in its lifecycle; each allows different requests.
+@derive(Copy, Equal)
+pub enum Phase {
+    Starting
+    Running
+    ShuttingDown
+}
+
+/// What one message produced: a reply to send, and, once the client says
+/// `exit`, the code to exit with.
+pub struct Outcome {
+    pub val reply: String?
+    pub val exit_code: int32?
+}
+
+pub struct Server {
+    pub var phase: Phase
+}
+
+impl Server {
+    pub static fun new(): Server {
+        return Server { phase: Phase.Starting }
+    }
+
+    pub mutating fun handle(body: str): Outcome {
+        val message = parse_message(body) ?:
+            return reply(error_reply("null", ErrorCode.ParseError, "not a JSON object"))
+        val method = message.method ?: return nothing()
+        if method.as_str() == "exit" {
+            val code: int32 = if self.phase == Phase.ShuttingDown { 0 } else { 1 }
+            return Outcome { reply: null, exit_code: Option.Some(code) }
+        }
+        val id = message.id ?: return nothing()
+        return reply(self.answer(id.as_str(), method.as_str()))
+    }
+
+    mutating fun answer(id: str, method: str): String {
+        return when (self.phase) {
+            Starting => {
+                if method != "initialize" {
+                    return error_reply(id, ErrorCode.ServerNotInitialized, "the client has not sent initialize")
+                }
+                self.phase = Phase.Running
+                result_reply(id, initialize_result().as_str())
+            }
+            Running => {
+                if method == "shutdown" {
+                    self.phase = Phase.ShuttingDown
+                    return result_reply(id, "null")
+                }
+                if method == "initialize" {
+                    return error_reply(id, ErrorCode.InvalidRequest, "initialize was already sent")
+                }
+                error_reply(id, ErrorCode.MethodNotFound, "no handler for ${method}")
+            }
+            ShuttingDown => error_reply(id, ErrorCode.InvalidRequest, "the server is shutting down")
+        }
+    }
+}
+
+fun reply(text: String): Outcome {
+    return Outcome { reply: Option.Some(text), exit_code: null }
+}
+
+fun nothing(): Outcome {
+    return Outcome { reply: null, exit_code: null }
+}
+
+/// What the server can do: nothing yet but name itself.
+fun initialize_result(): String {
+    val writer = JsonWriter.object()
+    writer.field_raw("capabilities", "{}")
+    writer.key("serverInfo")
+    writer.begin_object()
+    writer.field_string("name", "kflat-lsp")
+    writer.field_string("version", kflat_version())
+    writer.end_object()
+    return writer.finish()
+}

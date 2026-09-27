@@ -1,0 +1,11 @@
+[project]
+name = "kflat_lsp"
+version = "0.1.0"
+kind = "bin"
+
+[dependencies]
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }
+std = { path = "../../libs/std" }
+json = { path = "../../../json" }
+kf_shared = { path = "../kf-shared" }
