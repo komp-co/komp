@@ -71,6 +71,7 @@ missing.txt: No such file or directory
 | `exists(path: str)` | `bool` | |
 | `is_file(path: str)` | `bool` | A regular file |
 | `is_directory(path: str)` | `bool` | |
+| `read_dir(path: str)` | `Result<List<String>, IoError>` | Entry names, sorted, without `.` and `..` |
 | `create_dir_all(Path)` | `bool` | `true` on success; creates parents |
 | `TempDir.new(str)` | `TempDir` | Drops on scope exit — deletes the directory |
 

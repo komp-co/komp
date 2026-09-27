@@ -1,3 +1,4 @@
+import alloc.list.*
 import alloc.path.*
 
 extern "C" fun kf_create_dir_all(path: str): int32
@@ -15,6 +16,9 @@ extern "C" fun kf_fs_rename(from: str, to: str): int32
 extern "C" fun kf_fs_exists(path: str): bool
 extern "C" fun kf_fs_is_dir(path: str): bool
 extern "C" fun kf_fs_is_file(path: str): bool
+extern "C" fun kf_fs_dir_start(path: str): uint64
+extern "C" fun kf_fs_dir_entry(handle: uint64): String
+extern "C" fun kf_fs_dir_finish(handle: uint64): void
 
 pub struct TempDir {
     val root: Path
@@ -120,4 +124,19 @@ pub fun is_directory(path: str): bool {
 
 pub fun is_file(path: str): bool {
     return kf_fs_is_file(path)
+}
+
+/// The names of the entries in a directory, sorted, without `.` and `..`.
+pub fun read_dir(path: str): Result<List<String>, IoError> {
+    val handle = kf_fs_dir_start(path)
+    if handle == 0 { return Result.Err(last_error(path)) }
+    var names = List.new<String>()
+    while true {
+        val name = kf_fs_dir_entry(handle)
+        if name.is_empty() { break }
+        names.push(name)
+    }
+    kf_fs_dir_finish(handle)
+    names.sort()
+    return Result.Ok(names)
 }

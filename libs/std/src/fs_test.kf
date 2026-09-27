@@ -134,3 +134,22 @@ fun a_directory_tree_is_removed_whole(): void {
     val _removed = remove_dir_all("${dir}/a".as_str())
     assert_eq(exists("${dir}/a".as_str()), false, "the tree and its files")
 }
+
+@test
+fun a_directory_lists_its_entries_sorted(): void {
+    val dir = empty_dir("fs_read_dir")
+    val _made = unsafe { system("mkdir ${dir}/b && touch ${dir}/c.txt ${dir}/a.txt") }
+    val names = read_dir(dir).unwrap()
+    assert_eq("${names[0]} ${names[1]} ${names[2]}".as_str(), "a.txt b c.txt", "files and directories, by name")
+}
+
+@test
+fun an_empty_directory_lists_nothing(): void {
+    assert_eq(read_dir(empty_dir("fs_read_dir_empty")).unwrap().size(), 0, "no `.` or `..`")
+}
+
+@test
+fun listing_a_missing_directory_is_an_error(): void {
+    val dir = empty_dir("fs_read_dir_missing")
+    assert_eq(read_dir("${dir}/absent".as_str()).is_err(), true, "nothing to list")
+}

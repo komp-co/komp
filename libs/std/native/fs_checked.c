@@ -7,6 +7,7 @@
 /* The filesystem calls std.fs answers with a Result. Each records the errno
  * of its failure, or 0, for kf_fs_last_error to read straight after it. */
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -94,3 +95,23 @@ bool kf_fs_is_file(const char* path) {
     struct stat status;
     return stat(path, &status) == 0 && S_ISREG(status.st_mode);
 }
+
+uint64_t kf_fs_dir_start(const char* path) {
+    DIR* directory = opendir(path);
+    kf_fs_record(directory == NULL);
+    return (uint64_t)(uintptr_t)directory;
+}
+
+/* The next name in the directory, skipping `.` and `..`; "" at the end. */
+String kf_fs_dir_entry(uint64_t handle) {
+    DIR* directory = (DIR*)(uintptr_t)handle;
+    for (;;) {
+        struct dirent* entry = readdir(directory);
+        if (!entry) return __kf_v2_str_from_cstr("");
+        const char* name = entry->d_name;
+        if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) continue;
+        return __kf_v2_str_from_cstr(name);
+    }
+}
+
+void kf_fs_dir_finish(uint64_t handle) { closedir((DIR*)(uintptr_t)handle); }
