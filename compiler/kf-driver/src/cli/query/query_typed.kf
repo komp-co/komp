@@ -67,7 +67,9 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names)
 
     val root = crates.at(crates.size() - 1).root.clone()
-    var crate = QueryCrate { ok: false, file_id: 0, module: merged, sigs: typed.sigs, source: "", smap: smap, root: root }
+    var crate = QueryCrate {
+        ok: false, file_id: 0, module: merged, sigs: typed.sigs, source: "", smap: smap, root: root
+    }
     val _found = crate.focus(file_path)
     return crate
 }
