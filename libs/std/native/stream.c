@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,42 +107,44 @@ int64_t kf_stream_pipe(void) {
     return ((int64_t)ends[0] << 32) | (int64_t)(uint32_t)ends[1];
 }
 
-typedef struct {
-    int32_t* data;
-    uint64_t len;
-    uint64_t cap;
-} KfInt32List;
+/* The set the next kf_stream_poll waits on, built one descriptor at a time
+ * so that nothing but scalars crosses into C. */
+static struct pollfd* kf_poll_set = NULL;
+static uint64_t kf_poll_count = 0;
+static uint64_t kf_poll_capacity = 0;
 
-/* Marks `ready[i]` 1 for each `fds[i]` with input or a hang-up waiting, and
- * answers how many; 0 when `timeout_ms` passed first, -1 on failure. A
- * negative timeout waits for as long as it takes. */
-int32_t kf_stream_poll(void* raw_fds, void* raw_ready, int64_t timeout_ms) {
-    KfInt32List* fds = (KfInt32List*)raw_fds;
-    KfInt32List* ready = (KfInt32List*)raw_ready;
-    struct pollfd* watched = (struct pollfd*)malloc((fds->len + 1) * sizeof(struct pollfd));
-    if (!watched) {
-        kf_stream_record(KF_STREAM_FAILED);
-        return -1;
+void kf_stream_poll_clear(void) { kf_poll_count = 0; }
+
+int32_t kf_stream_poll_add(int32_t fd) {
+    if (kf_poll_count == kf_poll_capacity) {
+        uint64_t grown = kf_poll_capacity ? kf_poll_capacity * 2 : 8;
+        struct pollfd* larger = (struct pollfd*)realloc(kf_poll_set, grown * sizeof(struct pollfd));
+        if (!larger) return -1;
+        kf_poll_set = larger;
+        kf_poll_capacity = grown;
     }
-    for (uint64_t i = 0; i < fds->len; i++) {
-        watched[i].fd = fds->data[i];
-        watched[i].events = POLLIN;
-        watched[i].revents = 0;
-    }
+    kf_poll_set[kf_poll_count].fd = fd;
+    kf_poll_set[kf_poll_count].events = POLLIN;
+    kf_poll_set[kf_poll_count].revents = 0;
+    kf_poll_count++;
+    return 0;
+}
+
+/* How many of the set have input or a hang-up waiting; 0 when `timeout_ms`
+ * passed first, -1 on failure. A negative timeout waits as long as it
+ * takes. */
+int32_t kf_stream_poll(int64_t timeout_ms) {
     int timeout = timeout_ms < 0 ? -1 : (timeout_ms > 2147483647 ? 2147483647 : (int)timeout_ms);
     int count;
-    do { count = poll(watched, (nfds_t)fds->len, timeout); } while (count < 0 && errno == EINTR);
-    if (count < 0) {
-        free(watched);
-        kf_stream_record(KF_STREAM_FAILED);
-        return -1;
-    }
-    for (uint64_t i = 0; i < fds->len && i < ready->len; i++) {
-        ready->data[i] = (watched[i].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL)) ? 1 : 0;
-    }
-    free(watched);
-    kf_stream_record(KF_STREAM_DATA);
+    do { count = poll(kf_poll_set, (nfds_t)kf_poll_count, timeout); } while (count < 0 && errno == EINTR);
+    kf_stream_record(count < 0 ? KF_STREAM_FAILED : KF_STREAM_DATA);
     return count;
+}
+
+/* Whether the set's `i`th descriptor was ready at the last kf_stream_poll. */
+bool kf_stream_poll_ready(uint64_t i) {
+    if (i >= kf_poll_count) return false;
+    return (kf_poll_set[i].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL)) != 0;
 }
 
 String kf_stream_error_text(int32_t code) { return __kf_v2_str_from_cstr(strerror(code)); }

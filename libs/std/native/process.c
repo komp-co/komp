@@ -24,34 +24,20 @@ static int32_t kf_process_exit_code(int status) {
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128;
 }
 
-/* argv for execvp: the program, then each argument, then NULL. */
-static char** kf_process_argv(const char* program, KfStringArgs* args) {
-    char** values = (char**)malloc((args->len + 2) * sizeof(char*));
-    if (!values) return NULL;
-    values[0] = (char*)program;
-    for (uint64_t i = 0; i < args->len; i++) values[i + 1] = (char*)args->data[i].data;
-    values[args->len + 1] = NULL;
-    return values;
-}
-
-/* In the child, before exec: its environment and directory. False on a
- * failure, with errno set. */
-static int kf_process_prepare(const char* cwd, KfStringArgs* environment) {
-    for (uint64_t i = 0; i < environment->len; i++) {
-        char* entry = strdup((char*)environment->data[i].data);
-        if (!entry || putenv(entry) != 0) return 0;
-    }
-    return !cwd[0] || chdir(cwd) == 0;
-}
-
 int32_t kf_process_status(const char* program, void* raw_args, const char* cwd, void* raw_environment, const char* stdout_path) {
     KfStringArgs* args = (KfStringArgs*)raw_args;
     KfStringArgs* environment = (KfStringArgs*)raw_environment;
-    char** values = kf_process_argv(program, args);
-    if (!values) return -1;
+    char** values = (char**)malloc((args->len + 2) * sizeof(char*));
+    values[0] = (char*)program;
+    for (uint64_t i = 0; i < args->len; i++) values[i + 1] = (char*)args->data[i].data;
+    values[args->len + 1] = NULL;
     pid_t child = fork();
     if (child == 0) {
-        if (!kf_process_prepare(cwd, environment)) _exit(126);
+        for (uint64_t i = 0; i < environment->len; i++) {
+            char* entry = strdup((char*)environment->data[i].data);
+            if (!entry || putenv(entry) != 0) _exit(126);
+        }
+        if (cwd[0] && chdir(cwd) != 0) _exit(126);
         if (stdout_path[0]) {
             int fd = open(stdout_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
             if (fd < 0 || dup2(fd, STDOUT_FILENO) < 0) _exit(126);
@@ -86,28 +72,73 @@ static int kf_cloexec_pipe(int ends[2]) {
     return 1;
 }
 
-/* Starts `program` with its stdin and stdout piped to this process and its
- * stderr shared, and answers its pid; -1 when it could not be started, exec
- * failures included, which the child reports through a pipe that exec
- * closes. */
-int32_t kf_process_spawn(const char* program, void* raw_args, const char* cwd, void* raw_environment) {
-    KfStringArgs* args = (KfStringArgs*)raw_args;
-    KfStringArgs* environment = (KfStringArgs*)raw_environment;
+/* The next spawn's arguments and environment, pushed one at a time so that
+ * nothing but strings crosses into C. */
+static char** kf_spawn_args = NULL;
+static uint64_t kf_spawn_arg_count = 0;
+static char** kf_spawn_env = NULL;
+static uint64_t kf_spawn_env_count = 0;
+
+static void kf_spawn_free_list(char** values, uint64_t count) {
+    for (uint64_t i = 0; i < count; i++) free(values[i]);
+    free(values);
+}
+
+void kf_process_spawn_reset(void) {
+    kf_spawn_free_list(kf_spawn_args, kf_spawn_arg_count);
+    kf_spawn_free_list(kf_spawn_env, kf_spawn_env_count);
+    kf_spawn_args = NULL;
+    kf_spawn_arg_count = 0;
+    kf_spawn_env = NULL;
+    kf_spawn_env_count = 0;
+}
+
+static int32_t kf_spawn_push(char*** values, uint64_t* count, const char* value) {
+    char** grown = (char**)realloc(*values, (*count + 2) * sizeof(char*));
+    if (!grown) return -1;
+    *values = grown;
+    grown[*count] = strdup(value);
+    if (!grown[*count]) return -1;
+    *count += 1;
+    grown[*count] = NULL;
+    return 0;
+}
+
+int32_t kf_process_spawn_arg(const char* value) {
+    return kf_spawn_push(&kf_spawn_args, &kf_spawn_arg_count, value);
+}
+
+int32_t kf_process_spawn_env(const char* entry) {
+    return kf_spawn_push(&kf_spawn_env, &kf_spawn_env_count, entry);
+}
+
+/* Starts `program` with the pushed arguments and environment, its stdin and
+ * stdout piped to this process and its stderr shared, and answers its pid;
+ * -1 when it could not be started, exec failures included, which the child
+ * reports through a pipe that exec closes. */
+int32_t kf_process_spawn(const char* program, const char* cwd) {
     kf_spawned_stdin = -1;
     kf_spawned_stdout = -1;
     kf_spawn_error = 0;
     signal(SIGPIPE, SIG_IGN);
     int input[2], output[2], report[2];
-    char** values = kf_process_argv(program, args);
+    char** values = (char**)malloc((kf_spawn_arg_count + 2) * sizeof(char*));
+    if (values) {
+        values[0] = (char*)program;
+        for (uint64_t i = 0; i < kf_spawn_arg_count; i++) values[i + 1] = kf_spawn_args[i];
+        values[kf_spawn_arg_count + 1] = NULL;
+    }
     if (!values || !kf_cloexec_pipe(input) || !kf_cloexec_pipe(output) || !kf_cloexec_pipe(report)) {
         kf_spawn_error = errno ? errno : ENOMEM;
         free(values);
+        kf_process_spawn_reset();
         return -1;
     }
     pid_t child = fork();
     if (child == 0) {
-        if (dup2(input[0], STDIN_FILENO) >= 0 && dup2(output[1], STDOUT_FILENO) >= 0 &&
-            kf_process_prepare(cwd, environment)) {
+        int ready = dup2(input[0], STDIN_FILENO) >= 0 && dup2(output[1], STDOUT_FILENO) >= 0;
+        for (uint64_t i = 0; ready && i < kf_spawn_env_count; i++) ready = putenv(kf_spawn_env[i]) == 0;
+        if (ready && (!cwd[0] || chdir(cwd) == 0)) {
             signal(SIGPIPE, SIG_DFL);
             execvp(program, values);
         }
@@ -118,6 +149,7 @@ int32_t kf_process_spawn(const char* program, void* raw_args, const char* cwd, v
     }
     int saved = errno;
     free(values);
+    kf_process_spawn_reset();
     close(input[0]);
     close(output[1]);
     close(report[1]);

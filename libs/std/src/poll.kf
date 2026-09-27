@@ -2,7 +2,10 @@
 
 import alloc.list.*
 
-extern "C" fun kf_stream_poll(fds: &List<int32>, ready: &var List<int32>, timeout_ms: int64): int32
+extern "C" fun kf_stream_poll_clear(): void
+extern "C" fun kf_stream_poll_add(fd: int32): int32
+extern "C" fun kf_stream_poll(timeout_ms: int64): int32
+extern "C" fun kf_stream_poll_ready(i: uint64): bool
 
 /// Streams to wait on, each under a token the caller picks. `wait` reports
 /// readiness and reads nothing: the caller reads from the streams it names.
@@ -42,16 +45,17 @@ impl Poll {
     /// they were added; empty when `timeout` passed first. With no timeout,
     /// waits as long as it takes.
     pub fun wait(timeout: Duration?): Result<List<uint64>, IoError> {
-        var ready = List.new<int32>()
-        while _i in 0..self.fds.size() { ready.push(0) }
+        kf_stream_poll_clear()
+        var added = 0
+        while i in 0..self.fds.size() { added = added + kf_stream_poll_add(self.fds[i]) }
         val timeout_ms = timeout?.as_millis() ?: -1
-        if kf_stream_poll(&self.fds, &var ready, timeout_ms) < 0 {
+        if added < 0 || kf_stream_poll(timeout_ms) < 0 {
             val code = kf_stream_errno()
             return Result.Err(IoError { path: "poll", code: code, message: kf_stream_error_text(code) })
         }
         var tokens = List.new<uint64>()
-        while i in 0..ready.size() {
-            if ready[i] != 0 { tokens.push(self.tokens[i]) }
+        while i in 0..self.tokens.size() {
+            if kf_stream_poll_ready(i) { tokens.push(self.tokens[i]) }
         }
         return Result.Ok(tokens)
     }

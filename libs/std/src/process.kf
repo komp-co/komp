@@ -19,7 +19,10 @@ impl ExitStatus {
     pub fun exit_code(): int32 { return self.code }
 }
 
-extern "C" fun kf_process_spawn(program: str, args: &List<String>, working_dir: str, environment: &List<String>): int32
+extern "C" fun kf_process_spawn_reset(): void
+extern "C" fun kf_process_spawn_arg(value: str): int32
+extern "C" fun kf_process_spawn_env(entry: str): int32
+extern "C" fun kf_process_spawn(program: str, working_dir: str): int32
 extern "C" fun kf_process_spawned_stdin(): int32
 extern "C" fun kf_process_spawned_stdout(): int32
 extern "C" fun kf_process_spawn_error(): int32
@@ -60,9 +63,10 @@ impl Command {
     /// and its stderr shared. A program that cannot be run is an error here,
     /// not an exit code later.
     pub fun spawn(): Result<Child, IoError> {
-        val pid = kf_process_spawn(
-            self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment
-        )
+        kf_process_spawn_reset()
+        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg.as_str()) }
+        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry.as_str()) }
+        val pid = kf_process_spawn(self.program.as_str(), self.working_dir.as_str())
         if pid < 0 {
             val code = kf_process_spawn_error()
             val message = kf_process_error_text(code)
