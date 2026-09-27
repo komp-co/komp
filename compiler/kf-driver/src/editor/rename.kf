@@ -6,7 +6,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.lexer.*
 import json.writer.*
-import kf_shared.render_json_error
 import kf_shared.absolutize
 import kf_shared.starts_with_path
 
@@ -16,7 +15,7 @@ import kf_shared.starts_with_path
 /// `edits` includes the declaration's own name. An empty `new_name` asks
 /// only whether a rename is possible, and answers with `range`, the name
 /// under the cursor.
-pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &QueryCrate): String {
+pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &TypedCrate): String {
     val out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
@@ -52,21 +51,10 @@ pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &Que
     return out.finish()
 }
 
-pub fun run_rename_query(path: str, offset: uint32, new_name: str, overlay_path: str): int32 {
-    val crate = crate_for_query(path, overlay_path)
-    if !crate.ok {
-        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
-        runtime_println(json.as_str())
-        return 1
-    }
-    val json = render_rename_json(path, offset, new_name, &crate)
-    runtime_println(json.as_str())
-    return 0
-}
 
 /// Why this rename must not happen, or "". The reader's own input is checked
 /// before the program.
-fun why_not(offset: uint32, new_name: str, crate: &QueryCrate): String {
+fun why_not(offset: uint32, new_name: str, crate: &TypedCrate): String {
     // An empty name: every check that needs no name still applies.
     val validate_only = new_name.byte_len() == 0
     if !validate_only && !is_single_identifier(new_name) {
@@ -153,7 +141,7 @@ fun Module.declared_name(decl: DeclId): String {
 }
 
 /// The assembled crate holds every dependency; rename must not edit theirs.
-fun owned_by_this_crate(home: Span, crate: &QueryCrate): bool {
+fun owned_by_this_crate(home: Span, crate: &TypedCrate): bool {
     if home.is_none() { return false }
     val decl_file = path_for_file_id(crate.smap, home.file_id)
     val here = path_for_file_id(crate.smap, crate.file_id)

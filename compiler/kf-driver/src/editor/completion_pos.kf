@@ -201,7 +201,7 @@ pub fun scope_kind_fits(kind: str, pos: CompletionPos): bool {
 
 /// Keywords legal here, builtin types where a type belongs, and fitting names
 /// in scope. Keywords lead.
-pub fun QueryCrate.positional_items_json(offset: uint32, src: str): String {
+pub fun TypedCrate.positional_items_json(offset: uint32, src: str): String {
     val pos = completion_pos_at(src, offset)
     var arr = JsonWriter.array()
     arr.push_items(&keyword_items(pos))

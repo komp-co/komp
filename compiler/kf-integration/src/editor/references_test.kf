@@ -4,7 +4,7 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.cli.query.render_references_json
+import kf_driver.editor.render_references_json
 
 
 fun references_fixture_path(): str {

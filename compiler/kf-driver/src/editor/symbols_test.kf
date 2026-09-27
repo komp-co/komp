@@ -5,15 +5,15 @@ import kf_core.ast.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 
-/// As `komp query` parses a file, without the filesystem.
-fun query_module_for(src: str): Module {
+/// As `parse_source` parses a buffer.
+fun module_for(src: str): Module {
     val toks = tokenize(src, 1)
     val p = new_parser(toks)
     return p.parse_module(List.new<String>())
 }
 
 fun symbols_of(src: str): String {
-    val m = query_module_for(src)
+    val m = module_for(src)
     return render_symbols_json("t.kf", &m)
 }
 

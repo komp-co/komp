@@ -5,10 +5,9 @@ import alloc.list.*
 
 import kf_core.ast.*
 import json.writer.*
-import kf_shared.render_json_error
 
 /// `{"schema_version":1,"file":..,"inlays":[{"byte_offset":N,"label":": T"}]}`
-pub fun render_inlays_json(path: str, crate: &QueryCrate): String {
+pub fun render_inlays_json(path: str, crate: &TypedCrate): String {
     val out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
@@ -18,25 +17,14 @@ pub fun render_inlays_json(path: str, crate: &QueryCrate): String {
     return out.finish()
 }
 
-pub fun run_inlays_query(path: str, overlay_path: str): int32 {
-    val crate = crate_for_query(path, overlay_path)
-    if !crate.ok {
-        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
-        runtime_println(json.as_str())
-        return 1
-    }
-    val json = render_inlays_json(path, &crate)
-    runtime_println(json.as_str())
-    return 0
-}
 
-fun inlay_decl_list(decls: &List<TopDecl>, crate: &QueryCrate, arr: &var JsonWriter): void {
+fun inlay_decl_list(decls: &List<TopDecl>, crate: &TypedCrate, arr: &var JsonWriter): void {
     while decl in &decls {
         decl.inlay_decl(crate, arr)
     }
 }
 
-fun TopDecl.inlay_decl(crate: &QueryCrate, arr: &var JsonWriter): void {
+fun TopDecl.inlay_decl(crate: &TypedCrate, arr: &var JsonWriter): void {
     when (self.kind) {
         Function(_p, _r, body, _pub, _u, _mut, _st) => inlay_stmt_list(body, crate, arr)
         ImplBlock(methods) => inlay_decl_list(&methods, crate, arr)
@@ -46,13 +34,13 @@ fun TopDecl.inlay_decl(crate: &QueryCrate, arr: &var JsonWriter): void {
     }
 }
 
-fun inlay_stmt_list(stmts: &List<Stmt>, crate: &QueryCrate, arr: &var JsonWriter): void {
+fun inlay_stmt_list(stmts: &List<Stmt>, crate: &TypedCrate, arr: &var JsonWriter): void {
     while stmt in &stmts {
         (stmt).inlay_stmt(crate, arr)
     }
 }
 
-fun Stmt.inlay_stmt(crate: &QueryCrate, arr: &var JsonWriter): void {
+fun Stmt.inlay_stmt(crate: &TypedCrate, arr: &var JsonWriter): void {
     when (self.kind) {
         LetVal(_n, ann, init) => self.inlay_binding(ann.view(), init.view(), crate, arr)
         LetVar(_n, ann, init) => self.inlay_binding(ann.view(), init.view(), crate, arr)
@@ -72,7 +60,7 @@ fun Stmt.inlay_stmt(crate: &QueryCrate, arr: &var JsonWriter): void {
     }
 }
 
-fun inlay_arm_list(arms: &List<Arm>, crate: &QueryCrate, arr: &var JsonWriter): void {
+fun inlay_arm_list(arms: &List<Arm>, crate: &TypedCrate, arr: &var JsonWriter): void {
     while arm in &arms {
         inlay_stmt_list(&arm.body, crate, arr)
     }
@@ -80,7 +68,7 @@ fun inlay_arm_list(arms: &List<Arm>, crate: &QueryCrate, arr: &var JsonWriter): 
 
 /// Nothing for a binding in another file, an annotated one, one without an
 /// initializer, or a poisoned one.
-fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &QueryCrate, arr: &var JsonWriter): void {
+fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &TypedCrate, arr: &var JsonWriter): void {
     if self.span.file_id != crate.file_id { return }
     if ann.is_some() { return }
     val init = init_opt ?: return
@@ -89,7 +77,7 @@ fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &QueryCr
     if self.binder.is_none() { return }
     val at = self.binder.end
     var label = String.from(": ")
-    label.append(ty.query_display_type(crate.sigs).as_str())
+    label.append(ty.written_type(crate.sigs).as_str())
     val o = JsonWriter.object()
     o.field_uint32("byte_offset", at)
     o.field_string("label", label.as_str())

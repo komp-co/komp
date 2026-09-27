@@ -1,15 +1,14 @@
 // The parse-only questions `kflatc serve` answers about one file: its
 // symbols, its folding ranges, and the selection ranges around an offset.
-// Each answer is the object `komp query` prints for the same question.
 
 import json.reader.*
 import kf_assemble.Overlay
 import kf_assemble.is_staged
 import kf_assemble.overlay_read
-import kf_driver.cli.query.parse_source
-import kf_driver.cli.query.render_folding_json
-import kf_driver.cli.query.render_selection_json
-import kf_driver.cli.query.render_symbols_json
+import kf_driver.editor.parse_source
+import kf_driver.editor.render_folding_json
+import kf_driver.editor.render_selection_json
+import kf_driver.editor.render_symbols_json
 import std.fs.exists
 
 /// `method` is `symbols`, `folding` or `selection`; `line` the request.

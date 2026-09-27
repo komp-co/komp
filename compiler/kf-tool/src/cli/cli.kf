@@ -10,8 +10,6 @@
 //                                      type-check with JSON diagnostics
 //   komp fix [--dry-run] <project-dir>
 //                                      write the machine-applicable repairs
-//   komp query <what> --file <path> [--offset <N>] [--overlay <path>]
-//                                      answer an editor's question as JSON
 //   komp test <project-dir>            run @test functions from artifacts
 //   komp update [<project-dir>]        re-resolve fetched dependencies
 //   komp publish [--status] [<project-dir>]
@@ -197,10 +195,6 @@ pub fun run_cli(): int32 {
             }
             if positionals_from(nargs, 1) > 1 { return usage_error("fix") }
             return run_on_selected("fix", project_for(nargs, 1).as_str(), nargs, false)
-        }
-        "query" => {
-            // Answered by the compiler: one file, one question, one JSON line.
-            return run_kflatc_query()
         }
         "run" => {
             val mode = build_mode_from_flag(cli_arg_get(1))

@@ -11,10 +11,10 @@ import kf_core.diagnostic.*
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
 import kf_driver.build.fresh_diag_list
-import kf_driver.cli.query.innermost_expr_at
-import kf_driver.cli.query.query_display_type
-import kf_driver.cli.query.path_for_file_id
-import kf_driver.cli.query.render_inlays_json
+import kf_driver.editor.innermost_expr_at
+import kf_driver.editor.written_type
+import kf_driver.editor.path_for_file_id
+import kf_driver.editor.render_inlays_json
 import kf_integration.harness.assemble_project
 import std.fs.scratch_path
 
@@ -55,7 +55,7 @@ fun hover_reports_the_type_the_checker_gave_an_expression(): void {
     prepare_typed_fixture()
     val crate = typed_crate_for(typed_fixture_path())
     val hit = crate.module.innermost_expr_at(crate.file_id, offset_of_a())
-    assert_eq(hit.ty.query_display_type(crate.sigs).as_str(), "int32", "`a` in `a + b` is an int32")
+    assert_eq(hit.ty.written_type(crate.sigs).as_str(), "int32", "`a` in `a + b` is an int32")
 }
 
 @test
@@ -310,8 +310,8 @@ fun prepare_unused_fixture(): void {
     write_file(scratch_path("kf_unused_import/src/spare/spare.kf"), "pub struct Unwanted {\n    pub val b: int32\n}\n")
     var src = """import unused_import.helper.*
 import unused_import.spare.*
-import kf_driver.cli.query.path_for_file_id
-import kf_driver.cli.query.render_inlays_json
+import kf_driver.editor.path_for_file_id
+import kf_driver.editor.render_inlays_json
 
 pub fun probe(): int32 {
     val p = Pair { a: 1 }
@@ -399,7 +399,7 @@ fun a_typed_query_checks_the_staged_buffer(): void {
     prepare_typed_fixture()
     val crate = typed_crate_for_overlay(typed_fixture_path(), staged_typed_source().as_str())
     val hit = crate.module.innermost_expr_at(crate.file_id, offset_of_staged_param())
-    assert_eq(hit.ty.query_display_type(crate.sigs).as_str(), "int32",
+    assert_eq(hit.ty.written_type(crate.sigs).as_str(), "int32",
               "a function nobody has saved still has types")
 }
 

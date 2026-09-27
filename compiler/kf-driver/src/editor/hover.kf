@@ -6,7 +6,6 @@ import alloc.list.*
 
 import kf_core.ast.*
 import json.writer.*
-import kf_shared.render_json_error
 
 /// `{"schema_version":2,"file":..,"offset":N,"type":..,"signature":..,
 ///   "documentation":..,"byte_start":..,"byte_end":..}`
@@ -14,7 +13,7 @@ import kf_shared.render_json_error
 /// `type` is null off an expression and for a poison type. `signature` and
 /// `documentation` are null off a declaration; `documentation` also when it
 /// has no `///` run.
-pub fun render_hover_json(path: str, offset: uint32, crate: &QueryCrate): String {
+pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String {
     val out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
@@ -23,7 +22,7 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &QueryCrate): String
     val hit = crate.module.innermost_expr_at(crate.file_id, offset)
     val typed = hit.found && !hit.ty.is_poison()
     if typed {
-        out.field_string("type", hit.ty.query_display_type(crate.sigs).as_str())
+        out.field_string("type", hit.ty.written_type(crate.sigs).as_str())
     } else {
         out.field_null("type")
     }
@@ -50,14 +49,3 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &QueryCrate): String
     return out.finish()
 }
 
-pub fun run_hover_query(path: str, offset: uint32, overlay_path: str): int32 {
-    val crate = crate_for_query(path, overlay_path)
-    if !crate.ok {
-        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
-        runtime_println(json.as_str())
-        return 1
-    }
-    val json = render_hover_json(path, offset, &crate)
-    runtime_println(json.as_str())
-    return 0
-}

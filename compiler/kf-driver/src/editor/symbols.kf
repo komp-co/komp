@@ -1,4 +1,4 @@
-// The declaration tree behind `komp query symbols`. Kinds are KFlat words;
+// The declaration tree behind the `symbols` answer. Kinds are KFlat words;
 // the client maps them to protocol numbers.
 
 import alloc.list.*

@@ -10,7 +10,6 @@ pub fun command_usage(command: str): str {
         "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
         "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
-        "query" => "komp query <what> --file <path> [--offset <N>] [--overlay <path>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
@@ -58,12 +57,6 @@ fun command_detail(command: str): str {
   --dry-run           print what would change and write nothing
   -p, --package <c>   fix this workspace member
   --workspace         fix every workspace member"""
-        "query" => """Answer one editor question about one file, as a single JSON line.
-Takes no project directory: komp finds the crate itself.
-
-  --file <path>      the file being asked about
-  --offset <N>       byte offset the question is about
-  --overlay <path>   read the buffer from here instead of from disk"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
@@ -111,7 +104,6 @@ pub fun print_usage(): void {
     runtime_println("  run       build the project and run it")
     runtime_println("  test      run the project's @test functions")
     runtime_println("  fix       apply the repairs the checker suggests")
-    runtime_println("  query     answer one editor question as JSON")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")

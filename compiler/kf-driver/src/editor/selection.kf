@@ -26,12 +26,6 @@ pub fun render_selection_json(path: str, offset: uint32, m: &Module): String {
     return out.finish()
 }
 
-pub fun run_selection_query(path: str, offset: uint32, overlay_path: str): int32 {
-    val m = query_parse_file(path, overlay_path)
-    val json = render_selection_json(path, offset, &m)
-    runtime_println(json.as_str())
-    return 0
-}
 
 /// Narrowest first, without duplicates: a parenthesised expression shares
 /// its contents' span.

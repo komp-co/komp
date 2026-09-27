@@ -7,7 +7,6 @@
 //   kflatc check   --name N --root DIR --out DIR [--project DIR] [--json]
 //                  [--dep NAME=HASH]... [--load NAME]...
 //   kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]
-//   kflatc query <what> --file PATH [...]
 //   kflatc serve
 //   kflatc version
 //
@@ -19,12 +18,10 @@ import core.args.arg_count
 
 import kf_driver.*
 import kf_driver.build.*
-import kf_driver.cli.query.dispatch_query
 import kf_driver.serve.kflatc_serve
 import kf_interface.interface_compiler_abi
 import kf_interface.interface_runtime_abi
 import kf_interface.interface_target
-import kf_shared.cli_arg_count
 import kf_shared.kflat_version
 
 extern "C" fun kf_mute_warnings(on: int32): void
@@ -32,7 +29,6 @@ extern "C" fun kf_mute_warnings(on: int32): void
 pub fun kflatc_cli(): int32 {
     if arg_count() == 0 { return kflatc_usage() }
     val command = arg_at(0)
-    if command == "query" { return dispatch_query(cli_arg_count()) }
     if command == "version" { return kflatc_version() }
     if command == "serve" { return kflatc_serve() }
     if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
@@ -129,7 +125,6 @@ fun kflatc_usage(): int32 {
     println("                      [--dep NAME=HASH]... [--load NAME]...")
     println("       kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]")
     println("       kflatc version")
-    println("       kflatc query <what> --file PATH [--offset N] [--overlay PATH] [--name NEW]")
     println("       kflatc serve")
     return 2
 }

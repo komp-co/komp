@@ -5,7 +5,7 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.cli.query.render_completion_json
+import kf_driver.editor.render_completion_json
 
 extern "C" fun system(cmd: str): int32
 

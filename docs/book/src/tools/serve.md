@@ -82,9 +82,7 @@ reported as an error diagnostic, as `kf.toml` reports it.
 
 **`symbols`, `folding` and `selection` only parse** the file, from its staged
 text or from disk, so they answer on a file that does not type-check, and
-cost milliseconds. Each result is the object
-[`komp query`](cli.md#komp-query) prints for the same question, byte offsets
-included; `offset` is a byte offset too.
+cost milliseconds.
 
 **The rest type the crates around the file.** `crates` lists them as
 `{"name", "root"}` objects, dependencies first and the file's own crate
@@ -92,13 +90,165 @@ last: a crate's `loads` from `komp metadata`, then the crate itself. They
 are typed from source, staged text included, once; every later typed request
 naming the same crates reuses that until a `stage` or `unstage` changes a
 buffer, so moving around a file that is not being edited costs no more
-checking. Each result is the object [`komp query`](cli.md#komp-query) prints
-for the same question. A file the last crate does not compile is refused as
+checking. A file the last crate does not compile is refused as
 `not_in_crate`. `rename` without a `new_name` asks only whether the name at
 `offset` can be renamed, as an editor does before asking for the new name.
 
 **The server stops** after answering `shutdown`, or when its standard input
 ends. Either way it exits 0.
+
+## Answers
+
+Offsets are byte offsets into the file, zero-based and end-exclusive, the
+convention diagnostics use, in the params and in every answer. They are not
+lines and columns because only the client knows the position encoding its
+own client negotiated. Each answer carries a `schema_version` of its own and
+the `file` and `offset` it was asked about. The examples below show only the
+`result`, for a crate at `/w`.
+
+**`symbols`** is the declaration tree, which an outline, a breadcrumb bar and
+"go to symbol in file" all read:
+
+```json
+{"schema_version":1,"file":"/w/src/point.kf","symbols":[{"name":"Point","kind":"struct","detail":"","byte_start":0,"byte_end":33,"children":[{"name":"x","kind":"field","detail":"int32","byte_start":23,"byte_end":24,"children":[]}]}]}
+```
+
+Kinds are KFlat's words, not any protocol's numbers: `function`, `method`,
+`struct`, `enum`, `variant`, `field`, `trait`, `impl`, `extern`, `type`. A
+declaration that failed to parse is left out: it names nothing to navigate
+to.
+
+**`folding`** is the regions an editor offers to collapse: the import block
+at the top of the file, then every declaration and every method.
+
+```json
+{"schema_version":1,"file":"/w/src/point.kf","ranges":[{"byte_start":0,"byte_end":33,"kind":"region"}]}
+```
+
+**`selection`** is what expand-selection grows through: the spans covering
+`offset`, innermost first, ending at the whole declaration.
+
+```json
+{"schema_version":1,"file":"/w/src/main.kf","offset":91,"ranges":[{"byte_start":91,"byte_end":92},{"byte_start":91,"byte_end":96},{"byte_start":43,"byte_end":98}]}
+```
+
+There is no step for the enclosing statement, because a statement's span is
+its leading keyword rather than its extent; the chain goes from the outermost
+expression straight to the declaration.
+
+**`hover`** is the innermost expression covering `offset` (hovering `a` in
+`f(a + 1)` answers about `a`, not the call), its type as its author would
+write it (`List<int32>`, not the name it links under), and, when it names a
+declaration, that declaration's signature and documentation:
+
+```json
+{"schema_version":2,"file":"/w/src/main.kf","offset":195,"type":"int32","signature":null,"documentation":null,"byte_start":195,"byte_end":200}
+```
+
+`type` is null when `offset` covers no expression: whitespace, a keyword, a
+comment, a binder's name. That is not an error; most of a file is not an
+expression.
+
+**`inlays`** is the types nobody wrote down: one hint per `val` or `var` with
+no annotation, at the byte where its name ends.
+
+```json
+{"schema_version":1,"file":"/w/src/main.kf","inlays":[{"byte_offset":133,"label":": int32"},{"byte_offset":159,"label":": List<int32>"}]}
+```
+
+**`signature`** is the callee of the innermost call around `offset`, its
+parameters, and which one `offset` is in:
+
+```json
+{"schema_version":1,"file":"/w/src/main.kf","offset":143,"label":"add(a: int32, b: int32): int32","parameters":[{"label":"a: int32"},{"label":"b: int32"}],"active_parameter":1}
+```
+
+`label` is null when `offset` is not inside a call, or inside one whose
+callee the crates do not declare. The active parameter counts the commas
+directly inside the call, so it keeps working while the argument being typed
+does not parse yet.
+
+**`references`** is where the name at `offset` was declared, and every use
+of it. Each span carries its own file, since a use can be anywhere in the
+crate.
+
+```json
+{"schema_version":1,"file":"/w/src/lib.kf","offset":90,"declaration":{"file":"/w/src/lib.kf","byte_start":4,"byte_end":10},"references":[{"file":"/w/src/lib.kf","byte_start":90,"byte_end":96},{"file":"/w/src/other.kf","byte_start":36,"byte_end":42}]}
+```
+
+Every span is a name: the declaration is `helper`, not the `fun` before it,
+and a use is the callee, not the whole call. `offset` may be on the
+declaration or on any use; both answer the same. The declaration is not
+repeated among the uses. Only top-level declarations answer: a parameter or
+a local resolves through the typechecker's own scope, which the resolver
+does not build, so one answers with a null `declaration` and no uses rather
+than a guess from spelling.
+
+**`tokens`** is every name in the file with what it is, sorted by position,
+which is what semantic highlighting paints:
+
+```json
+{"schema_version":1,"file":"/w/src/lib.kf","tokens":[{"byte_start":41,"byte_end":42,"type":"variable"},{"byte_start":84,"byte_end":93,"type":"function"}]}
+```
+
+Types are `variable`, `function`, `method`, `field` and `type`.
+
+**`completion`** after a `.` is the fields and instance methods of the
+receiver's type:
+
+```json
+{"schema_version":2,"file":"/w/src/lib.kf","offset":398,"prefix":"","receiver_type":"Point","items":[{"label":"x","kind":"field","detail":"int32"},{"label":"sum","kind":"method","detail":"sum(): int32"}]}
+```
+
+Where the receiver ends is found in the text, not the tree: the cursor sits
+after a `.` and perhaps a partly typed name, neither of which parses yet. So
+the compiler scans back over the name, expects a `.`, and types what comes
+before it. `prefix` is the partial name; the client filters on it. A
+`static fun` is left out, since it takes no receiver, and a generic's
+members are shown as declared (`push(item: T)`, not `push(item: int32)`).
+
+Anywhere else, the items are the names in scope at `offset`, and
+`receiver_type` is null:
+
+```json
+{"schema_version":2,"file":"/w/src/lib.kf","offset":271,"receiver_type":null,"prefix":"","items":[{"label":"seed","kind":"parameter","detail":"int32"},{"label":"total","kind":"local","detail":"int32"},{"label":"Point","kind":"struct","detail":""},{"label":"println","kind":"function","detail":"(v: T): void"}]}
+```
+
+The keywords come first, then the locals live at that point and the
+enclosing function's parameters and `self`, then the declarations the file
+can name, gated by the same import rules the checker uses. A local declared below the cursor, or inside a block the cursor is not
+in, is not offered. `@test` functions are left out: nothing calls them by
+name. Kinds are `keyword`, `local`, `parameter`, `function`, `struct`,
+`enum` and `trait` in scope, and `field` or `method` after a `.`.
+
+When the receiver has no type the checker could name, `receiver_type` is
+null and there are no items: a list built from spelling would be worse than
+none.
+
+**`rename`** is every span to replace, the declaration's own name included,
+or the reason the rename is refused:
+
+```json
+{"schema_version":1,"file":"/w/src/lib.kf","offset":8,"new_name":"scaled","ok":true,"error":null,"range":{"file":"/w/src/lib.kf","byte_start":8,"byte_end":14},"edits":[{"file":"/w/src/lib.kf","byte_start":8,"byte_end":14},{"file":"/w/src/lib.kf","byte_start":133,"byte_end":139},{"file":"/w/src/other.kf","byte_start":40,"byte_end":46}]}
+```
+
+A rename that changes which declaration a name refers to still compiles and
+no longer means what it did, so `ok` is false, with the reason in `error` and
+no `edits`, when:
+
+| | |
+|---|---|
+| the new name is not one | it must lex as a single identifier |
+| the new name is taken | another top-level declaration in the crate has it |
+| the new name is the old one | that is not a rename |
+| `offset` is not on a name | a keyword or whitespace names no declaration |
+| the declaration is not the crate's | it is in a dependency; rename it there |
+
+Without a `new_name`, every check that needs none runs, and `range` is the
+name under the cursor. Collisions are checked crate-wide rather than at each
+use: the resolver stamps only top-level declarations, so a local shadowing
+the new name somewhere would go unseen, which is why rename declines on
+locals entirely.
 
 ## Errors
 

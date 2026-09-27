@@ -23,13 +23,13 @@ fun no_hover_decl(): HoverDecl {
 }
 
 /// The more specific answer wins: a method `p.shifted` over the local `p`.
-pub fun QueryCrate.hover_decl_at(offset: uint32): HoverDecl {
+pub fun TypedCrate.hover_decl_at(offset: uint32): HoverDecl {
     val member = self.hover_member_at(offset)
     if member.found { return member }
     return self.hover_toplevel_at(offset)
 }
 
-fun QueryCrate.hover_member_at(offset: uint32): HoverDecl {
+fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     val src = self.source.as_str()
     val start = word_start_at(src, offset)
     if start == 0 { return no_hover_decl() }
@@ -43,7 +43,7 @@ fun QueryCrate.hover_member_at(offset: uint32): HoverDecl {
 
 /// The type whose members a `.` at `dot` reaches. Tried as a declared type
 /// first: `Point` in `Point.new` is not an expression and types as poison.
-fun QueryCrate.member_owner_before(dot: uint32): String {
+fun TypedCrate.member_owner_before(dot: uint32): String {
     val src = self.source.as_str()
     val recv = word_at(src, dot - 1)
     if recv.as_str() != "" && self.module.names_a_type(recv.as_str()) { return recv }
@@ -67,7 +67,7 @@ fun Module.names_a_type(name: str): bool {
 }
 
 /// From any impl naming `owner`, inherent or trait.
-fun QueryCrate.member_named(owner: str, name: str): HoverDecl {
+fun TypedCrate.member_named(owner: str, name: str): HoverDecl {
     val own = self.impl_member_named(owner, name)
     if own.found { return own }
     while td in &self.module.decls {
@@ -78,7 +78,7 @@ fun QueryCrate.member_named(owner: str, name: str): HoverDecl {
     return no_hover_decl()
 }
 
-fun QueryCrate.impl_member_named(owner: str, name: str): HoverDecl {
+fun TypedCrate.impl_member_named(owner: str, name: str): HoverDecl {
     while td in &self.module.decls {
         if td.name.as_str() == owner {
             val members = td.impl_members()
@@ -95,7 +95,7 @@ fun QueryCrate.impl_member_named(owner: str, name: str): HoverDecl {
     return no_hover_decl()
 }
 
-fun QueryCrate.hover_toplevel_at(offset: uint32): HoverDecl {
+fun TypedCrate.hover_toplevel_at(offset: uint32): HoverDecl {
     val target = self.module.decl_at_offset(self.file_id, offset) ?: return no_hover_decl()
     while td in &self.module.decls {
         when (td.decl) {
@@ -123,7 +123,7 @@ fun TopDecl.decl_label(): String {
 }
 
 /// Read from whichever file declares it, usually not the hovered one.
-pub fun Span.doc_for_span(crate: &QueryCrate): String {
+pub fun Span.doc_for_span(crate: &TypedCrate): String {
     if (*self).is_none() { return "" }
     if self.file_id == crate.file_id {
         return doc_comment_above(crate.source.as_str(), crate.file_id, self.start)

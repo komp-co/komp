@@ -10,7 +10,7 @@ import std.fs.scratch_root
 extern "C" fun system(cmd: str): int32
 
 /// Named `arm_scope`: `_test.kf` files share one namespace, and
-/// `query_scope_test.kf` has `prepare_scope_fixture`.
+/// `editor/scope_test.kf` has `prepare_scope_fixture`.
 fun prepare_arm_scope_fixture(name: str, body: str): int32 {
     val cmd = "rm -rf ${scratch_root()}/${name} && mkdir -p ${scratch_root()}/${name}/src"
     val prep = unsafe { system(cmd.as_str()) }

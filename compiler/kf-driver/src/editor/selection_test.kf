@@ -6,7 +6,7 @@ import kf_core.span.*
 /// `fun f(): int32 { return 1 + 2 }`: the `1` at 24, the sum 24..29, the
 /// declaration 31 bytes.
 fun chain_for(offset: uint32): List<Span> {
-    val m = query_module_for("fun f(): int32 { return 1 + 2 }")
+    val m = module_for("fun f(): int32 { return 1 + 2 }")
     return m.selection_chain(1, offset)
 }
 
@@ -36,19 +36,14 @@ fun the_chain_has_one_step_per_level(): void {
 
 @test
 fun the_chain_is_empty_outside_every_declaration(): void {
-    val m = query_module_for("fun f(): int32 { return 1 }\n\n\n")
+    val m = module_for("fun f(): int32 { return 1 }\n\n\n")
     val chain = m.selection_chain(1, 28)
     assert_eq(chain.size(), 0, "the blank lines after a declaration are in nothing")
 }
 
 @test
 fun the_chain_ignores_another_file(): void {
-    val m = query_module_for("fun f(): int32 { return 1 + 2 }")
+    val m = module_for("fun f(): int32 { return 1 + 2 }")
     val chain = m.selection_chain(2, 24)
     assert_eq(chain.size(), 0, "spans in file 1 do not answer for file 2")
-}
-
-@test
-fun a_selection_query_needs_an_offset(): void {
-    assert_eq(is_byte_offset(""), false, "selection without --offset is rejected like hover")
 }

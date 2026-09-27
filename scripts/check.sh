@@ -554,47 +554,6 @@ if ! grep -q '"severity":"error"' "$WORK/implicit-bad.json"; then
 fi
 echo "  PASS  cold and json checks resolve core/alloc, and still catch errors"
 
-# `--overlay` supplies the editor's buffer while `--file` keeps the document
-# in its crate, which a typed query needs to resolve anything.
-phase "cli query answers about a staged buffer"
-mkdir -p "$WORK/overlay-project/src"
-{
-    echo '[project]'
-    echo 'name = "overlay_project"'
-    echo 'version = "0.1.0"'
-} > "$WORK/overlay-project/kf.toml"
-echo 'pub fun saved(): int32 { return 1 }' > "$WORK/overlay-project/src/main.kf"
-{
-    echo 'pub fun saved(): int32 { return 1 }'
-    echo 'pub fun unsaved(): int32 { return 2 }'
-} > "$WORK/overlay-buffer.kf"
-
-"$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
-    --overlay "$WORK/overlay-buffer.kf" > "$WORK/overlay-symbols.json"
-if ! grep -q 'unsaved' "$WORK/overlay-symbols.json"; then
-    echo "  FAIL  --overlay did not reach a parse-only answer:" >&2
-    head -3 "$WORK/overlay-symbols.json" >&2
-    exit 1
-fi
-
-# Offset 70 is inside `return 2` in the buffer and past the end of the 36-byte
-# file on disk, so the answer can only come from the staged text.
-"$WORK/komp" query hover --file "$WORK/overlay-project/src/main.kf" --offset 70 \
-    --overlay "$WORK/overlay-buffer.kf" > "$WORK/overlay-hover.json"
-if ! grep -q 'int32' "$WORK/overlay-hover.json"; then
-    echo "  FAIL  a typed query still answered about the file on disk:" >&2
-    head -3 "$WORK/overlay-hover.json" >&2
-    exit 1
-fi
-# A path that does not resolve is an error, not an empty buffer.
-if "$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
-    --overlay "$WORK/no-such-buffer.kf" > "$WORK/overlay-missing.json" 2>&1; then
-    echo "  FAIL  an unreadable overlay answered as an empty document:" >&2
-    head -3 "$WORK/overlay-missing.json" >&2
-    exit 1
-fi
-echo "  PASS  parse-only and typed queries both read the staged buffer"
-
 # `kflatc serve` is a stable protocol for other tools (docs/book/src/tools/
 # serve.md). A scripted session pins the shape of every answer, so a compiler
 # change that would break a client fails here, not in the client.
@@ -620,6 +579,8 @@ serve_crates="[{\"name\":\"core\",\"root\":\"$ROOT/libs/core\"},{\"name\":\"allo
     # printf, not echo: dash's echo would turn the `\n` into a line break.
     printf '%s\n' "{\"id\":\"s\",\"method\":\"stage\",\"params\":{\"path\":\"$serve_file\",\"text\":\"fun main(): int32 { return 4 }\\n\"}}"
     echo "{\"id\":5,\"method\":\"check\",\"params\":$serve_check}"
+    # Offset 27 is the staged `4`; on disk it is a space inside `val x`.
+    echo "{\"id\":\"hs\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_file\",\"offset\":27,\"crates\":$serve_crates}}"
     echo "{\"id\":6,\"method\":\"unstage\",\"params\":{\"path\":\"$serve_file\"}}"
     echo "{\"id\":7,\"method\":\"check\",\"params\":$serve_check}"
     echo "{\"id\":\"sym\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_file\"}}"
@@ -654,6 +615,7 @@ serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"
     echo '{"id":3,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
     echo '{"id":"s","result":null}'
     echo '{"id":5,"result":{"errors":0,"diagnostics":\[\]}}'
+    echo '{"id":"hs","result":{"schema_version":2,"file":"'"$serve_file"'","offset":27,"type":"int32","signature":null,"documentation":null,"byte_start":27,"byte_end":28}}'
     echo '{"id":6,"result":null}'
     echo '{"id":7,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
     echo '{"id":"sym","result":{"schema_version":1,"file":"'"$serve_file"'","symbols":\[{"name":"main","kind":"function","detail":"(): int32","byte_start":0,"byte_end":[0-9]*,"children":\[\]}\]}}'

@@ -5,7 +5,7 @@ import kf_typecheck.check.bound_shown
 
 /// A checked type as a KFlat programmer writes it. Generic instances recover
 /// their argument tree from the SigTable rather than parsing the ambiguous
-/// flattened name. Public for tooling such as `komp query hover`.
+/// flattened name. Public for tooling such as the editor answers.
 pub fun Type.display_type(ctx: &TypeCtx): String {
     when (self.kind) {
         Int8 => return String.from("int8")

@@ -1,13 +1,12 @@
 // Completion after `.`. Where the receiver ends is read from the text, since
 // a half-typed member does not parse; what the receiver is comes from the
-// checker, at the byte before the dot. Scope completion is query_scope.kf.
+// checker, at the byte before the dot. Scope completion is scope.kf.
 
 import alloc.list.*
 
 import kf_core.ast.*
 import kf_interface.emit.tyref_to_source
 import json.writer.*
-import kf_shared.render_json_error
 
 /// `{"schema_version":2,"file":..,"offset":N,"receiver_type":..,
 ///   "prefix":"..","items":[{"label":..,"kind":..,"detail":..}]}`
@@ -17,7 +16,7 @@ import kf_shared.render_json_error
 /// list built from spelling looks authoritative and is worse than none.
 /// `kind` is `local`, `parameter`, `function`, `struct`, `enum`, `trait`,
 /// `field` or `method`.
-pub fun render_completion_json(path: str, offset: uint32, crate: &QueryCrate): String {
+pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): String {
     val out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
@@ -47,22 +46,11 @@ pub fun render_completion_json(path: str, offset: uint32, crate: &QueryCrate): S
         out.field_raw("items", "[]")
         return out.finish()
     }
-    out.field_string("receiver_type", hit.ty.query_display_type(crate.sigs).as_str())
+    out.field_string("receiver_type", hit.ty.written_type(crate.sigs).as_str())
     out.field_raw("items", crate.module.members_json(owner.as_str()).as_str())
     return out.finish()
 }
 
-pub fun run_completion_query(path: str, offset: uint32, overlay_path: str): int32 {
-    val crate = crate_for_query(path, overlay_path)
-    if !crate.ok {
-        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
-        runtime_println(json.as_str())
-        return 1
-    }
-    val json = render_completion_json(path, offset, &crate)
-    runtime_println(json.as_str())
-    return 0
-}
 
 /// Index of the `.` being completed after, or 0 off a member position. Skips
 /// a partly typed name: `p.`, `p.x`, `p.sca`.

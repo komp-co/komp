@@ -5,12 +5,11 @@
 import kf_core.span.*
 import kf_core.ast.*
 import json.writer.*
-import kf_shared.render_json_error
 
 /// `{"schema_version":1,"file":..,"offset":N,"declaration":..,"references":[..]}`
 ///
 /// Every entry names its own file.
-pub fun render_references_json(path: str, offset: uint32, crate: &QueryCrate): String {
+pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): String {
     val out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
@@ -37,17 +36,6 @@ pub fun render_references_json(path: str, offset: uint32, crate: &QueryCrate): S
     return out.finish()
 }
 
-pub fun run_references_query(path: str, offset: uint32, overlay_path: str): int32 {
-    val crate = crate_for_query(path, overlay_path)
-    if !crate.ok {
-        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
-        runtime_println(json.as_str())
-        return 1
-    }
-    val json = render_references_json(path, offset, &crate)
-    runtime_println(json.as_str())
-    return 0
-}
 
 pub fun Span.span_object(smap: Ptr<SourceMap>): String {
     val o = JsonWriter.object()

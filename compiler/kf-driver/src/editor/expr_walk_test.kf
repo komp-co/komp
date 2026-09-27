@@ -4,7 +4,7 @@ import core.assert.assert_eq
 
 
 fun hit_in(src: str, offset: uint32): ExprHit {
-    val m = query_module_for(src)
+    val m = module_for(src)
     return m.innermost_expr_at(1, offset)
 }
 
@@ -40,7 +40,7 @@ fun the_walk_finds_nothing_past_the_end_of_the_file(): void {
 
 @test
 fun the_walk_ignores_another_file(): void {
-    val m = query_module_for("fun f(): int32 { return 1 + 2 }")
+    val m = module_for("fun f(): int32 { return 1 + 2 }")
     val hit = m.innermost_expr_at(2, 24)
     assert_eq(hit.found, false, "an expression in file 1 does not answer for file 2")
 }
@@ -57,19 +57,4 @@ fun the_walk_reaches_inside_a_nested_block(): void {
     // The 5 is at 34.
     val hit = hit_in("fun f(): int32 { if true { return 5 } return 0 }", 34)
     assert_eq(hit.span.start, 34 as uint32, "an if body is walked like any other")
-}
-
-@test
-fun an_offset_must_be_digits(): void {
-    assert_eq(is_byte_offset("12a"), false, "a stray letter is not an offset")
-}
-
-@test
-fun an_empty_offset_is_rejected(): void {
-    assert_eq(is_byte_offset(""), false, "a missing --offset is not an offset")
-}
-
-@test
-fun an_offset_parses_to_its_value(): void {
-    assert_eq(parse_byte_offset("1024"), 1024 as uint32, "digits read as a number")
 }

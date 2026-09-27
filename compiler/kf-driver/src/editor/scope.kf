@@ -23,7 +23,7 @@ pub struct ScopeItem {
 
 /// Innermost first: locals, parameters, reachable declarations, then the
 /// signature table.
-pub fun QueryCrate.scope_items_at(offset: uint32): List<ScopeItem> {
+pub fun TypedCrate.scope_items_at(offset: uint32): List<ScopeItem> {
     var out = List.new<ScopeItem>()
     var seen = List.new<String>()
     collect_enclosing_fn(&self.module.decls, self, offset, "", &var out, &var seen)
@@ -33,7 +33,7 @@ pub fun QueryCrate.scope_items_at(offset: uint32): List<ScopeItem> {
 }
 
 /// As the `items` array of a completion answer.
-pub fun QueryCrate.scope_items_json(offset: uint32): String {
+pub fun TypedCrate.scope_items_json(offset: uint32): String {
     val items = self.scope_items_at(offset)
     val arr = JsonWriter.array()
     while it in &items {
@@ -49,7 +49,7 @@ pub fun QueryCrate.scope_items_json(offset: uint32): String {
 /// Parameters, `self` for a method, and locals live at the offset, from the
 /// innermost function covering it. `owner` is the enclosing impl target, or
 /// "", and types `self`.
-fun collect_enclosing_fn(decls: &List<TopDecl>, crate: &QueryCrate, offset: uint32, owner: str, out: &var List<ScopeItem>, seen: &var List<String>): bool {
+fun collect_enclosing_fn(decls: &List<TopDecl>, crate: &TypedCrate, offset: uint32, owner: str, out: &var List<ScopeItem>, seen: &var List<String>): bool {
     while td in &decls {
         if td.decl_covers_offset(crate.file_id, offset) {
             when (td.kind) {
@@ -79,7 +79,7 @@ fun TopDecl.decl_covers_offset(file_id: uint32, offset: uint32): bool {
     return offset >= self.span.start && offset < end
 }
 
-fun add_params(params: &List<Param>, crate: &QueryCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
+fun add_params(params: &List<Param>, crate: &TypedCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
     while p in &params {
         add_item(out, seen, p.name.as_str(), "parameter", tyref_ptr_text(p.ty).as_str())
     }
@@ -87,7 +87,7 @@ fun add_params(params: &List<Param>, crate: &QueryCrate, out: &var List<ScopeIte
 
 /// A statement ending before the cursor contributes its binding; one
 /// containing it is descended and ends the walk; one after it ends the walk.
-fun collect_locals(stmts: &List<Stmt>, crate: &QueryCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
+fun collect_locals(stmts: &List<Stmt>, crate: &TypedCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
     while i in 0..stmts.size() {
         val s = stmts.at(i)
         if s.span.file_id != crate.file_id {
@@ -111,7 +111,7 @@ fun collect_locals(stmts: &List<Stmt>, crate: &QueryCrate, offset: uint32, out: 
 }
 
 /// Typed from the checked initializer, else the annotation.
-fun Stmt.add_binding(crate: &QueryCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
+fun Stmt.add_binding(crate: &TypedCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
     when (self.kind) {
         LetVal(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann.view(), init.view(), crate).as_str())
         LetVar(name, ann, init) => add_item(out, seen, name.as_str(), "local", binding_type_text(ann.view(), init.view(), crate).as_str())
@@ -135,7 +135,7 @@ fun Stmt.is_synthesized_binding(): bool {
     }
 }
 
-fun binding_type_text(ann: Ptr<TypeRef>?, init: Ptr<Expr>?, crate: &QueryCrate): String {
+fun binding_type_text(ann: Ptr<TypeRef>?, init: Ptr<Expr>?, crate: &TypedCrate): String {
     when (init) {
         Some(p) => {
             val from_init = expr_type_text(p, crate)
@@ -150,7 +150,7 @@ fun binding_type_text(ann: Ptr<TypeRef>?, init: Ptr<Expr>?, crate: &QueryCrate):
 /// Enters only the sub-block holding the cursor, adding what the construct
 /// binds. The block is chosen by where it opens, not where the header ends:
 /// a header may be synthesized. The header end decides only an empty block.
-fun Stmt.descend_into(crate: &QueryCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
+fun Stmt.descend_into(crate: &TypedCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
     when (self.kind) {
         If(cond, then_body, else_body) => {
             if block_holds(&else_body, crate.file_id, offset, cond) {
@@ -175,7 +175,7 @@ fun Stmt.descend_into(crate: &QueryCrate, offset: uint32, out: &var List<ScopeIt
 
 /// The arm whose body opens latest at or before the cursor: an expanded loop
 /// gives both arms the loop's span.
-fun descend_into_arms(arms: &List<Arm>, crate: &QueryCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
+fun descend_into_arms(arms: &List<Arm>, crate: &TypedCrate, offset: uint32, out: &var List<ScopeItem>, seen: &var List<String>): void {
     var chosen: int64 = -1
     var chosen_at = 0
     while i in 0..arms.size() {
@@ -240,11 +240,11 @@ fun tyref_ptr_text(p: Ptr<TypeRef>): String {
 }
 
 /// "" when absent or unnamed.
-fun expr_type_text(p: Ptr<Expr>, crate: &QueryCrate): String {
+fun expr_type_text(p: Ptr<Expr>, crate: &TypedCrate): String {
     if unsafe { p as uint64 } == 0 { return "" }
     val e = unsafe { &*p }
     if e.ty.is_poison() { return "" }
-    return e.ty.query_display_type(crate.sigs)
+    return e.ty.written_type(crate.sigs)
 }
 
 fun expr_end(p: Ptr<Expr>): uint32 {

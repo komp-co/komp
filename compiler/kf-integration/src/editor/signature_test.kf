@@ -5,7 +5,7 @@ import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 
 import std.fs.scratch_path
-import kf_driver.cli.query.render_signature_json
+import kf_driver.editor.render_signature_json
 
 fun signature_fixture_path(): str {
     return scratch_path("kf_query_sig/src/main.kf")

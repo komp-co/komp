@@ -1,85 +1,72 @@
 # Editor support
 
-The editor tooling lives in two repositories beside the compiler:
-[kf-extensions](https://github.com/komp-co/kf-extensions), whose `vscode/`
-directory is the VS Code extension, and
-[kf-lsp](https://github.com/komp-co/kf-lsp), a language server for other
-editors.
+The editor tooling lives in two repositories beside the compiler.
+[kf-lsp](https://github.com/komp-co/kf-lsp) holds `kflat_lsp`, the language
+server, written in KFlat. [kf-extensions](https://github.com/komp-co/kf-extensions)
+holds the VS Code extension and the TextMate grammar.
 
-Both editors below get the same things — highlighting, diagnostics, an
-outline with folding ranges, hover, inlay hints, expand-selection and
-signature help — by the same routes: a
-TextMate grammar generated from the compiler's own lexer tables, `komp check
---diagnostic-format=json`, and [`komp query`](cli.md#komp-query).
+## The language server
 
-## VS Code
-
-`vscode/` in kf-extensions is the extension. It has no runtime dependencies,
-so linking the folder into the extensions directory installs it. From a
-kf-extensions checkout:
-
-```sh
-ln -s "$PWD/vscode" ~/.vscode/extensions/vscode-kflat
-```
-
-Restart VS Code afterwards. To build an installable file instead, run
-`npx @vscode/vsce package` in that directory and
-`code --install-extension` the `.vsix` it writes. To develop it, open the
-directory in VS Code and press F5.
-
-Point it at your compiler if `komp` is not on `PATH`:
-
-```json
-{ "kflat.kompPath": "/path/to/komp/.build/komp" }
-```
-
-`.build/komp` is the one `scripts/refresh-komp.sh` writes, and `bin/komp` is
-a symlink to it, so either path names the same file. Pointing at anything
-else is how an editor ends up reporting errors the terminal does not: the
-message to recognise is a name the compiler gained recently being reported as
-missing, which dates the binary rather than describing the code.
-
-What it does:
+`kflat_lsp` speaks the Language Server Protocol over standard input and
+output, so any editor with an LSP client can use it. It never parses KFlat
+itself: it keeps one [`kflatc serve`](serve.md) running and passes it the
+editor's unsaved text, so every answer is about the buffer on screen, not
+the file as last saved. `komp metadata` tells it where that kflatc is and how
+the workspace is laid out.
 
 | | |
 |---|---|
-| Highlighting | `.kf` files, from a grammar generated out of `kw_str` and `op_str` |
-| Quick fixes | a repair for a diagnostic that carries one, from the `fix` field |
-| Diagnostics | `komp check` on open and save, per crate, errors and warnings |
-| Outline | breadcrumbs, the outline view and "go to symbol in file", from `komp query symbols` |
-| Folding | the import block and every declaration, from `komp query folding` |
-| Hover | the type of the expression under the pointer, from `komp query hover` |
-| Inlay hints | the type of every `val`/`var` written without one, from `komp query inlays` |
-| Expand selection | the chain of spans around the cursor, from `komp query selection` |
-| Signature help | the callee's parameters while typing a call, from `komp query signature` |
-| Completion | the members of a receiver after `.`, from `komp query completion` |
-| Rename | a declaration and every use of it, from `komp query rename` |
-| Go to definition | where a name was declared, from `komp query references` |
-| Find references | every use of it in the crate, from the same query |
-| Semantic highlighting | a name coloured by what it is, from `komp query tokens` |
-| Status bar | error and warning count for the crate being edited |
-| `KFlat: Run komp check on this crate` | check on demand |
+| Diagnostics | the crate of the edited file, checked once typing pauses for 300 ms |
+| Quick fixes | the repair a diagnostic carries, offered on its line |
+| Outline | breadcrumbs, the outline view and "go to symbol in file" |
+| Folding | the import block and every declaration |
+| Expand selection | the chain of spans around the cursor |
+| Hover | the type of the expression under the pointer, and the signature and documentation of what it names |
+| Inlay hints | the type of every `val` or `var` written without one |
+| Signature help | the callee's parameters while typing a call |
+| Completion | the members of a receiver after `.`, and the names in scope elsewhere |
+| Go to definition, find references | where a top-level name is declared, and every use of it |
+| Rename | a declaration and every use of it, or the reason it would change what the code means |
+| Semantic highlighting | a name coloured by what it is |
 
-Settings: `kflat.kompPath`, `kflat.checkOnSave`, `kflat.checkOnOpen`,
-`kflat.checkTimeoutMs`, `kflat.queryTimeoutMs`.
+The outline, folds and selection come from a parse, so they answer while the
+file is half-written. The rest come from the file's crate typed once and
+reused until the next edit, so moving around a file costs no more checking.
+Go-to-definition, references and rename reach top-level declarations only: a
+parameter or a local answers with nothing, since the resolver stamps only
+top-level names.
 
-The outline and the folds come from a parse, not a check, so they keep
-answering while the file is half-written. Hover, inlay hints and signature
-help come from a check, which costs what a `komp check` costs.
+It is built with a komp from this tree, checked out beside kf-lsp; kf-lsp's
+README has the steps. It asks `komp` on `PATH` about the project, or the one
+`KOMP_BIN` names. In Neovim, start it from an autocmd:
 
-Every answer describes the buffer. An unsaved one is written to a temporary
-file and passed as `komp query --overlay`, while `--file` stays the
-document's own path, so the file keeps its place in its crate and only its
-bytes come from the buffer.
+```lua
+vim.filetype.add({ extension = { kf = "kflat" } })
 
-Go-to-definition and find-references reach top-level declarations —
-functions, structs, enums. A parameter or a local answers with nothing:
-the resolver stamps only top-level names, and the typechecker's own scope
-is not exposed to a query yet.
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "kflat",
+  callback = function(args)
+    vim.lsp.start({
+      name = "kflat-lsp",
+      cmd = { vim.fn.expand("~/path/to/kf-lsp/target/kflat/kflat_lsp") },
+      root_dir = vim.fs.root(args.buf, "kf.toml"),
+      cmd_env = { KOMP_BIN = vim.fn.expand("~/path/to/komp/.build/komp") },
+    })
+  end,
+})
+```
 
-What it does not do: formatting.
+It negotiates `positionEncoding: utf-8` when the client offers it, and counts
+UTF-16 code units otherwise.
 
-### Where the highlighting comes from
+## VS Code
+
+`vscode/` in kf-extensions is the extension: the grammar, diagnostics from
+`komp check`, and quick fixes. Its other features ran `komp query`, which
+komp no longer has; they come back when the extension is rebuilt on the
+language server.
+
+## Where the highlighting comes from
 
 The grammar is generated, not written. `scripts/generate-grammar.js` reads the
 keyword spellings out of `kw_str`, the operator spellings out of `op_str`, and
@@ -101,64 +88,12 @@ uncolored.
 
 A regex grammar cannot know what a name means, only what it looks like, so
 its colouring is lexical: every `UpperCamelCase` word reads as a type, and a
-variable is not distinguished from a function. `komp query tokens` answers
-that properly — the grammar paints instantly and offline, and the semantic
-tokens correct it once the crate has been checked.
+variable is not distinguished from a function. The language server's
+semantic tokens answer that properly — the grammar paints instantly and
+offline, and the semantic tokens correct it once the crate has been checked.
 
 The grammar paints every literal form the lexer reads. It marked four of
 them as errors for as long as the lexer rejected them; the lexer grew all
 four, and a rule that outlives its limitation paints correct source red —
 so those rules are gone, and the grammar's test suite pins the scopes they
 have now.
-
-## Neovim
-
-kf-lsp's `server.js` is a minimal language server — one Node file, no
-dependencies, Node 18+. On open and save it runs
-`komp check --diagnostic-format=json` on the file's crate (the nearest
-ancestor with a `kf.toml`) and republishes the diagnostics; it answers
-`textDocument/documentSymbol`, `foldingRange`, `hover`, `inlayHint`,
-`selectionRange`, `signatureHelp`, `completion`, `rename`, `definition`,
-`references` and `semanticTokens/full` by
-running `komp query` over the one file. It never parses
-`.kf` itself, so the compiler stays the single source of truth.
-
-No plugin needed — start it from an autocmd:
-
-```lua
-vim.filetype.add({ extension = { kf = "kflat" } })
-
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "kflat",
-  callback = function(args)
-    vim.lsp.start({
-      name = "kflat-lsp",
-      cmd = { "node", vim.fn.expand("~/path/to/kf-lsp/server.js") },
-      root_dir = vim.fs.root(args.buf, "kf.toml"),
-      cmd_env = { KOMP_BIN = vim.fn.expand("~/path/to/komp/.build/komp") },
-    })
-  end,
-})
-```
-
-The server takes the first `kf.toml` found above the opened file as the
-project root. It negotiates `positionEncoding: utf-8` when the client offers
-it, and converts byte columns to UTF-16 otherwise.
-
-For highlighting, point a TextMate-compatible plugin at the generated
-`vscode/syntaxes/kflat.tmLanguage.json` from kf-extensions, or write a Tree-sitter
-grammar — there is not one yet.
-
-## Both are subprocess bridges
-
-Neither tool parses KFlat. Each shells out to komp: `komp check` per save,
-which costs a process launch and a whole-crate re-check and gives answers
-only as often as you save, and `komp query` per outline, fold, hover or
-inlay request — a process launch and a re-parse of the one file, or, for the
-two that report a type, a process launch and a re-check of the crate.
-
-The direction is a KFlat-native language server that imports `kf_parse` and
-`kf_typecheck` in-process, the way rust-analyzer links `rustc_lexer` rather
-than shelling out to `rustc`. That is what semantic highlighting, hover and
-go-to-definition all wait on
-([kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1)).

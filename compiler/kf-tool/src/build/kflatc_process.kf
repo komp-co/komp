@@ -126,21 +126,3 @@ fun forward_compiler_flags(command: &var Command, project: str): void {
     }
 }
 
-/// `komp query`: kflatc with this process's own arguments, plus the crates
-/// of the project around `--file`. Answers kflatc's status.
-pub fun run_kflatc_query(): int32 {
-    val path = kflatc_path()
-    if kflatc_missing(&path) { return 1 }
-    var command = Command.new(path.as_str())
-    var file: str = ""
-    while i in 0..arg_count() {
-        command.arg(arg_at(i))
-        if arg_at(i) == "--file" && i + 1 < arg_count() { file = arg_at(i + 1) }
-    }
-    val crates = project_crates_around(file)
-    while item in &crates {
-        command.arg("--crate")
-        command.arg("${item.name}=${item.root}".as_str())
-    }
-    return command.status().exit_code()
-}

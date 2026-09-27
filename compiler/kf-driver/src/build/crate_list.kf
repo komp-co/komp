@@ -2,8 +2,6 @@
 // the root last, and their modules assembled from source.
 
 import alloc.list.*
-import core.args.arg_at
-import core.args.arg_count
 
 import kf_core.ast.*
 import kf_core.diagnostic.*
@@ -16,23 +14,6 @@ import kf_assemble.assemble_crate_inc
 pub struct CrateSource {
     pub val name: String
     pub val root: String
-}
-
-/// Every `--crate NAME=ROOT` on the command line, in order.
-pub fun crate_sources_from_args(): List<CrateSource> {
-    var crates = List.new<CrateSource>()
-    while i in 0..arg_count() {
-        if arg_at(i) == "--crate" && i + 1 < arg_count() {
-            val row = arg_at(i + 1)
-            when (row.index_of("=")) {
-                Some(eq) => {
-                    crates.push(CrateSource { name: row.substring(0, eq), root: row.substring(eq + 1, row.byte_len()) })
-                }
-                None => { }
-            }
-        }
-    }
-    return crates
 }
 
 /// Each crate's modules in order. `root_tests` includes the last crate's

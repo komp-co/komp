@@ -25,7 +25,7 @@ import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
 import kf_tool.build.interface_hash_lookup
-import kf_driver.cli.query.typed_crate_staged
+import kf_driver.editor.typed_crate_staged
 import kf_tool.build.build_crate_graph
 import kf_tool.build.bundled_libs_root
 import kf_tool.build.compose_unity_text
@@ -245,13 +245,13 @@ fun merge_modules(modules: &List<Module>): Module {
 
 /// As the file sits on disk, in the project around it. For tests, which
 /// have no komp to name the crates.
-pub fun typed_crate_for(file_path: str): QueryCrate {
+pub fun typed_crate_for(file_path: str): TypedCrate {
     return typed_crate_staged(file_path, "", false, &crate_sources(&project_crates_around(file_path)))
 }
 
 /// With `buffer` standing in for the file's text, so offsets match the
 /// document the editor shows.
-pub fun typed_crate_for_overlay(file_path: str, buffer: str): QueryCrate {
+pub fun typed_crate_for_overlay(file_path: str, buffer: str): TypedCrate {
     return typed_crate_staged(file_path, buffer, true, &crate_sources(&project_crates_around(file_path)))
 }
 

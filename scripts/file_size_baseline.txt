@@ -10,7 +10,7 @@
 437 compiler/kf-codegen/src/emit/types.kf
 456 compiler/kf-driver/src/pipeline.kf
 612 compiler/kf-integration/src/integration/generics_test.kf
-765 compiler/kf-integration/src/query/query_typed_test.kf
+765 compiler/kf-integration/src/editor/typed_test.kf
 404 compiler/kf-interface/src/parse/parse.kf
 505 compiler/kf-lower/src/reachable.kf
 455 compiler/kf-lower/src/refcount/rc_insert_test.kf

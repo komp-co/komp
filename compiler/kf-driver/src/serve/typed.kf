@@ -5,8 +5,7 @@ import json.reader.*
 import kf_driver.build.CrateSource
 
 /// What a typed request names: the file, the byte offset in it, and the
-/// crates to type, dependencies first and the file's own crate last, as
-/// `komp query` passes them.
+/// crates to type, dependencies first and the file's own crate last.
 pub struct TypedParams {
     pub val path: String
     /// -1 when the request names none.

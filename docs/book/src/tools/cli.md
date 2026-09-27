@@ -1,9 +1,7 @@
 # The komp CLI
 
 komp is the KFlat project tool. Every command that compiles takes a project
-directory (one containing a `kf.toml`); there is no single-file mode for
-building. The exception is `komp query`, which answers questions about one
-file for an editor and needs no crate around it.
+directory (one containing a `kf.toml`); there is no single-file mode.
 
 komp does not compile KFlat itself: for each crate that needs building it runs
 `kflatc`, the compiler, found beside the `komp` binary or wherever `KFLATC`
@@ -17,7 +15,6 @@ points, and then compiles and links the C with cc.
 | `komp run <dir>` | Build and run the resulting binary |
 | `komp check <dir>` | Type-check only; no binary produced |
 | `komp test <dir>` | Run `@test` functions in the crate |
-| `komp query <what> --file <path> [--offset <N>] [--overlay <path>]` | Answer an editor's question about one file as JSON |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
@@ -194,263 +191,6 @@ $ komp metadata
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
-### komp query
-
-`komp query <what> --file <path>` answers one question about one file and
-prints a single JSON object. It exists for editors: the compiler owns the
-answer, and the editor plugin owns the protocol. Nothing is cached between
-runs.
-
-Three of the ten questions — `symbols`, `folding`, `selection` — only
-parse, so they still answer while the file is half-written and does not
-type-check. The other seven report a type or resolve a name, which means
-running the checker, which means assembling the crate around the file —
-komp finds it by walking up for a `kf.toml`, the same rule the editor
-plugins use. A typed query therefore costs about what `komp check` costs.
-
-`--overlay <path>` supplies the text of `--file` from somewhere else. The
-file keeps its identity — the walk still finds it in its project, under its
-own module path — and only its bytes come from the overlay. That is what an
-editor needs: an offset is into the document on screen, so an answer
-computed against the file as last saved is an answer about different bytes
-than the question was asked about. Without it, completion is the sharp
-case, since it is only ever asked while the buffer is dirty.
-
-```console
-$ komp query completion --file src/lib.kf --offset 271 --overlay /tmp/buffer.kf
-```
-
-One file at a time: the editor asks about the buffer in front of it, and
-the others it happens to have open are not part of the question. An overlay
-komp cannot read is an error rather than an empty document — answering with
-an empty outline or an empty completion list would look like a correct
-answer about a file nobody has written yet.
-
-`symbols` returns the declaration tree, which is what an outline, a
-breadcrumb bar, and "go to symbol in file" all read:
-
-```console
-$ komp query symbols --file src/point.kf
-{"schema_version":1,"file":"src/point.kf","symbols":[{"name":"Point","kind":"struct","detail":"","byte_start":0,"byte_end":33,"children":[{"name":"x","kind":"field","detail":"int32","byte_start":23,"byte_end":24,"children":[]}]}]}
-```
-
-`folding` returns the regions an editor offers to collapse — the import
-block at the top of the file, then every declaration and every method:
-
-```console
-$ komp query folding --file src/point.kf
-{"schema_version":1,"file":"src/point.kf","ranges":[{"byte_start":0,"byte_end":33,"kind":"region"}]}
-```
-
-Offsets are byte offsets into the file, zero-based and end-exclusive, the
-same convention `--diagnostic-format=json` uses. They are not line and
-column numbers because only the client knows the position encoding it
-negotiated; converting is the plugin's job, and both editor plugins
-already do it.
-
-Symbol kinds are KFlat's words, not any protocol's numbers: `function`,
-`method`, `struct`, `enum`, `variant`, `field`, `trait`, `impl`, `extern`,
-`type`. A declaration that failed to parse is left out — it names nothing
-to navigate to.
-
-`hover` reports the type of the innermost expression covering a byte
-offset — narrowest, so hovering `a` inside `f(a + 1)` answers about `a`
-rather than about the call:
-
-```console
-$ komp query hover --file src/main.kf --offset 195
-{"schema_version":1,"file":"src/main.kf","offset":195,"type":"int32","byte_start":195,"byte_end":200}
-```
-
-`type` is null when the offset covers no expression — whitespace, a
-keyword, a comment, a binder's name. That is not an error; most of a file
-is not an expression.
-
-`inlays` reports the types nobody wrote down: one hint per `val`/`var` with
-no written annotation, at the byte where its name ends.
-
-```console
-$ komp query inlays --file src/main.kf
-{"schema_version":1,"file":"src/main.kf","inlays":[{"byte_offset":133,"label":": int32"},{"byte_offset":159,"label":": List<int32>"}]}
-```
-
-A type is rendered the way its author would write it — `List<int32>`, not
-the mangled name it links under.
-
-`selection` returns what expand-selection grows through: the chain of
-spans covering an offset, innermost first, ending at the whole
-declaration.
-
-```console
-$ komp query selection --file src/main.kf --offset 91
-{"schema_version":1,"file":"src/main.kf","offset":91,"ranges":[{"byte_start":91,"byte_end":92},{"byte_start":91,"byte_end":96},{"byte_start":43,"byte_end":98}]}
-```
-
-It parses rather than checks — growing a selection needs where things are,
-not what they are. There is no step for the enclosing statement, because a
-statement's span is its leading keyword rather than its extent; the chain
-goes from the outermost expression straight to the declaration.
-
-`signature` reports the callee's parameters and which one the cursor is
-in, for the innermost call around it:
-
-```console
-$ komp query signature --file src/main.kf --offset 143
-{"schema_version":1,"file":"src/main.kf","offset":143,"label":"add(a: int32, b: int32): int32","parameters":[{"label":"a: int32"},{"label":"b: int32"}],"active_parameter":1}
-```
-
-`label` is null when the offset is not inside a call, or inside one whose
-callee the crate does not declare. The active index counts the commas
-directly inside the call — one in a nested call or inside a string
-separates nothing — so it keeps working while the argument being typed is
-not yet parseable, which is when it is worth having.
-
-`references` reports every use of whatever the offset names, and where it
-was declared. Each entry carries its own file — a reference reaches across
-the crate, and the file the question was asked about is rarely the only
-answer.
-
-```console
-$ komp query references --file src/lib.kf --offset 90
-{"schema_version":1,"file":"src/lib.kf","offset":90,"declaration":{"file":"src/lib.kf","byte_start":4,"byte_end":10},"references":[{"file":"src/lib.kf","byte_start":90,"byte_end":96},{"file":"src/other.kf","byte_start":36,"byte_end":42}]}
-```
-
-Every span is a NAME. The declaration is `helper`, not the `fun` that
-opens its line, and a reference is the callee, not the whole call — a
-call's span covers its arguments so that `signature` can find the call
-around a cursor, which is the wrong extent to select or to colour.
-
-The offset may sit on the declaration's own name or on any use of it; both
-answer the same thing. The declaration is reported once, as `declaration`,
-and is not repeated in `references`, which are the uses.
-
-Only top-level declarations answer. A parameter or a local resolves
-through the typechecker's own scope, which the resolver does not build, so
-the cursor on one reports nothing rather than guessing from spelling.
-
-`tokens` reports every name in the file with what it actually is, which is
-what semantic highlighting paints:
-
-```console
-$ komp query tokens --file src/lib.kf
-{"schema_version":1,"file":"src/lib.kf","tokens":[{"byte_start":41,"byte_end":42,"type":"variable"},{"byte_start":84,"byte_end":93,"type":"function"}]}
-```
-
-Roles are `variable`, `function`, `method`, `field`, `type`. Tokens arrive
-sorted by position, because the delta encoding a client uses is meaningless
-out of order.
-
-`completion` reports what can follow a `.` — the fields and instance
-methods of whatever the receiver's type turned out to be:
-
-```console
-$ komp query completion --file src/lib.kf --offset 398
-{"schema_version":2,"file":"src/lib.kf","offset":398,"prefix":"","receiver_type":"Point","items":[{"label":"x","kind":"field","detail":"int32"},{"label":"sum","kind":"method","detail":"sum(): int32"}]}
-```
-
-Where the receiver ends is a question about the TEXT, not the tree: the
-cursor sits after a `.` and possibly after a partly-typed member name,
-neither of which parses while it is being written. So komp scans back over
-the name bytes, expects a `.`, and asks the checker what the byte before it
-belongs to. `prefix` reports the partial name back; a client filters on its
-own, but a CLI answer that shows what it matched against is easier to check
-by hand.
-
-Off a member position the same endpoint answers with the names **in scope**
-at that offset, and `receiver_type` is null because there is no receiver to
-name:
-
-```console
-$ komp query completion --file src/lib.kf --offset 271
-{"schema_version":2,"file":"src/lib.kf","offset":271,"prefix":"","receiver_type":null,"items":[{"label":"seed","kind":"parameter","detail":"int32"},{"label":"total","kind":"local","detail":"int32"},{"label":"Point","kind":"struct","detail":""},{"label":"println","kind":"function","detail":"(v: T): void"}]}
-```
-
-Innermost first: locals live at that point, then the enclosing function's
-parameters and `self`, then the crate's own declarations, then what this
-file's imports make visible — gated by the same per-file import map the
-checker uses, so the list is what would actually compile here. `kind` is
-one of `local`, `parameter`, `function`, `struct`, `enum`, `trait` for a
-scope answer and `field` or `method` for a member one.
-
-`@test` functions are left out. `komp test` synthesizes a main that calls
-each one and no source ever writes the name, so they are names that compile
-and that nobody types — and a crate can hold more of them than of anything
-else, which buries what a reader is reaching for.
-
-**Live at that point**, not present in the function: a local declared below
-the cursor is not offered, and neither is one declared inside a block the
-cursor is not in. Offering either would be worse than offering nothing,
-because a completion list looks authoritative and the reader finds out at
-build time.
-
-`receiver_type` is null with **no items** in one case only: the offset is
-in a member position but the receiver has no type the checker could name. A
-completion list built from spelling would be worse than none.
-
-A `static fun` is left out: it takes no receiver, so offering it after `p.`
-would suggest code that does not compile. Members of a generic are reported
-as the declaration writes them — `push(item: T)` rather than
-`push(item: int32)` on a `List<int32>` — since substituting the instance's
-arguments back through a signature is its own job.
-
-Scope completion — the names visible at an offset with no receiver — is not
-answered yet. It needs to know which bindings are live at a position rather
-than in the function overall.
-
-`rename` is find-references plus the reasons to refuse. `--new-name` says
-what to call it:
-
-```console
-$ komp query rename --file src/lib.kf --offset 8 --new-name scaled
-{"schema_version":1,"file":"src/lib.kf","offset":8,"new_name":"scaled","ok":true,"error":null,"range":{"file":"src/lib.kf","byte_start":8,"byte_end":14},"edits":[{"file":"src/lib.kf","byte_start":8,"byte_end":14},{"file":"src/lib.kf","byte_start":133,"byte_end":139},{"file":"src/other.kf","byte_start":40,"byte_end":46}]}
-```
-
-`edits` is every span to replace, the declaration's own name included —
-unlike `references`, which reports the declaration separately because a
-declaration is not a use of itself. A rename has to touch both.
-
-The edits are not the hard part. A rename that changes which declaration a
-name refers to still compiles and no longer means what it did, and no
-diagnostic will mention it — so `ok` is false, with a reason in `error` and
-an empty `edits`, when:
-
-| | |
-|---|---|
-| the new name is not one | it must lex as a single identifier, so a keyword, a leading digit, two words and trailing punctuation are all refused |
-| the new name is taken | another top-level declaration in the crate already has it |
-| the new name is the old one | that is not a rename |
-| the offset is not on a name | a keyword or whitespace resolves to no declaration |
-| the declaration is not yours | it is in a dependency; rename it where it is declared |
-
-That last one matters more than it looks. The assembled crate holds every
-dependency's declarations — which is what lets `references` reach across a
-boundary — so without the check, renaming a use of `println` would edit the
-standard library.
-
-Omitting `--new-name` runs every check that does not need one and answers
-with `range`, the name under the cursor. An editor asks whether a rename is
-possible before it asks the user what to call it, and that question has no
-new name to give.
-
-Collisions are checked crate-wide rather than per reference site. The
-resolver stamps only top-level declarations, so a local shadowing the new
-name at some use is not visible — which is why rename declines on locals
-entirely rather than pretending to check them.
-
-An unknown question is an error, reported in the same JSON shape a
-diagnostic uses:
-
-```console
-$ komp query refs --file src/point.kf
-{"schema_version":1,"severity":"error","message":"unknown query `refs`; known queries: symbols, folding, hover, inlays, selection, signature, references, tokens, completion, rename","byte_start":0,"byte_end":0,"file":null,"line":null,"column":null}
-```
-
-A file komp cannot read answers the same as an empty one — with no symbols
-and no ranges — rather than failing. A typed query on a file with no
-`kf.toml` above it does fail: without a crate there is nothing to check it
-against, and answering from a file checked alone would report every
-imported name as missing.
-
 ## kflatc
 
 `kflatc` is the compiler komp runs for each crate. You do not normally call it
@@ -496,12 +236,9 @@ appends them.
 replacing kflatc rebuilds every crate.
 
 `kflatc serve` keeps the compiler running and answers JSON requests on its
-standard input, for editors and other tools; its protocol is
+standard input, for editors and other tools: the questions an editor asks
+about a file, and checks of unsaved text. Its protocol is
 [its own chapter](serve.md).
-
-`kflatc query` is what answers `komp query`. komp passes its arguments
-through, adding a `--crate NAME=ROOT` for each crate of the project around
-`--file`, dependencies first, as `unity` takes them.
 
 Every subcommand exits 0 on success, 1 when the crate has errors (reported as
 usual), and 2 on a malformed command line.
