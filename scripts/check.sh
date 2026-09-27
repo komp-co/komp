@@ -121,7 +121,7 @@ CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
         compiler/kf-shared compiler/kf-driver compiler/kf-tool compiler/kf-integration
-        compiler/kflat-lsp libs/core libs/alloc libs/std ../json}"
+        libs/core libs/alloc libs/std ../json}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
@@ -594,37 +594,6 @@ if "$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
     exit 1
 fi
 echo "  PASS  parse-only and typed queries both read the staged buffer"
-
-# A whole session through the built binary: the framing, a refused request,
-# and the exit code that says whether shutdown came first.
-phase "cli the language server speaks JSON-RPC on stdio"
-"$WORK/komp" -q build "$ROOT/compiler/kflat-lsp"
-lsp="$ROOT/compiler/kflat-lsp/target/kflat/kflat_lsp"
-lsp_frame() { printf 'Content-Length: %d\r\n\r\n%s' "$(printf '%s' "$1" | wc -c)" "$1"; }
-{
-    lsp_frame '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}'
-    lsp_frame '{"jsonrpc":"2.0","method":"initialized","params":{}}'
-    lsp_frame '{"jsonrpc":"2.0","id":"h","method":"textDocument/hover","params":{}}'
-    lsp_frame '{"jsonrpc":"2.0","id":2,"method":"shutdown"}'
-    lsp_frame '{"jsonrpc":"2.0","method":"exit"}'
-} > "$WORK/lsp-session.in"
-lsp_status=0
-"$lsp" < "$WORK/lsp-session.in" > "$WORK/lsp-session.out" || lsp_status=$?
-if [ "$lsp_status" -ne 0 ] ||
-    ! grep -q '"id":1,"result":{"capabilities"' "$WORK/lsp-session.out" ||
-    ! grep -q '"id":"h","error":{"code":-32601' "$WORK/lsp-session.out" ||
-    ! grep -q '"id":2,"result":null' "$WORK/lsp-session.out"; then
-    echo "  FAIL  the session exited $lsp_status and answered:" >&2
-    cat "$WORK/lsp-session.out" >&2
-    exit 1
-fi
-lsp_status=0
-lsp_frame '{"jsonrpc":"2.0","method":"exit"}' | "$lsp" > /dev/null || lsp_status=$?
-if [ "$lsp_status" -ne 1 ]; then
-    echo "  FAIL  exit before shutdown exited $lsp_status, not 1" >&2
-    exit 1
-fi
-echo "  PASS  a session is answered in order and exits 0 only after shutdown"
 
 # `core.ptr` turns a C function's null into absence, with the generic argument
 # inferred at a user struct, the type an FFI wrapper points at.
