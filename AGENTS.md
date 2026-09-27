@@ -30,7 +30,7 @@ The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
 (`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`query`, test mains). `kf-tool` is the project tool: manifests, fetching, the
+`serve` and the editor answers it gives, test mains). `kf-tool` is the project tool: manifests, fetching, the
 build graph, cc. `kf-shared` holds what both must agree on (artifact paths, a
 crate's source files, hashes), and `kf-integration` the tests that drive whole
 projects through both. Two binaries sit on top: `kflatc`, the compiler, which
