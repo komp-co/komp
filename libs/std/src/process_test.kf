@@ -61,3 +61,34 @@ fun command_redirects_standard_output(): void {
     val _status = command.status()
     assert_eq(read_file(output.as_str()).as_str(), "captured\n", "standard output is redirected")
 }
+
+@test
+fun a_spawned_child_answers_through_its_pipes(): void {
+    var child = Command.new("/bin/cat").spawn().unwrap()
+    val _written = child.stdin.write("echo\n")
+    assert_eq(read_one_line(&var child), "echo", "cat echoed the line")
+    assert_eq(child.wait().exit_code(), 0, "cat exits once its stdin closes")
+}
+
+fun read_one_line(child: &var Child): String {
+    var reader = Reader.new(child.stdout.take())
+    return reader.read_line() ?: ""
+}
+
+@test
+fun a_program_that_does_not_exist_fails_to_spawn(): void {
+    assert_eq(Command.new("/no/such/program").spawn().is_err(), true, "exec failed")
+}
+
+@test
+fun a_running_child_has_no_status_yet(): void {
+    var child = Command.new("/bin/cat").spawn().unwrap()
+    assert_eq(child.try_wait().is_none(), true, "cat waits on its stdin")
+}
+
+@test
+fun a_killed_child_is_reported_by_wait(): void {
+    var child = Command.new("/bin/cat").spawn().unwrap()
+    child.kill()
+    assert_eq(child.wait().exit_code(), 128, "death by a signal")
+}

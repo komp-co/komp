@@ -19,6 +19,14 @@ impl ExitStatus {
     pub fun exit_code(): int32 { return self.code }
 }
 
+extern "C" fun kf_process_spawn(program: str, args: &List<String>, working_dir: str, environment: &List<String>): int32
+extern "C" fun kf_process_spawned_stdin(): int32
+extern "C" fun kf_process_spawned_stdout(): int32
+extern "C" fun kf_process_spawn_error(): int32
+extern "C" fun kf_process_error_text(code: int32): String
+extern "C" fun kf_process_wait(pid: int32): int32
+extern "C" fun kf_process_try_wait(pid: int32): int32
+extern "C" fun kf_process_kill(pid: int32): void
 extern "C" fun kf_process_status(program: str, args: &List<String>, working_dir: str, environment: &List<String>, stdout_path: str): int32
 
 impl Command {
@@ -46,5 +54,72 @@ impl Command {
 
     pub fun status(): ExitStatus {
         return ExitStatus { code: kf_process_status(self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment, self.stdout_path.as_str()) }
+    }
+
+    /// Starts the program with its stdin and stdout piped to this process
+    /// and its stderr shared. A program that cannot be run is an error here,
+    /// not an exit code later.
+    pub fun spawn(): Result<Child, IoError> {
+        val pid = kf_process_spawn(
+            self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment
+        )
+        if pid < 0 {
+            val code = kf_process_spawn_error()
+            val message = kf_process_error_text(code)
+            return Result.Err(IoError { path: self.program.clone(), code: code, message: message })
+        }
+        val stdin = Stream.owning(kf_process_spawned_stdin(), "${self.program} stdin")
+        val stdout = Stream.owning(kf_process_spawned_stdout(), "${self.program} stdout")
+        return Result.Ok(Child { pid: pid, stdin: stdin, stdout: stdout, exit_code: null })
+    }
+}
+
+/// A program started by `spawn`. Dropping a child that is still running
+/// kills it, so none outlives its owner unnoticed.
+pub struct Child {
+    val pid: int32
+    /// What is written here is the child's standard input.
+    pub var stdin: Stream
+    /// The child's standard output.
+    pub var stdout: Stream
+    var exit_code: int32?
+}
+
+impl Child {
+    pub fun id(): int32 { return self.pid }
+
+    /// Closes the child's stdin, so a child reading to the end can finish,
+    /// then waits for it to exit.
+    pub mutating fun wait(): ExitStatus {
+        self.stdin = Stream.closed()
+        val known = self.exit_code
+        if known != null { return ExitStatus { code: known ?: -1 } }
+        val code = kf_process_wait(self.pid)
+        self.exit_code = Option.Some(code)
+        return ExitStatus { code: code }
+    }
+
+    /// The exit status if the child has exited; `null` while it runs.
+    pub mutating fun try_wait(): ExitStatus? {
+        val known = self.exit_code
+        if known != null { return Option.Some(ExitStatus { code: known ?: -1 }) }
+        val code = kf_process_try_wait(self.pid)
+        if code == -2 { return null }
+        self.exit_code = Option.Some(code)
+        return Option.Some(ExitStatus { code: code })
+    }
+
+    /// Ends the child at once; `wait` then reports it.
+    pub fun kill(): void {
+        if self.exit_code == null { kf_process_kill(self.pid) }
+    }
+}
+
+impl Drop for Child {
+    fun drop(): void {
+        if self.exit_code == null {
+            kf_process_kill(self.pid)
+            val _code = kf_process_wait(self.pid)
+        }
     }
 }
