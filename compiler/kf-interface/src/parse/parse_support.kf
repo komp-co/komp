@@ -109,7 +109,8 @@ fun poison_decl(): TopDecl { return new_top_decl(no_span(), "", TopDeclKind.Pois
 fun parse_type_ptr(source: str): Ptr<TypeRef> {
     val tokens = tokenize(source, 0)
     val parser = new_parser(tokens)
-    return parser.parse_type_ref_ptr()
+    val parsed = parser.parse_type_ref_ptr()
+    return parsed
 }
 
 fun split_dotted_path(path: str): List<String> {

@@ -7,5 +7,6 @@ import kf_interface.parse.*
 /// source in `smap` so diagnostics can quote template code.
 pub fun load_compiled_crate(interface_path: str, smap: Ptr<SourceMap>): InterfaceLoad {
     val source = read_file(interface_path)
-    return parse_interface_mapped(source.as_str(), smap)
+    val loaded = parse_interface_mapped(source.as_str(), smap)
+    return loaded
 }
