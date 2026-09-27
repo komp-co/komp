@@ -103,5 +103,5 @@ jobs:
           CRATES="compiler/kf-core compiler/kf-parse compiler/kf-assemble
                   compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
                   compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-                  compiler/kf-shared compiler/kf-driver compiler/kf-tool
+                  compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool
                   libs/core libs/alloc libs/std ../json" sh scripts/check.sh --sweep

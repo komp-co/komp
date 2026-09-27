@@ -120,7 +120,7 @@ fi
 CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-        compiler/kf-shared compiler/kf-driver compiler/kf-tool compiler/kf-integration
+        compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
         libs/core libs/alloc libs/std ../json}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
