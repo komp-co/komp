@@ -25,12 +25,14 @@ pub struct QueryCrate {
     pub var ok:      bool
     pub var file_id: uint32
     pub var module:  Module
+    /// A view of `typing`'s table, which owns it.
     pub var sigs:    Ptr<SigTable>
+    pub var typing:  TypedModule
     pub var source:  String
     /// The queried crate's source root; files under it are its own.
     pub var root:    String
     /// For answers spanning several files.
-    pub var smap:    Ptr<SourceMap>
+    pub var smap:    Box<SourceMap>
 }
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
@@ -46,8 +48,10 @@ pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &L
 /// focused on `file_path`.
 pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateSource>): QueryCrate {
     if crates.size() == 0 {
+        val typing = TypedModule { diags: List.new<Diagnostic>(), sigs: Box.new(new_sig_table()) }
+        val empty: Ptr<SigTable> = typing.sigs
         return QueryCrate {
-            ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty_sig_table(), source: "",
+            ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty, typing: typing, source: "",
             smap: fresh_source_map(), root: ""
         }
     }
@@ -65,10 +69,12 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     var table = new_decl_table()
     resolve_module(&var merged, &var table)
     val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names)
+    // The table stays where its box put it when `typed` moves into the crate.
+    val sigs: Ptr<SigTable> = typed.sigs
 
     val root = crates.at(crates.size() - 1).root.clone()
     var crate = QueryCrate {
-        ok: false, file_id: 0, module: merged, sigs: typed.sigs, source: "", smap: smap, root: root
+        ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root
     }
     val _found = crate.focus(file_path)
     return crate
@@ -101,14 +107,9 @@ pub fun crate_for_query(file_path: str, overlay_path: str): QueryCrate {
 
 /// As its author wrote it.
 pub fun Type.query_display_type(sigs: Ptr<SigTable>): String {
-    val ctx = new_type_ctx(poison_ty(), fresh_diag_list(), null, sigs)
+    val sink = fresh_diag_list()
+    val ctx = new_type_ctx(poison_ty(), sink, null, sigs)
     return display_type(self, &ctx)
-}
-
-fun empty_sig_table(): Ptr<SigTable> {
-    val p: Ptr<SigTable> = unsafe { alloc<SigTable>() }
-    unsafe { *p = new_sig_table() }
-    return p
 }
 
 /// "" when the map has no such file.

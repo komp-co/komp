@@ -10,13 +10,14 @@ import kf_core.span.no_span
 import kf_typecheck.check.borrow.infer_borrow_origin
 import kf_typecheck.check.borrow.reject_unsayable_origin
 
-/// Returns the signature table too: rendering a checked type needs it.
+/// Returns the signature table too: rendering a checked type needs it. The
+/// caller owns it; what the check hands out are views of it.
 pub fun check_decl_module(m: &var Module,
                           table: &var DeclTable,
                           diags: Ptr<List<Diagnostic>>,
                           caller_files: Ptr<List<uint32>>,
                           imported_targets: Ptr<List<Sym>>,
-                          imported_names: Ptr<List<Sym>>): Ptr<SigTable> {
+                          imported_names: Ptr<List<Sym>>): Box<SigTable> {
     var sigs = new_sig_table()
     // Per-file import lists first; a null pointer leaves them empty.
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
@@ -31,8 +32,8 @@ pub fun check_decl_module(m: &var Module,
     if unsafe { (imported_names as uint64) != (null_ptr as uint64) } {
         sigs.imported_names = unsafe { imported_names.clone() }
     }
-    val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
-    unsafe { *sig_ptr = sigs }
+    var owner = Box.new(sigs)
+    val sig_ptr: Ptr<SigTable> = &var *owner
     // Declaration types resolve against the names that exist.
     val table_ptr: Ptr<DeclTable>? = unsafe { table as Ptr<DeclTable> }
 
@@ -133,7 +134,7 @@ pub fun check_decl_module(m: &var Module,
     // CONSTRAINT: last, so the unbound and ambiguous projection diagnostics
     // above still fire; the rest are left for Mono.
     m.subst_projections_module(sig_ptr)
-    return sig_ptr
+    return owner
 }
 
 pub fun assoc_type_names(members: &List<TopDecl>): List<String> {

@@ -41,7 +41,7 @@ pub struct CrateCheck {
     pub val failure: String
     pub val diagnostics: List<Diagnostic>
     /// Where the diagnostics' spans point.
-    pub val smap: Ptr<SourceMap>
+    pub val smap: Box<SourceMap>
 }
 
 /// The crate with its tests, from disk or `overlay`, checked against the
@@ -67,7 +67,8 @@ pub fun CompileUnit.check_crate(tdir: str, overlay: &Overlay, cfg: &LintConfig):
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
     merged.crate = new_crate_id(self.name.as_str())
-    return CrateCheck { failure: "", diagnostics: merged.checked_diagnostics(smap, cfg), smap: smap }
+    val diagnostics = merged.checked_diagnostics(smap, cfg)
+    return CrateCheck { failure: "", diagnostics: diagnostics, smap: smap }
 }
 
 fun append_modules(output: &var List<Module>, input: &List<Module>): void {
@@ -98,8 +99,7 @@ pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errp: 
 fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool,
                                    errp: Ptr<ErrCount>): CrateCompileResult {
     val smap = fresh_source_map()
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics = fresh_diag_list()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = crate_interface_path(artifacts, dependency.as_str())

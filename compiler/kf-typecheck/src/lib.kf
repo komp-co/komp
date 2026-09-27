@@ -19,14 +19,15 @@ pub fun typecheck_module_with_imports(m: &var Module,
                                       caller_files: Ptr<List<uint32>>,
                                       imported_targets: Ptr<List<Sym>>,
                                       imported_names: Ptr<List<Sym>>): List<Diagnostic> {
-    return typecheck_module_typed(m, table, caller_files, imported_targets, imported_names).diags
+    val typed = typecheck_module_typed(m, table, caller_files, imported_targets, imported_names)
+    return typed.diags.clone()
 }
 
 /// The signature table is where instance argument trees live, so rendering
 /// `List<int32>` needs this one.
 pub struct TypedModule {
     pub var diags: List<Diagnostic>
-    pub var sigs:  Ptr<SigTable>
+    pub var sigs:  Box<SigTable>
 }
 
 /// `typecheck_module` drops the table; tooling that renders types keeps it.
@@ -35,42 +36,41 @@ pub fun typecheck_module_typed(m: &var Module,
                                caller_files: Ptr<List<uint32>>,
                                imported_targets: Ptr<List<Sym>>,
                                imported_names: Ptr<List<Sym>>): TypedModule {
-    val diags = List.new<Diagnostic>()
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = diags }
-    m.validate_annotations(diag_ptr)
-    m.reject_colliding_no_mangle(diag_ptr)
-    m.reject_duplicate_lang_items(diag_ptr)
-    m.prepare_extensions(diag_ptr)
+    var diags = List.new<Diagnostic>()
+    m.validate_annotations(&var diags)
+    m.reject_colliding_no_mangle(&var diags)
+    m.reject_duplicate_lang_items(&var diags)
+    m.prepare_extensions(&var diags)
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
-    val sigs = check_decl_module(m, table, diag_ptr, caller_files, imported_targets, imported_names)
+    val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names)
     // A private type in a `pub` signature would be defined twice under C17.
     val exposed = m.pub_signature_diags()
     while item in &exposed {
-        unsafe { diag_ptr.push(item) }
+        diags.push(item)
     }
     // After registration, so a trait declared later still counts.
     val bogus = unknown_bound_diags(sigs)
     while bogu in &bogus {
-        unsafe { diag_ptr.push(bogu) }
+        diags.push(bogu)
     }
     // After every body, when every name has resolved.
     val unused = m.unused_import_diags(sigs)
     while item in &unused {
-        unsafe { diag_ptr.push(item) }
+        diags.push(item)
     }
     // Same timing.
     val wildcards = m.wildcard_import_diags(sigs)
     while wildcard in &wildcards {
-        unsafe { diag_ptr.push(wildcard) }
+        diags.push(wildcard)
     }
     // Only when nothing else is wrong.
-    val untyped = untyped_receiver_diags(sigs, unsafe { &*diag_ptr })
+    val untyped = untyped_receiver_diags(sigs, &diags)
     while item in &untyped {
-        unsafe { diag_ptr.push(item) }
+        diags.push(item)
     }
-    return TypedModule { diags: without_duplicates(unsafe { *diag_ptr }), sigs: sigs }
+    val found = without_duplicates(diags)
+    return TypedModule { diags: found, sigs: sigs }
 }
 
 /// A signature's types are resolved twice, at registration and in the body

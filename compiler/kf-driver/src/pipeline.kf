@@ -34,10 +34,9 @@ pub struct ErrCount {
 }
 
 /// Filled by the assembler, read by the diagnostic renderer.
-pub fun fresh_source_map(): Ptr<SourceMap> {
-    val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
-    return smap
+/// Owned by the caller; the passes it is handed to borrow it.
+pub fun fresh_source_map(): Box<SourceMap> {
+    return Box.new(new_source_map())
 }
 
 /// The whole pipeline, from a merged module to one C translation unit.

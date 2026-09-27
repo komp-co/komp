@@ -13,10 +13,9 @@ import kf_driver.print_diag
 import kf_driver.cli.print_json_diag
 
 /// A heap sink for parse diagnostics.
-pub fun fresh_diag_list(): Ptr<List<Diagnostic>> {
-    val p: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *p = List.new<Diagnostic>() }
-    return p
+/// Owned by the caller; the passes it is handed to borrow it.
+pub fun fresh_diag_list(): Box<List<Diagnostic>> {
+    return Box.new(List.new<Diagnostic>())
 }
 
 /// Returns the count, so callers can gate on it.

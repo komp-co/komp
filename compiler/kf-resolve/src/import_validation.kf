@@ -4,16 +4,13 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.span.*
 
-pub fun new_import_syms(): Ptr<List<Sym>> {
-    val p: Ptr<List<Sym>> = unsafe { alloc<List<Sym>>() }
-    unsafe { *p = List.new<Sym>() }
-    return p
+/// Owned by the caller; validation and typecheck borrow it.
+pub fun new_import_syms(): Box<List<Sym>> {
+    return Box.new(List.new<Sym>())
 }
 
-pub fun new_import_files(): Ptr<List<uint32>> {
-    val p: Ptr<List<uint32>> = unsafe { alloc<List<uint32>>() }
-    unsafe { *p = List.new<uint32>() }
-    return p
+pub fun new_import_files(): Box<List<uint32>> {
+    return Box.new(List.new<uint32>())
 }
 
 /// One error per import whose module, or whose named declaration, does not
