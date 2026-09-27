@@ -3,6 +3,8 @@
 // fingerprints exactly these.
 
 import alloc.list.*
+import std.fs.is_directory
+import std.fs.read_dir
 
 /// Absolute paths of the non-test `.kf` files under `dir`, sorted.
 pub fun walk_kf_files(dir: str, out: &var List<String>): void {
@@ -19,23 +21,17 @@ pub fun walk_kf_files_inc(dir: str, out: &var List<String>, include_tests: bool)
 }
 
 fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): void {
-    val handle: uint64 = unsafe { kf_fs_dir_open(dir) }
-    if handle == 0 { return }
-    while true {
-        val name: str = unsafe { kf_fs_dir_next(handle) }
-        // A null pointer ends the directory; compared raw because str
-        // equality would dereference it.
-        val name_ptr: Ptr<uint8> = unsafe { name as Ptr<uint8> }
-        val end_ptr: Ptr<uint8> = unsafe { 0 as Ptr<uint8> }
-        if name_ptr == end_ptr { break }
-        val full = join_path(dir, name)
-        if is_dir(full.as_str()) {
+    val listed = read_dir(dir)
+    if listed.is_err() { return }
+    val names = listed.unwrap()
+    while name in &names {
+        val full = join_path(dir, name.as_str())
+        if is_directory(full.as_str()) {
             walk_kf_files_raw(full.as_str(), out, include_tests)
-        } else if is_kf_file_any(name) && (include_tests || is_kf_source_file(name)) {
+        } else if is_kf_file_any(name.as_str()) && (include_tests || is_kf_source_file(name.as_str())) {
             out.push(full)
         }
     }
-    unsafe { kf_fs_dir_close(handle) }
 }
 
 /// Ends in `.kf` and is not a `_test.kf` file.

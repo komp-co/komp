@@ -131,7 +131,6 @@
 1 compiler/kf-resolve/src/resolve_body.kf
 1 compiler/kf-resolve/src/resolver.kf
 1 compiler/kf-shared/src/publish.kf
-5 compiler/kf-shared/src/source_files.kf
 1 compiler/kf-tool/src/build/artifact_manifest.kf
 1 compiler/kf-tool/src/build/compile_c.kf
 1 compiler/kf-tool/src/build/compiler_identity.kf
