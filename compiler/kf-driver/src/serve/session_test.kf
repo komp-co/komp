@@ -1,0 +1,63 @@
+import core.assert.assert_eq
+
+fun greeted(): ServeSession {
+    var session = ServeSession.new()
+    val _hello = session.answer("{\"id\":0,\"method\":\"hello\",\"params\":{\"protocol\":1}}")
+    return session
+}
+
+@test
+fun hello_names_the_protocol_and_compiler(): void {
+    var session = ServeSession.new()
+    val line = session.answer("{\"id\":1,\"method\":\"hello\",\"params\":{\"protocol\":1}}")
+    assert_eq(line.as_str().starts_with("{\"id\":1,\"result\":{\"protocol\":1,\"compiler\":"), true, "handshake")
+}
+
+@test
+fun an_unknown_protocol_is_refused(): void {
+    var session = ServeSession.new()
+    val line = session.answer("{\"id\":1,\"method\":\"hello\",\"params\":{\"protocol\":99}}")
+    assert_eq(line.as_str().contains("\"code\":\"unsupported_protocol\""), true, "refused")
+}
+
+@test
+fun a_request_before_hello_is_not_ready(): void {
+    var session = ServeSession.new()
+    val line = session.answer("{\"id\":1,\"method\":\"shutdown\"}")
+    assert_eq(line.as_str().contains("\"code\":\"not_ready\""), true, "hello first")
+}
+
+@test
+fun an_unknown_method_is_named(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":2,\"method\":\"compile\"}")
+    assert_eq(line.as_str().contains("\"code\":\"unknown_method\""), true, "unknown")
+}
+
+@test
+fun a_line_that_is_not_json_is_a_parse_error(): void {
+    var session = greeted()
+    assert_eq(session.answer("check please").as_str().contains("\"id\":null,\"error\":{\"code\":\"parse_error\""),
+              true, "parse error")
+}
+
+@test
+fun stage_without_a_path_is_invalid(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":3,\"method\":\"stage\",\"params\":{\"text\":\"x\"}}")
+    assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "a path is required")
+}
+
+@test
+fun check_without_a_crate_is_invalid(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":4,\"method\":\"check\",\"params\":{\"target_dir\":\"/t\"}}")
+    assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "a crate is required")
+}
+
+@test
+fun shutdown_answers_null_and_stops(): void {
+    var session = greeted()
+    val line = session.answer("{\"id\":5,\"method\":\"shutdown\"}")
+    assert_eq(line.as_str() == "{\"id\":5,\"result\":null}" && session.stopping, true, "stops after answering")
+}

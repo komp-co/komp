@@ -1,0 +1,136 @@
+// The state `kflatc serve` keeps between requests, and the answer to each.
+
+import alloc.list.*
+import json.writer.*
+import kf_assemble.Overlay
+import kf_assemble.no_overlay
+import kf_assemble.stage
+import kf_assemble.unstage
+import kf_core.diagnostic.*
+import kf_driver.build.CompileUnit
+import kf_driver.cli.render_json_diag
+import kf_driver.count_errors
+import kf_driver.new_lint_config
+import kf_shared.kflat_version
+
+/// The protocol versions this compiler speaks.
+pub fun serve_protocol(): int64 {
+    return 1
+}
+
+pub struct ServeSession {
+    var greeted: bool
+    var buffers: Overlay
+    /// Set by `shutdown`: the loop stops after answering it.
+    pub var stopping: bool
+}
+
+impl ServeSession {
+    pub static fun new(): ServeSession {
+        return ServeSession { greeted: false, buffers: no_overlay(), stopping: false }
+    }
+
+    /// The one line answering `line`.
+    pub mutating fun answer(line: str): String {
+        val request = parse_request(line) ?: return error_line("null", "parse_error", "not a JSON object with a method")
+        val id = request.id.as_str()
+        val method = request.method.as_str()
+        if method == "hello" { return self.hello(id, line) }
+        if !self.greeted { return error_line(id, "not_ready", "the first request must be hello") }
+        return when method {
+            "stage" => self.stage(id, line)
+            "unstage" => self.unstage(id, line)
+            "check" => self.check(id, line)
+            "shutdown" => {
+                self.stopping = true
+                result_line(id, "null")
+            }
+            _ => error_line(id, "unknown_method", "no method named `${method}`")
+        }
+    }
+
+    mutating fun hello(id: str, line: str): String {
+        var reader = params_of(line) ?: return invalid_params(id, "hello")
+        var protocol: int64 = 0
+        if !reader.begin_object() { return invalid_params(id, "hello") }
+        while reader.object_has_next() {
+            val key = reader.read_key()
+            if key.as_str() == "protocol" { protocol = reader.read_int64() } else { reader.skip_value() }
+        }
+        if reader.has_error() { return invalid_params(id, "hello") }
+        if protocol != serve_protocol() {
+            val message = "this kflatc speaks protocol ${serve_protocol()}, not ${protocol}"
+            return error_line(id, "unsupported_protocol", message.as_str())
+        }
+        self.greeted = true
+        val writer = JsonWriter.object()
+        writer.field_int64("protocol", serve_protocol())
+        writer.field_string("compiler", kflat_version())
+        return result_line(id, writer.finish().as_str())
+    }
+
+    mutating fun stage(id: str, line: str): String {
+        val staged = read_path_and_text(line) ?: return invalid_params(id, "stage")
+        self.buffers.stage(staged.path.as_str(), staged.text.as_str())
+        return result_line(id, "null")
+    }
+
+    mutating fun unstage(id: str, line: str): String {
+        val staged = read_path_and_text(line) ?: return invalid_params(id, "unstage")
+        self.buffers.unstage(staged.path.as_str())
+        return result_line(id, "null")
+    }
+
+    fun check(id: str, line: str): String {
+        val params = read_check_params(line) ?: return invalid_params(id, "check")
+        var config_diags = List.new<Diagnostic>()
+        var cfg = new_lint_config()
+        while row in &params.lints {
+            val eq = row.index_of("=") ?: 0
+            val name = row.substring(0, eq)
+            val level = row.substring(eq + 1, row.byte_len())
+            cfg.apply_table_lint(name.as_str(), level.as_str(), &var config_diags)
+        }
+        val unit = CompileUnit {
+            name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
+            dep_hashes: List.new<String>(), loads: params.loads.clone()
+        }
+        val checked = unit.check_crate(params.target_dir.as_str(), &self.buffers, &cfg)
+        if checked.failure.byte_len() > 0 { return error_line(id, "check_failed", checked.failure.as_str()) }
+        val writer = JsonWriter.object()
+        writer.field_int64("errors", (config_diags.size() + count_errors(&checked.diagnostics) as uint64) as int64)
+        writer.key("diagnostics")
+        writer.begin_array()
+        while d in &config_diags { writer.write_raw(d.render_json_diag(checked.smap).as_str()) }
+        while d in &checked.diagnostics { writer.write_raw(d.render_json_diag(checked.smap).as_str()) }
+        writer.end_array()
+        return result_line(id, writer.finish().as_str())
+    }
+}
+
+fun invalid_params(id: str, method: str): String {
+    return error_line(id, "invalid_params", "`${method}` got params it cannot read")
+}
+
+struct StagedText {
+    val path: String
+    val text: String
+}
+
+/// `path` is required, `text` defaults to "": `unstage` sends none.
+fun read_path_and_text(line: str): StagedText? {
+    var reader = params_of(line) ?: return null
+    if !reader.begin_object() { return null }
+    var path = String.from("")
+    var text = String.from("")
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        when key.as_str() {
+            "path" => path = reader.read_string()
+            "text" => text = reader.read_string()
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || path.is_empty() { return null }
+    return Option.Some(StagedText { path: path, text: text })
+}

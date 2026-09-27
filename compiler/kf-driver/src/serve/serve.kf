@@ -1,0 +1,17 @@
+// `kflatc serve`: the compiler kept running, answering one JSON request per
+// line on stdin with one JSON line on stdout. The book's `kflatc serve`
+// chapter is the protocol.
+
+import core.text.is_blank
+import std.io.read_line
+
+/// Until `shutdown` is answered or stdin ends; either is a clean exit.
+pub fun kflatc_serve(): int32 {
+    var session = ServeSession.new()
+    while !session.stopping {
+        val line = read_line() ?: return 0
+        if line.as_str().is_blank() { continue }
+        println(session.answer(line.as_str()).as_str())
+    }
+    return 0
+}

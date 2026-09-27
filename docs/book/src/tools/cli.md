@@ -495,6 +495,10 @@ appends them.
 `target`. An artifact records these and the kflatc binary's own hash, so
 replacing kflatc rebuilds every crate.
 
+`kflatc serve` keeps the compiler running and answers JSON requests on its
+standard input, for editors and other tools; its protocol is
+[its own chapter](serve.md).
+
 `kflatc query` is what answers `komp query`. komp passes its arguments
 through, adding a `--crate NAME=ROOT` for each crate of the project around
 `--file`, dependencies first, as `unity` takes them.

@@ -42,6 +42,7 @@
 - [The komp CLI](tools/cli.md)
 - [Writing tests](tools/testing.md)
 - [Editor support](tools/editor.md)
+- [The compiler as a service](tools/serve.md)
 
 ---
 

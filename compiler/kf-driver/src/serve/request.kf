@@ -1,0 +1,54 @@
+// One request line of `kflatc serve`, read as far as dispatch needs it.
+
+import json.quote.*
+import json.reader.*
+
+/// `id` is the id's JSON text, echoed back verbatim; "null" when the line
+/// named none.
+pub struct Request {
+    pub val id: String
+    pub val method: String
+}
+
+/// `null` when the line is not one JSON object naming a method.
+pub fun parse_request(line: str): Request? {
+    var reader = JsonReader.new(line)
+    if !reader.begin_object() { return null }
+    var id = String.from("null")
+    var method = String.from("")
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        when key.as_str() {
+            "id" => id = read_id(&var reader)
+            "method" => method = reader.read_string()
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || !reader.at_end() || method.is_empty() { return null }
+    return Option.Some(Request { id: id, method: method })
+}
+
+/// A reader standing at the value of the line's `params`; `null` when it
+/// has none.
+pub fun params_of(line: str): JsonReader? {
+    var reader = JsonReader.new(line)
+    if !reader.begin_object() { return null }
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        if key.as_str() == "params" { return Option.Some(reader) }
+        reader.skip_value()
+    }
+    return null
+}
+
+/// A string or integer id as JSON text; "null" for anything else.
+fun read_id(reader: &var JsonReader): String {
+    return when (reader.peek_kind()) {
+        String => reader.read_string().as_str().json_quoted()
+        Number => "${reader.read_int64()}"
+        _ => {
+            reader.skip_value()
+            String.from("null")
+        }
+    }
+}

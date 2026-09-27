@@ -595,6 +595,77 @@ if "$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
 fi
 echo "  PASS  parse-only and typed queries both read the staged buffer"
 
+# `kflatc serve` is a stable protocol for other tools (docs/book/src/tools/
+# serve.md). A scripted session pins the shape of every answer, so a compiler
+# change that would break a client fails here, not in the client.
+phase "cli kflatc serve keeps its protocol"
+serve_root="$WORK/serve-project"
+mkdir -p "$serve_root/src"
+{
+    echo '[project]'
+    echo 'name = "serve_project"'
+    echo 'version = "0.1.0"'
+    echo 'kind = "bin"'
+} > "$serve_root/kf.toml"
+printf 'fun main(): int32 {\n    val x: int32 = "text"\n    return x\n}\n' > "$serve_root/src/main.kf"
+"$WORK/komp" check "$serve_root" > /dev/null 2>&1 || true
+serve_crate="{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"core\",\"alloc\"],\"lints\":[],\"kind\":\"bin\"}"
+serve_check="{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":$serve_crate}"
+serve_file="$serve_root/src/main.kf"
+{
+    echo '{"id":1,"method":"check"}'
+    echo '{"id":2,"method":"hello","params":{"protocol":1}}'
+    echo "{\"id\":3,\"method\":\"check\",\"params\":$serve_check}"
+    # printf, not echo: dash's echo would turn the `\n` into a line break.
+    printf '%s\n' "{\"id\":\"s\",\"method\":\"stage\",\"params\":{\"path\":\"$serve_file\",\"text\":\"fun main(): int32 { return 4 }\\n\"}}"
+    echo "{\"id\":5,\"method\":\"check\",\"params\":$serve_check}"
+    echo "{\"id\":6,\"method\":\"unstage\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":7,\"method\":\"check\",\"params\":$serve_check}"
+    echo "{\"id\":8,\"method\":\"check\",\"params\":{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"missing\"],\"lints\":[]}}}"
+    echo '{"id":9,"method":"stage","params":{"text":""}}'
+    echo '{"id":10,"method":"compile"}'
+    echo 'not json'
+    echo ''
+    echo '{"id":12,"method":"hello","params":{"protocol":999}}'
+    echo '{"id":13,"method":"shutdown"}'
+    echo '{"id":14,"method":"hello","params":{"protocol":1}}'
+} > "$WORK/serve-session.in"
+serve_status=0
+"$WORK/kflatc" serve < "$WORK/serve-session.in" > "$WORK/serve-session.out" || serve_status=$?
+serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"[^"]*","byte_start":[0-9]*,"byte_end":[0-9]*,"file":"'"$serve_file"'","line":2,"column":[0-9]*,"secondary":\[\],"fix":null}'
+{
+    echo '{"id":1,"error":{"code":"not_ready","message":"[^"]*"}}'
+    echo '{"id":2,"result":{"protocol":1,"compiler":"[^"]*"}}'
+    echo '{"id":3,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
+    echo '{"id":"s","result":null}'
+    echo '{"id":5,"result":{"errors":0,"diagnostics":\[\]}}'
+    echo '{"id":6,"result":null}'
+    echo '{"id":7,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
+    echo '{"id":8,"error":{"code":"check_failed","message":"[^"]*"}}'
+    echo '{"id":9,"error":{"code":"invalid_params","message":"[^"]*"}}'
+    echo '{"id":10,"error":{"code":"unknown_method","message":"[^"]*"}}'
+    echo '{"id":null,"error":{"code":"parse_error","message":"[^"]*"}}'
+    echo '{"id":12,"error":{"code":"unsupported_protocol","message":"[^"]*"}}'
+    echo '{"id":13,"result":null}'
+} > "$WORK/serve-session.expected"
+serve_ok=1
+[ "$serve_status" -eq 0 ] || serve_ok=0
+[ "$(wc -l < "$WORK/serve-session.out")" -eq "$(wc -l < "$WORK/serve-session.expected")" ] || serve_ok=0
+serve_line=0
+while IFS= read -r serve_pattern; do
+    serve_line=$((serve_line + 1))
+    sed -n "${serve_line}p" "$WORK/serve-session.out" | grep -qx -- "$serve_pattern" || {
+        echo "  FAIL  answer $serve_line does not match: $serve_pattern" >&2
+        serve_ok=0
+    }
+done < "$WORK/serve-session.expected"
+if [ "$serve_ok" -ne 1 ]; then
+    echo "  FAIL  kflatc serve exited $serve_status and answered:" >&2
+    cat "$WORK/serve-session.out" >&2
+    exit 1
+fi
+echo "  PASS  every answer keeps its shape, and the server stops at shutdown"
+
 # `core.ptr` turns a C function's null into absence, with the generic argument
 # inferred at a user struct, the type an FFI wrapper points at.
 phase "cli core.ptr answers about a null pointer"

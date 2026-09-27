@@ -1,0 +1,56 @@
+// What a `check` request names: one crate, shaped as `komp metadata` lists
+// it, and the directory holding its dependencies' interfaces.
+
+import alloc.list.*
+import json.reader.*
+
+pub struct CheckParams {
+    pub val target_dir: String
+    pub val name: String
+    pub val root: String
+    /// Every interface to load, dependencies first.
+    pub val loads: List<String>
+    /// `name=level` rows.
+    pub val lints: List<String>
+}
+
+/// `null` when a field is missing or has the wrong type. Fields a
+/// `komp metadata` crate carries beyond these are passed over.
+pub fun read_check_params(line: str): CheckParams? {
+    var reader = params_of(line) ?: return null
+    if !reader.begin_object() { return null }
+    var target_dir = String.from("")
+    var name = String.from("")
+    var root = String.from("")
+    var loads = List.new<String>()
+    var lints = List.new<String>()
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        when key.as_str() {
+            "target_dir" => target_dir = reader.read_string()
+            "crate" => {
+                if !reader.begin_object() { return null }
+                while reader.object_has_next() {
+                    val field = reader.read_key()
+                    when field.as_str() {
+                        "name" => name = reader.read_string()
+                        "root" => root = reader.read_string()
+                        "loads" => loads = read_strings(&var reader)
+                        "lints" => lints = read_strings(&var reader)
+                        _ => reader.skip_value()
+                    }
+                }
+            }
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || target_dir.is_empty() || name.is_empty() || root.is_empty() { return null }
+    return Option.Some(CheckParams { target_dir: target_dir, name: name, root: root, loads: loads, lints: lints })
+}
+
+fun read_strings(reader: &var JsonReader): List<String> {
+    var out = List.new<String>()
+    if !reader.begin_array() { return out }
+    while reader.array_has_next() { out.push(reader.read_string()) }
+    return out
+}
