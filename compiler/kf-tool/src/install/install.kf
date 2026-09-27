@@ -1,0 +1,139 @@
+// Installing a binary package from an index: resolved like a dependency,
+// built from its source, and its binary copied into `bin/` under the install
+// home. `installed.toml` records each install, in `kf.lock`'s format.
+
+import alloc.list.*
+import kf_shared.binary_path
+import kf_shared.ensure_dir
+import kf_tool.build.build_project_separate
+import kf_tool.build.default_fetch_policy
+import kf_tool.build.project_is_bin
+import kf_tool.build.sync_sources
+import kf_tool.build.target_dir
+import kf_tool.fetch.LockEntry
+import kf_tool.fetch.empty_lock_entry
+import kf_tool.fetch.fresh_staging
+import kf_tool.fetch.parse_lockfile
+import kf_tool.fetch.remove_tree
+import kf_tool.fetch.render_lockfile
+import kf_tool.fetch.resolve_from_index
+import kf_tool.project.Dependency
+import std.fs.exists
+import std.fs.remove_file
+import std.fs.write_text
+import std.process.Command
+
+/// What an install did: the row it recorded, or `error` saying why nothing
+/// changed.
+pub struct Installed {
+    pub val entry: LockEntry
+    pub val binary: String
+    pub val error: String
+}
+
+fun install_failed(message: String): Installed {
+    return Installed { entry: empty_lock_entry(), binary: "", error: message }
+}
+
+/// Installs the highest version of `name` in the index at `index_url` that
+/// `requirement` allows, "" allowing any. The package's own `kf.lock`, when
+/// it ships one, pins its dependencies. A package already installed is
+/// replaced.
+pub fun install_package(name: str, requirement: str, index_url: str, cache: str, home: str): Installed {
+    val dep = Dependency {
+        name: String.from(name), version: String.from(requirement), index: "", index_url: String.from(index_url),
+        path: "", git: "", rev: "", tag: "", branch: "", tarball: "", checksum: ""
+    }
+    var refreshed = List.new<String>()
+    val fetched = resolve_from_index(&dep, cache, &refreshed)
+    if fetched.error.byte_len() > 0 { return install_failed(fetched.error.clone()) }
+    val source = fetched.entry.cached_root(cache)
+    if !project_is_bin(source.as_str()) {
+        return install_failed("`${name}` is a library, not a program: add it to [dependencies] to use it")
+    }
+    val staging = fresh_staging(cache, "install")
+    if staging.byte_len() == 0 { return install_failed("cannot create a build directory under ${cache}") }
+    val built = build_in(source.as_str(), staging.as_str(), name, cache)
+    if built.byte_len() == 0 {
+        remove_tree(staging.as_str())
+        return install_failed("`${name}` ${fetched.entry.version} did not build")
+    }
+    val bin = installed_bin_dir(home)
+    val binary = installed_binary_name(name)
+    val destination = "${bin}/${binary}"
+    val copied = ensure_dir(bin.as_str()) && copy_file(built.as_str(), destination.as_str())
+    remove_tree(staging.as_str())
+    if !copied { return install_failed("cannot write ${destination}") }
+    var rows = installed_packages(home)
+    rows.remove_named(name)
+    rows.push(fetched.entry.clone())
+    if !write_installed(home, &rows) { return install_failed("cannot write ${installed_record(home)}") }
+    return Installed { entry: fetched.entry.clone(), binary: destination, error: "" }
+}
+
+/// Removes `name`'s binary and its row; "" on success, else why not.
+pub fun uninstall_package(name: str, home: str): String {
+    var rows = installed_packages(home)
+    if !rows.has_named(name) { return "`${name}` is not installed" }
+    val binary = "${installed_bin_dir(home)}/${installed_binary_name(name)}"
+    if exists(binary.as_str()) && remove_file(binary.as_str()).is_err() { return "cannot remove ${binary}" }
+    rows.remove_named(name)
+    if !write_installed(home, &rows) { return "cannot write ${installed_record(home)}" }
+    return ""
+}
+
+/// Every installed package, by name.
+pub fun installed_packages(home: str): List<LockEntry> {
+    val record = installed_record(home)
+    if !exists(record.as_str()) { return List.new<LockEntry>() }
+    return parse_lockfile(read_file(record.as_str()).as_str())
+}
+
+/// The package's source, copied into `staging` and built there, so the
+/// cache stays as it was fetched; the built binary's path, or "".
+fun build_in(source: str, staging: str, name: str, cache: str): String {
+    var copy = Command.new("cp")
+    copy.arg("-R")
+    copy.arg(source)
+    copy.arg(staging)
+    if !copy.status().success() { return "" }
+    if sync_sources(staging, &default_fetch_policy(), cache).byte_len() > 0 { return "" }
+    if build_project_separate(staging, "") != 0 { return "" }
+    val built = binary_path(target_dir(staging).as_str(), name)
+    if !exists(built.as_str()) { return "" }
+    return built
+}
+
+/// Copied with its permissions, so the copy runs.
+fun copy_file(from: str, to: str): bool {
+    var copy = Command.new("cp")
+    copy.arg("-p")
+    copy.arg(from)
+    copy.arg(to)
+    return copy.status().success()
+}
+
+/// `kf.lock`'s format, under a header of its own.
+fun write_installed(home: str, rows: &List<LockEntry>): bool {
+    if !ensure_dir(home) { return false }
+    val rendered = render_lockfile(rows)
+    val body_start = rendered.index_of("\n") ?: 0
+    var text = String.from("# Written by komp install: every installed program and its exact source.")
+    text.append(rendered.substring(body_start, rendered.byte_len()).as_str())
+    return write_text(installed_record(home).as_str(), text.as_str()).is_ok()
+}
+
+fun List<LockEntry>.has_named(name: str): bool {
+    while row in &self {
+        if row.name.as_str() == name { return true }
+    }
+    return false
+}
+
+mutating fun List<LockEntry>.remove_named(name: str): void {
+    var kept = List.new<LockEntry>()
+    while row in &self {
+        if row.name.as_str() != name { kept.push(row.clone()) }
+    }
+    *self = kept
+}

@@ -1,0 +1,31 @@
+// Where installed tools live: `$KFLAT_HOME`, else `~/.kflat`, holding the
+// binaries in `bin/` and what was installed in `installed.toml`.
+
+import kf_shared.normalized_path
+import std.env.env_var
+
+pub fun install_home(): String {
+    val explicit = env_var("KFLAT_HOME") ?: String.from("")
+    if explicit.byte_len() > 0 { return normalized_path(explicit.as_str()) }
+    val home = env_var("HOME") ?: String.from("")
+    return normalized_path("${home}/.kflat".as_str())
+}
+
+pub fun installed_bin_dir(home: str): String {
+    return "${home}/bin"
+}
+
+pub fun installed_record(home: str): String {
+    return "${home}/installed.toml"
+}
+
+/// A package's binary as installed: its name with `_` spelled `-`, so
+/// `komp_fmt` installs as `komp-fmt`, which `komp fmt` runs.
+pub fun installed_binary_name(package: str): String {
+    var out = String.from("")
+    while i in 0..package.byte_len() {
+        val byte = package.byte(i)
+        out.push_byte(if byte == 95 { 45 } else { byte })
+    }
+    return out
+}

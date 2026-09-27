@@ -3,6 +3,7 @@
 import alloc.list.*
 import kf_tool.project.Dependency
 import kf_tool.project.Version
+import kf_tool.project.any_version
 import kf_tool.project.parse_requirement
 import kf_tool.project.parse_version
 import std.fs.exists
@@ -39,8 +40,10 @@ pub fun fetch_exact_source(name: str, git: &String, rev: &String, tarball: &Stri
     return fetch_tarball(&source, checksum.as_str(), cache)
 }
 
+/// An empty `requirement` allows every version.
 fun List<IndexVersion>.highest_allowed(requirement: str): IndexVersion? {
-    val wanted = parse_requirement(requirement) ?: return null
+    val parsed = if requirement.byte_len() == 0 { Option.Some(any_version()) } else { parse_requirement(requirement) }
+    val wanted = parsed ?: return null
     var best: IndexVersion? = null
     var best_version = Version { major: 0, minor: 0, patch: 0 }
     while candidate in &self {

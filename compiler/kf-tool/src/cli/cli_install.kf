@@ -1,0 +1,114 @@
+// `komp install [<name>[@<requirement>]] [--index <url>]`,
+// `komp uninstall <name>`, and `komp <command>` running an installed
+// `komp-<command>`.
+
+import kf_tool.fetch.cache_root
+import kf_tool.install.install_home
+import kf_tool.install.install_package
+import kf_tool.install.installed_bin_dir
+import kf_tool.install.installed_binary_name
+import kf_tool.install.installed_packages
+import kf_tool.install.uninstall_package
+import kf_tool.project.default_index_url
+import kf_shared.cli_arg_get
+import std.env.env_var
+import std.fs.exists
+import std.process.Command
+
+/// With no package, lists what is installed.
+pub fun install_command(nargs: int32): int32 {
+    var package = ""
+    var index = ""
+    var i = 1
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if arg == "--index" {
+            if i + 1 >= nargs { return usage_error("install") }
+            index = String.from(cli_arg_get(i + 1))
+            i = i + 1
+        } else if starts_with_dash(arg) || package.byte_len() > 0 {
+            return usage_error("install")
+        } else {
+            package = String.from(arg)
+        }
+        i = i + 1
+    }
+    val home = install_home()
+    if package.byte_len() == 0 { return list_installed(home.as_str()) }
+    val at = package.index_of("@")
+    val name = when (at) {
+        Some(split) => package.substring(0, split)
+        None => package.clone()
+    }
+    val requirement = when (at) {
+        Some(split) => package.substring(split + 1, package.byte_len())
+        None => String.from("")
+    }
+    val url = if index.byte_len() > 0 { index } else { default_index_url() }
+    val done = install_package(name.as_str(), requirement.as_str(), url.as_str(), cache_root().as_str(), home.as_str())
+    if done.error.byte_len() > 0 {
+        runtime_println("error: ${done.error}")
+        return 1
+    }
+    runtime_println("installed `${name}` ${done.entry.version} as ${done.binary}")
+    val bin = installed_bin_dir(home.as_str())
+    if !on_path(bin.as_str()) { runtime_println("note: ${bin} is not on PATH; komp runs what is there all the same") }
+    return 0
+}
+
+pub fun uninstall_command(nargs: int32): int32 {
+    if nargs != 2 || starts_with_dash(cli_arg_get(1)) { return usage_error("uninstall") }
+    val name = cli_arg_get(1)
+    val error = uninstall_package(name, install_home().as_str())
+    if error.byte_len() > 0 {
+        runtime_println("error: ${error}")
+        return 1
+    }
+    runtime_println("uninstalled `${name}`")
+    return 0
+}
+
+/// The installed `komp-<command>` that `komp <command>` runs, or "" when
+/// none is installed.
+pub fun installed_command(command: str): String {
+    if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return String.from("") }
+    val path = "${installed_bin_dir(install_home().as_str())}/komp-${command}"
+    if !exists(path.as_str()) { return String.from("") }
+    return path
+}
+
+/// Runs `path` with every argument after the command; its exit status.
+pub fun run_installed(path: str, nargs: int32): int32 {
+    var command = Command.new(path)
+    var i = 1
+    while i < nargs {
+        command.arg(cli_arg_get(i))
+        i = i + 1
+    }
+    return command.status().exit_code()
+}
+
+fun list_installed(home: str): int32 {
+    val rows = installed_packages(home)
+    if rows.is_empty() {
+        runtime_println("nothing is installed")
+        return 0
+    }
+    val bin = installed_bin_dir(home)
+    while row in &rows {
+        runtime_println("${row.name} ${row.version}  ${bin}/${installed_binary_name(row.name.as_str())}")
+    }
+    return 0
+}
+
+fun on_path(dir: str): bool {
+    val path = env_var("PATH") ?: String.from("")
+    var start: uint64 = 0
+    while i in 0..(path.byte_len() + 1) {
+        if i == path.byte_len() || path.byte_at(i) == 58 {
+            if path.substring(start, i).as_str() == dir { return true }
+            start = i + 1
+        }
+    }
+    return false
+}

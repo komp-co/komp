@@ -16,6 +16,9 @@ points, and then compiles and links the C with cc.
 | `komp check <dir>` | Type-check only; no binary produced |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
+| `komp uninstall <name>` | Remove an installed program |
+| `komp <command>` | Run the installed `komp-<command>` |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -191,6 +194,39 @@ $ komp metadata
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
+### komp install
+
+`komp install <name>` builds a program published to a package index and puts
+its binary in `~/.kflat/bin`, or in `bin/` under `$KFLAT_HOME` when that is
+set. The package is resolved as a dependency would be: `<name>@0.2` takes the
+highest version `0.2` allows, as the same requirement in `kf.toml` would, and
+a bare name the highest version published. `--index <url>` looks in another
+index than the default. A package that ships a `kf.lock` is built with the
+dependencies it pins.
+
+```console
+$ komp install komp_fmt
+installed `komp_fmt` 0.1.0 as /home/me/.kflat/bin/komp-fmt
+$ komp install
+komp_fmt 0.1.0  /home/me/.kflat/bin/komp-fmt
+$ komp uninstall komp_fmt
+uninstalled `komp_fmt`
+```
+
+A binary is named after its package with `_` spelled `-`. Installing a
+package again replaces it, at whatever version it now resolves to. Only a
+`kind = "bin"` package installs; a library is a dependency, and belongs in
+`[dependencies]`. Each install is recorded in `installed.toml` beside
+`bin/`, in `kf.lock`'s format, so the exact source of every program is
+known; `komp install` with no package lists it, and `komp uninstall` removes
+a program and its row.
+
+`komp <command>`, for a command komp does not have, runs an installed
+`komp-<command>` with the arguments that follow it and exits with its status.
+Installing `komp_fmt` is what makes `komp fmt` work, whether or not
+`~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
+one of the same name.
+
 ## kflatc
 
 `kflatc` is the compiler komp runs for each crate. You do not normally call it
@@ -337,4 +373,7 @@ backward compatibility. It compiles the crate to the named C file, or to
 `<project-dir>/target/kflat/komp_out.c` if no name is given. Prefer
 `komp build` — it produces artifacts in a known location and handles
 dependencies correctly.
+
+A first argument that is neither a command, an installed `komp-<command>`,
+nor a directory is reported as an unknown command.
 

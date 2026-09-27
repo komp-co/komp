@@ -12,6 +12,10 @@
 //                                      write the machine-applicable repairs
 //   komp test <project-dir>            run @test functions from artifacts
 //   komp update [<project-dir>]        re-resolve fetched dependencies
+//   komp install [<name>[@<req>]]      build a program from an index into
+//                                      ~/.kflat/bin, or list what is there
+//   komp uninstall <name>              remove an installed program
+//   komp <command> [args]              run the installed komp-<command>
 //   komp publish [--status] [<project-dir>]
 //                                      add this version to a package index
 //   komp new <name>                    create a new project
@@ -128,6 +132,12 @@ pub fun run_cli(): int32 {
     // argv[0] is hidden: index 0 is the first real argument.
     val nargs: int32 = cli_arg_count()
 
+    // An installed tool reads its own flags, `--help` among them. A
+    // built-in command of the same name wins.
+    if nargs >= 1 && !has_help(cli_arg_get(0)) {
+        val tool = installed_command(cli_arg_get(0))
+        if tool.byte_len() > 0 { return run_installed(tool.as_str(), nargs) }
+    }
     // A help flag before `--` wins, so a half-written command explains itself.
     if wants_help() {
         if nargs >= 1 && has_help(cli_arg_get(0)) {
@@ -293,9 +303,17 @@ pub fun run_cli(): int32 {
             return new_project(cli_arg_get(1))
         }
         "init" => return init_project()
+        "install" => return install_command(nargs)
+        "uninstall" => return uninstall_command(nargs)
         _ => { }
     }
 
+
+    if !is_directory(a0) {
+        runtime_println("error: no command `${a0}`, no installed komp-${a0}, and no project directory by that name")
+        runtime_println("`komp help` lists the commands; `komp install` adds programs from an index")
+        return 1
+    }
     // CONSTRAINT: the legacy positional form the bootstrap script uses; no
     // subcommand may be required here.
     if nargs >= 2 {

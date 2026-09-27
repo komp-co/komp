@@ -34,6 +34,14 @@ impl Requirement {
     }
 }
 
+/// Every version: what naming a package with no requirement asks for.
+pub fun any_version(): Requirement {
+    return Requirement {
+        low: Version { major: 0, minor: 0, patch: 0 },
+        high: Version { major: 18446744073709551615, minor: 0, patch: 0 }
+    }
+}
+
 /// Exactly three numeric parts.
 pub fun parse_version(text: str): Version? {
     val parts = numeric_parts(text)
