@@ -137,7 +137,7 @@ fun every_registered_lint_is_described(): void {
     assert_eq(all.size() > 0, true, "there is at least one")
     while l in &all {
         assert_eq(l.name.as_str() != "", true, "every entry is named")
-        assert_eq(l.category.as_str() != "", true, "and categorised")
+        assert_eq(is_lint_group(l.group.as_str()) && l.group.as_str() != "all", true, "and in a group")
         assert_eq(l.description.as_str() != "", true, "and described")
     }
 }

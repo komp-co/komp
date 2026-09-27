@@ -18,6 +18,12 @@ pub fun check_project_with_kflatc(root_dir: str, as_json: bool): int32 {
     return root.invoke_kflatc_check(root_dir, target_dir(root_dir).as_str(), as_json)
 }
 
+/// As `check_project_with_kflatc`, kflatc tallying the lints it found.
+pub fun lint_project_with_kflatc(root_dir: str, as_json: bool): int32 {
+    val root = prepare_check(root_dir, as_json) ?: return 1
+    return root.invoke_kflatc_lint(root_dir, target_dir(root_dir).as_str(), as_json)
+}
+
 /// The root crate, once every dependency's interface is current, or None
 /// after reporting why the project cannot be checked.
 pub fun prepare_check(root_dir: str, as_json: bool): BuildCrate? {

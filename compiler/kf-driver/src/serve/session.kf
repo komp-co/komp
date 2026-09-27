@@ -120,7 +120,7 @@ impl ServeSession {
             val eq = row.index_of("=") ?: 0
             val name = row.substring(0, eq)
             val level = row.substring(eq + 1, row.byte_len())
-            cfg.apply_table_lint(name.as_str(), level.as_str(), &var config_diags)
+            cfg.apply_table_lint("lint configuration", name.as_str(), level.as_str(), &var config_diags)
         }
         val unit = CompileUnit {
             name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),

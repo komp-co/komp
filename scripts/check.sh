@@ -507,10 +507,29 @@ fi
 sed -i 's/^wildcard_import = /wildcard_imports = /' "$WORK/lint-table/kf.toml"
 misspelled=$("$WORK/komp" check "$WORK/lint-table" 2>&1 || true)
 case "$misspelled" in
-    *"kf.toml [lint]: no lint named \`wildcard_imports\`"*) ;;
+    *"kf.toml [lint]: no lint or lint group named \`wildcard_imports\`"*) ;;
     *) echo "FAIL: a misspelled [lint] row was not named" >&2; echo "$misspelled" >&2; exit 1 ;;
 esac
 echo "  PASS  the [lint] table denies in check and build, and names a misspelled row"
+
+# lint.toml reaches the compiler the same way: a group row sets its lints, a
+# lint row after it wins, and `komp lint` tallies what it reports.
+rm -rf "$WORK/lint-file"
+cp -r "$WORK/lint-app" "$WORK/lint-file"
+rm -rf "$WORK/lint-file/target"
+printf '[groups]\nstyle = "deny"\n' > "$WORK/lint-file/lint.toml"
+if grouped=$("$WORK/komp" lint "$WORK/lint-file" 2>&1); then
+    echo "FAIL: a group lint.toml denies did not fail komp lint" >&2; echo "$grouped" >&2; exit 1
+fi
+case "$grouped" in
+    *"error: wildcard import"*"lint: 1 error, 0 warnings"*"wildcard_import  1"*) ;;
+    *) echo "FAIL: komp lint did not report the denied group and its tally" >&2; echo "$grouped" >&2; exit 1 ;;
+esac
+printf '[lints]\nwildcard_import = "warn"\n' >> "$WORK/lint-file/lint.toml"
+"$WORK/komp" lint "$WORK/lint-file" > /dev/null 2>&1 || {
+    echo "FAIL: a lint row did not override its group's row" >&2; exit 1
+}
+echo "  PASS  lint.toml sets groups and lints, and komp lint tallies them"
 
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every

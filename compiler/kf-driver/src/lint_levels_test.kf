@@ -284,7 +284,7 @@ fun denying_the_authorized_copy_leaves_the_unauthorized_one_alone(): void {
 fun a_table_row_sets_the_level_it_names(): void {
     var cfg = new_lint_config()
     var diags = List.new<Diagnostic>()
-    cfg.apply_table_lint("unused_import", "allow", &var diags)
+    cfg.apply_table_lint("kf.toml [lint]", "unused_import", "allow", &var diags)
     assert_eq(lint_level_allows(cfg.configured_level("unused_import")) && diags.size() == 0, true,
               "a known row is applied and reports nothing")
 }
@@ -293,7 +293,51 @@ fun a_table_row_sets_the_level_it_names(): void {
 fun a_table_row_naming_no_lint_is_reported_as_the_tables(): void {
     var cfg = new_lint_config()
     var diags = List.new<Diagnostic>()
-    cfg.apply_table_lint("unused_imports", "deny", &var diags)
-    assert_eq(diags.at(0).primary.message.as_str(), "kf.toml [lint]: no lint named `unused_imports`",
+    cfg.apply_table_lint("kf.toml [lint]", "unused_imports", "deny", &var diags)
+    assert_eq(diags.at(0).primary.message.as_str(), "kf.toml [lint]: no lint or lint group named `unused_imports`",
               "the misspelled row is named in the table's words")
+}
+
+@test
+fun a_group_row_sets_every_lint_in_the_group(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_table_lint("lint.toml", "perf", "deny", &var diags)
+    val both = lint_level_name(cfg.configured_level("implicit_copy")) == "deny" &&
+        lint_level_name(cfg.configured_level("copy_after_move")) == "deny"
+    assert_eq(both, true, "implicit_copy and copy_after_move are both perf")
+}
+
+@test
+fun a_group_row_leaves_other_groups_alone(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_table_lint("lint.toml", "perf", "allow", &var diags)
+    assert_eq(lint_level_name(cfg.configured_level("unused_import")) == "warn", true, "style keeps its default")
+}
+
+@test
+fun a_lint_row_after_its_group_row_wins(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_table_lint("lint.toml", "style", "deny", &var diags)
+    cfg.apply_table_lint("lint.toml", "unused_import", "allow", &var diags)
+    assert_eq(lint_level_name(cfg.configured_level("unused_import")) == "allow", true, "the later, narrower row")
+}
+
+@test
+fun all_names_every_lint(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_table_lint("lint.toml", "all", "allow", &var diags)
+    assert_eq(lint_level_name(cfg.configured_level("unauthorized_copy")) == "allow", true, "even a deny-by-default one")
+}
+
+@test
+fun a_row_is_reported_as_the_file_it_came_from(): void {
+    var cfg = new_lint_config()
+    var diags = List.new<Diagnostic>()
+    cfg.apply_table_lint("lint.toml", "perf", "loud", &var diags)
+    val expected = "lint.toml: `perf` is set to `loud`; expected `allow`, `warn` or `deny`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "named by its file")
 }

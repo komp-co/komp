@@ -119,7 +119,7 @@ pub fun assemble_project(root_dir: str, smap: Ptr<SourceMap>, pdiags: Ptr<List<D
 pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintConfig {
     var cfg = new_lint_config()
     while i in 0..self.lint_names.size() {
-        cfg.apply_table_lint(self.lint_names.at(i).as_str(), self.lint_levels.at(i).as_str(), diags)
+        cfg.apply_table_lint("kf.toml [lint]", self.lint_names.at(i).as_str(), self.lint_levels.at(i).as_str(), diags)
     }
     return cfg
 }

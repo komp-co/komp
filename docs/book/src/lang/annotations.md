@@ -64,9 +64,10 @@ it annotates:
 fun scratch(): void { }
 ```
 
-The names are the ones a diagnostic reports as its `code`. `kf.toml` sets the
-same levels for a whole crate, and `-A`/`-W`/`-D` set them for one build; the
-innermost setting wins, so an `@allow` beats both.
+The names are the ones a diagnostic reports as its `code`. `lint.toml` sets
+the same levels for a whole crate, and `-A`/`-W`/`-D` set them for one build;
+the innermost setting wins, so an `@allow` beats both. See
+[Linting](../tools/lint.md).
 
 `implicit_copy` and `copy_after_move` — the copies the compiler inserts for you
 — are the two worth knowing about, because they are the ones you may

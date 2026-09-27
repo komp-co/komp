@@ -37,6 +37,24 @@ pub fun BuildCrate.invoke_kflatc_check(project: str, tdir: str, as_json: bool): 
     return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--json" } else { "" }, "")
 }
 
+/// As `invoke_kflatc_check`, with kflatc's tally of the lints after the
+/// diagnostics unless they are JSON.
+pub fun BuildCrate.invoke_kflatc_lint(project: str, tdir: str, as_json: bool): int32 {
+    val no_hashes = List.new<String>()
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--json" } else { "--summary" }, "")
+}
+
+/// Every lint, at the level `project`'s configuration and this command
+/// line give it: `kflatc lints`.
+pub fun list_lints(project: str): int32 {
+    val path = kflatc_path()
+    if kflatc_missing(&path) { return 1 }
+    var command = Command.new(path.as_str())
+    command.arg("lints")
+    forward_compiler_flags(&var command, project)
+    return command.status().exit_code()
+}
+
 /// As `invoke_kflatc_check` with `--json`, the diagnostics written to
 /// `report` rather than printed.
 pub fun BuildCrate.invoke_kflatc_check_into(project: str, tdir: str, report: str): int32 {
@@ -103,10 +121,25 @@ fun kflatc_missing(path: &String): bool {
     return true
 }
 
-/// The project's `[lint]` table as `--lint NAME=LEVEL`, then komp's own quiet
-/// and lint flags, which the compiler reads off its command line: `-q`,
-/// `--deny-warnings`, `-A/-W/-D <lint>`. Only those before `--`.
+/// The project's lint.toml rows as `--lint-toml NAME=LEVEL`, and what is
+/// wrong with the file as `--lint-toml-error`, then its `[lint]` table as
+/// `--lint NAME=LEVEL`, then komp's own quiet and lint flags, which the
+/// compiler reads off its command line: `-q`, `--deny-warnings`,
+/// `-A/-W/-D <lint>`. Only those before `--`.
 fun forward_compiler_flags(command: &var Command, project: str): void {
+    val file = lint_toml_for(project)
+    while problem in &file.problems {
+        command.arg("--lint-toml-error")
+        command.arg(problem.as_str())
+    }
+    while row in &file.groups {
+        command.arg("--lint-toml")
+        command.arg(row.as_str())
+    }
+    while row in &file.lints {
+        command.arg("--lint-toml")
+        command.arg(row.as_str())
+    }
     val manifest = manifest_of(project)
     while row in 0..manifest.lint_names.size() {
         command.arg("--lint")

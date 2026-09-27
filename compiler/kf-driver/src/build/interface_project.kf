@@ -19,7 +19,7 @@ import kf_shared.render_json_error
 /// kflatc's `check`: the crate, its tests included, type-checked against its
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number
 /// of errors.
-pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool): int32 {
+pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool, summary: bool): int32 {
     var cfg_diags = List.new<Diagnostic>()
     val cfg = project_lint_config(&var cfg_diags)
     val checked = self.check_crate(tdir, &no_overlay(), &cfg)
@@ -31,6 +31,11 @@ pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool): int32 {
     val cfg_errors = report_config_diags(&cfg_diags, checked.smap, as_json)
     while d in &checked.diagnostics {
         if as_json { d.print_json_diag(checked.smap) } else { d.print_diag(checked.smap) }
+    }
+    if summary && !as_json {
+        var found = cfg_diags.clone()
+        while d in &checked.diagnostics { found.push(d.clone()) }
+        print_lint_summary(&found)
     }
     return cfg_errors + count_errors(&checked.diagnostics)
 }

@@ -1,0 +1,38 @@
+import core.assert.assert_eq
+
+@test
+fun a_group_row_is_read_as_name_and_level(): void {
+    val file = parse_lint_toml("[groups]\npedantic = \"warn\"\n", "lint.toml")
+    assert_eq(file.groups[0].as_str(), "pedantic=warn", "the row kflatc is handed")
+}
+
+@test
+fun a_lint_row_is_read_as_name_and_level(): void {
+    val file = parse_lint_toml("[lints]\nunused_import = \"deny\" # loud\n", "lint.toml")
+    assert_eq(file.lints[0].as_str(), "unused_import=deny", "the comment after it is not the level")
+}
+
+@test
+fun comments_and_blank_lines_are_skipped(): void {
+    val file = parse_lint_toml("# levels\n\n[lints]\n", "lint.toml")
+    assert_eq(file.lints.size() + file.problems.size(), 0, "nothing read, nothing wrong")
+}
+
+@test
+fun an_unknown_section_is_a_problem(): void {
+    val file = parse_lint_toml("[lint]\n", "lint.toml")
+    assert_eq(file.problems[0].as_str(), "lint.toml:1: no section [lint]; expected [groups] or [lints]",
+        "the section is named")
+}
+
+@test
+fun a_row_without_a_quoted_level_is_a_problem(): void {
+    val file = parse_lint_toml("[lints]\nunused_import = deny\n", "lint.toml")
+    assert_eq(file.problems[0].as_str(), "lint.toml:2: expected `name = \"level\"`", "by line")
+}
+
+@test
+fun a_row_before_any_section_is_a_problem(): void {
+    val file = parse_lint_toml("unused_import = \"deny\"\n", "lint.toml")
+    assert_eq(file.problems.size(), 1, "it belongs to no table")
+}

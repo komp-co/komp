@@ -74,12 +74,18 @@ fun run_on_crate(command: str, root: str, nargs: int32, flag: bool): int32 {
     if !fetched_for(root, nargs) { return 1 }
     when command {
         "check" => return check_crate(root, flag)
+        "lint" => return lint_crate(root, flag)
         "fix" => return run_fix(root, flag)
         "build" => return build_project_separate_verbose(root, "", flag)
         _ => { }
     }
     if flag { return test_project(root) }
     return test_project_separate(root, own_flag_value(nargs, "--case"), own_flag_value(nargs, "--filter"))
+}
+
+/// As `check_crate`, with a tally of what was found after the diagnostics.
+fun lint_crate(root: str, as_json: bool): int32 {
+    return if lint_project_with_kflatc(root, as_json) != 0 { 1 } else { 0 }
 }
 
 fun check_crate(root: str, as_json: bool): int32 {

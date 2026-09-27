@@ -17,6 +17,14 @@ pub fun lint_level_named(s: str): LintLevel {
     return LintLevel.Warn
 }
 
+pub fun lint_level_name(l: LintLevel): str {
+    return when (l) {
+        Allow => "allow"
+        Warn => "warn"
+        Deny => "deny"
+    }
+}
+
 pub fun is_lint_level_name(s: str): bool {
     return s.equals("allow") || s.equals("warn") || s.equals("deny")
 }
@@ -24,51 +32,64 @@ pub fun is_lint_level_name(s: str): bool {
 pub struct LintInfo {
     /// snake_case, naming what is wrong.
     pub val name:        String
-    pub val category:    String
+    /// One of `lint_groups()`; `-W <group>` and lint.toml's `[groups]` set
+    /// every lint in it.
+    pub val group:       String
     /// The level with no configuration.
-    pub val level:       Severity
+    pub val default:     LintLevel
     /// One line, in the diagnostic's own voice.
     pub val description: String
 }
 
+/// The groups, in the order `komp lint --list` shows them. `all` names every
+/// lint and is not a group of its own.
+pub fun lint_groups(): List<String> {
+    var out = List.new<String>()
+    out.push(String.from("correctness"))
+    out.push(String.from("suspicious"))
+    out.push(String.from("style"))
+    out.push(String.from("complexity"))
+    out.push(String.from("perf"))
+    out.push(String.from("pedantic"))
+    out.push(String.from("restriction"))
+    return out
+}
+
+/// A group, or `all`.
+pub fun is_lint_group(name: str): bool {
+    if name == "all" { return true }
+    val groups = lint_groups()
+    while group in &groups {
+        if group.as_str() == name { return true }
+    }
+    return false
+}
+
+/// Whether `lint` is one `group` names: its own group, or `all`.
+pub fun LintInfo.in_group(group: str): bool {
+    return group == "all" || self.group.as_str() == group
+}
+
+fun lint_info(name: str, group: str, default: LintLevel, description: str): LintInfo {
+    return LintInfo {
+        name: String.from(name), group: String.from(group), default: default, description: String.from(description)
+    }
+}
+
 pub fun lint_registry(): List<LintInfo> {
     var out = List.new<LintInfo>()
-    out.push(LintInfo {
-        name:        String.from("unused_import"),
-        category:    String.from("unused"),
-        level:       Severity.Warning,
-        description: String.from("an import whose module contributes no name this file writes")
-    })
-    out.push(LintInfo {
-        name:        String.from("wildcard_import"),
-        category:    String.from("imports"),
-        level:       Severity.Warning,
-        description: String.from("a `.*` import supplying few enough names to write out")
-    })
-    out.push(LintInfo {
-        name:        String.from("implicit_copy"),
-        category:    String.from("implicit"),
-        level:       Severity.Warning,
-        description: String.from("a value read through a borrow is copied to fill a by-value slot")
-    })
-    out.push(LintInfo {
-        name:        String.from("copy_after_move"),
-        category:    String.from("implicit"),
-        level:       Severity.Warning,
-        description: String.from("an earlier move is copied instead, to keep the original readable")
-    })
-    out.push(LintInfo {
-        name:        String.from("unauthorized_copy"),
-        category:    String.from("implicit"),
-        level:       Severity.Error,
-        description: String.from("a copy is inserted into a type that does not implement `Clone`")
-    })
-    out.push(LintInfo {
-        name:        String.from("deref_through_temporary"),
-        category:    String.from("memory"),
-        level:       Severity.Warning,
-        description: String.from("`*` through a `Box` owned by a call's result, freed at the end of the statement")
-    })
+    out.push(lint_info("unused_import", "style", LintLevel.Warn,
+        "an import whose module contributes no name this file writes"))
+    out.push(lint_info("wildcard_import", "style", LintLevel.Warn,
+        "a `.*` import supplying few enough names to write out"))
+    out.push(lint_info("implicit_copy", "perf", LintLevel.Warn,
+        "a value read through a borrow is copied to fill a by-value slot"))
+    out.push(lint_info("copy_after_move", "perf", LintLevel.Warn,
+        "an earlier move is copied instead, to keep the original readable"))
+    out.push(lint_info("unauthorized_copy", "correctness", LintLevel.Deny,
+        "a copy is inserted into a type that does not implement `Clone`"))
+    out.push(lint_info("deref_through_temporary", "suspicious", LintLevel.Warn,
+        "`*` through a `Box` owned by a call's result, freed at the end of the statement"))
     return out
 }
 
@@ -79,12 +100,7 @@ pub fun lookup_lint(name: str): LintInfo {
         // Cloned: `all` is dropped on return.
         if l.name.as_str().equals(name) { return l.clone() }
     }
-    return LintInfo {
-        name:        "",
-        category:    "",
-        level:       Severity.Warning,
-        description: ""
-    }
+    return lint_info("", "", LintLevel.Warn, "")
 }
 
 /// Backs the error for an `@allow(...)` naming no lint.
@@ -92,9 +108,15 @@ pub fun lint_exists(name: str): bool {
     return (lookup_lint(name).name.as_str()).byte_len() > 0
 }
 
-/// Warning for an unregistered name, so it still reports.
+/// `Warn` for an unregistered name, so it still reports.
+pub fun lint_default(name: str): LintLevel {
+    return lookup_lint(name).default
+}
+
+/// How a lint renders before configuration: an allow-by-default one as a
+/// warning, which its level then drops.
 pub fun lint_default_level(name: str): Severity {
-    return lookup_lint(name).level
+    return lint_level_severity(lookup_lint(name).default)
 }
 
 /// `Allow` never reaches here; it maps to Warning inertly.

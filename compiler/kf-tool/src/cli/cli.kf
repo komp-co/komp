@@ -29,6 +29,7 @@
 
 import std.process.*
 import kf_tool.build.*
+import kf_tool.project.command_dir
 import kf_tool.project.parent_path
 import std.fs.*
 import kf_shared.binary_path
@@ -198,6 +199,41 @@ pub fun run_cli(): int32 {
             if from_manifest.as_str() != "" { project = from_manifest }
             if project.as_str() == "" { project = String.from(".") }
             return run_on_selected("check", project.as_str(), nargs, as_json)
+        }
+        "lint" => {
+            // As `check`, with `--list` and `--fix` of its own.
+            var list = false
+            var fix = false
+            var as_json = false
+            var project = ""
+            var li = 1
+            while li < nargs {
+                val arg = cli_arg_get(li)
+                if arg == "--list" {
+                    list = true
+                } else if arg == "--fix" {
+                    fix = true
+                } else if arg == "--diagnostic-format=json" {
+                    as_json = true
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    li = li + 1                      // read by the lint config
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    li = li + 1                      // read by manifest_root / package_flag
+                } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else if starts_with_dash(arg) || project.as_str() != "" {
+                    return usage_error("lint")
+                } else {
+                    project = String.from(arg)
+                }
+                li = li + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            if list { return list_lints(command_dir(project.as_str()).as_str()) }
+            if fix { return run_on_selected("fix", project.as_str(), nargs, false) }
+            return run_on_selected("lint", project.as_str(), nargs, as_json)
         }
         "fix" => {
             if nargs >= 2 && cli_arg_get(1) == "--dry-run" {

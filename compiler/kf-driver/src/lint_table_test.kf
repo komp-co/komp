@@ -1,0 +1,18 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.diagnostic.*
+
+@test
+fun the_table_starts_with_the_first_group_that_has_a_lint(): void {
+    assert_eq(lint_table(&new_lint_config()).as_str().starts_with("correctness\n  unauthorized_copy "), true,
+        "correctness, then its lints")
+}
+
+@test
+fun a_configured_level_shows_its_default_beside_it(): void {
+    var cfg = new_lint_config()
+    cfg.set_lint_level("unused_import", LintLevel.Deny)
+    assert_eq(lint_table(&cfg).as_str().contains("unused_import            deny (default warn)"), true,
+        "the level, then what it would be")
+}
