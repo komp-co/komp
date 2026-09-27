@@ -49,6 +49,12 @@ people.
 | `folding` | `path` | the file's foldable ranges |
 | `selection` | `path`, `offset` | the ranges around `offset`, innermost first |
 | `hover` | `path`, `offset`, `crates` | what is at `offset`: its type, its declaration and that declaration's documentation |
+| `signature` | `path`, `offset`, `crates` | the call around `offset`: its callee's parameters and which one `offset` is in |
+| `references` | `path`, `offset`, `crates` | the declaration of what `offset` names, and every use of it |
+| `completion` | `path`, `offset`, `crates` | what can be written at `offset` |
+| `rename` | `path`, `offset`, `crates`, and `new_name` when there is one | every name to replace, or why the rename is refused |
+| `inlays` | `path`, `crates` | the types of the file's bindings that name none |
+| `tokens` | `path`, `crates` | every name in the file with what it is |
 | `shutdown` | none | `null`, then the server exits 0 |
 
 **`hello` comes first.** It names the protocol version the client speaks, and
@@ -80,14 +86,16 @@ cost milliseconds. Each result is the object
 [`komp query`](cli.md#komp-query) prints for the same question, byte offsets
 included; `offset` is a byte offset too.
 
-**`hover` types the crates around the file.** `crates` lists them as
+**The rest type the crates around the file.** `crates` lists them as
 `{"name", "root"}` objects, dependencies first and the file's own crate
 last: a crate's `loads` from `komp metadata`, then the crate itself. They
 are typed from source, staged text included, once; every later typed request
 naming the same crates reuses that until a `stage` or `unstage` changes a
-buffer, so hovering around a file that is not being edited costs no more
-checking. The result is the object `komp query hover` prints. A file the
-last crate does not compile is refused as `not_in_crate`.
+buffer, so moving around a file that is not being edited costs no more
+checking. Each result is the object [`komp query`](cli.md#komp-query) prints
+for the same question. A file the last crate does not compile is refused as
+`not_in_crate`. `rename` without a `new_name` asks only whether the name at
+`offset` can be renamed, as an editor does before asking for the new name.
 
 **The server stops** after answering `shutdown`, or when its standard input
 ends. Either way it exits 0.

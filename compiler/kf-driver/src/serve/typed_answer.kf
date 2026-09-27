@@ -1,0 +1,45 @@
+// The questions `kflatc serve` answers from the typed crates around a file.
+// Each answer is the object `komp query` prints for the same question.
+
+import kf_driver.cli.query.QueryCrate
+import kf_driver.cli.query.render_completion_json
+import kf_driver.cli.query.render_hover_json
+import kf_driver.cli.query.render_inlays_json
+import kf_driver.cli.query.render_references_json
+import kf_driver.cli.query.render_rename_json
+import kf_driver.cli.query.render_signature_json
+import kf_driver.cli.query.render_tokens_json
+
+/// Whether `method` is answered from typed crates.
+pub fun is_typed_method(method: str): bool {
+    return when method {
+        "hover" => true
+        "signature" => true
+        "references" => true
+        "completion" => true
+        "rename" => true
+        "inlays" => true
+        "tokens" => true
+        _ => false
+    }
+}
+
+/// Whether `method` asks about a position, and so needs an `offset`.
+pub fun needs_offset(method: str): bool {
+    return method != "inlays" && method != "tokens"
+}
+
+/// The result for a typed `method`, with `crate` focused on the file.
+pub fun typed_result(method: str, params: &TypedParams, crate: &QueryCrate): String {
+    val path = params.path.as_str()
+    val offset = params.offset as uint32
+    return when method {
+        "hover" => render_hover_json(path, offset, crate)
+        "signature" => render_signature_json(path, offset, crate)
+        "references" => render_references_json(path, offset, crate)
+        "completion" => render_completion_json(path, offset, crate)
+        "rename" => render_rename_json(path, offset, params.new_name.as_str(), crate)
+        "inlays" => render_inlays_json(path, crate)
+        _ => render_tokens_json(path, crate)
+    }
+}

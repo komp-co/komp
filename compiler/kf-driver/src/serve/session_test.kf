@@ -102,3 +102,33 @@ fun typed_params_keep_the_crates_in_order(): void {
     val params = read_typed_params(line.as_str())
     assert_eq(params?.key ?: "", "core=/k/core\na=/w/a\n", "dependencies first")
 }
+
+@test
+fun a_position_question_without_an_offset_is_invalid(): void {
+    var session = greeted()
+    val request = String.from("{\"id\":13,\"method\":\"signature\",\"params\":{\"path\":\"/w/a.kf\",") +
+        "\"crates\":[{\"name\":\"a\",\"root\":\"/w\"}]}}"
+    val line = session.answer(request.as_str())
+    assert_eq(line.as_str().contains("\"code\":\"invalid_params\""), true, "signature asks about a position")
+}
+
+@test
+fun typed_params_read_a_new_name(): void {
+    val line = String.from("{\"id\":14,\"method\":\"rename\",\"params\":{\"path\":\"/w/a.kf\",\"offset\":4,") +
+        "\"new_name\":\"scaled\",\"crates\":[{\"name\":\"a\",\"root\":\"/w\"}]}}"
+    val params = read_typed_params(line.as_str())
+    assert_eq(params?.new_name ?: "", "scaled", "rename's new name")
+}
+
+@test
+fun typed_params_leave_a_missing_offset_negative(): void {
+    val line = String.from("{\"id\":15,\"method\":\"tokens\",\"params\":{\"path\":\"/w/a.kf\",") +
+        "\"crates\":[{\"name\":\"a\",\"root\":\"/w\"}]}}"
+    val params = read_typed_params(line.as_str())
+    assert_eq(params?.offset ?: 0, -1, "tokens need no offset")
+}
+
+@test
+fun tokens_need_no_offset(): void {
+    assert_eq(needs_offset("tokens"), false, "tokens cover the whole file")
+}

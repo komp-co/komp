@@ -628,6 +628,14 @@ serve_crates="[{\"name\":\"core\",\"root\":\"$ROOT/libs/core\"},{\"name\":\"allo
     echo "{\"id\":\"gone\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_root/src/gone.kf\"}}"
     echo "{\"id\":\"hov\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_file\",\"offset\":39,\"crates\":$serve_crates}}"
     echo "{\"id\":\"far\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_root/src/gone.kf\",\"offset\":0,\"crates\":$serve_crates}}"
+    serve_typed="\"path\":\"$serve_file\",\"crates\":$serve_crates"
+    echo "{\"id\":\"sig\",\"method\":\"signature\",\"params\":{$serve_typed,\"offset\":39}}"
+    echo "{\"id\":\"refs\",\"method\":\"references\",\"params\":{$serve_typed,\"offset\":4}}"
+    echo "{\"id\":\"comp\",\"method\":\"completion\",\"params\":{$serve_typed,\"offset\":57}}"
+    echo "{\"id\":\"ren\",\"method\":\"rename\",\"params\":{$serve_typed,\"offset\":4,\"new_name\":\"start\"}}"
+    echo "{\"id\":\"inl\",\"method\":\"inlays\",\"params\":{$serve_typed}}"
+    echo "{\"id\":\"tok\",\"method\":\"tokens\",\"params\":{$serve_typed}}"
+    echo "{\"id\":\"nooff\",\"method\":\"references\",\"params\":{$serve_typed}}"
     echo "{\"id\":8,\"method\":\"check\",\"params\":{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"missing\"],\"lints\":[]}}}"
     echo '{"id":9,"method":"stage","params":{"text":""}}'
     echo '{"id":10,"method":"compile"}'
@@ -654,6 +662,14 @@ serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"
     echo '{"id":"gone","error":{"code":"no_such_file","message":"[^"]*"}}'
     echo '{"id":"hov","result":{"schema_version":2,"file":"'"$serve_file"'","offset":39,"type":"[^"]*","signature":null,"documentation":null,"byte_start":39,"byte_end":45}}'
     echo '{"id":"far","error":{"code":"not_in_crate","message":"[^"]*"}}'
+    serve_name_span='{"file":"'"$serve_file"'","byte_start":4,"byte_end":8}'
+    echo '{"id":"sig","result":{"schema_version":1,"file":"'"$serve_file"'","offset":39,"label":null,"parameters":\[\],"active_parameter":0}}'
+    echo '{"id":"refs","result":{"schema_version":1,"file":"'"$serve_file"'","offset":4,"declaration":'"$serve_name_span"',"references":\[\]}}'
+    echo '{"id":"comp","result":{"schema_version":2,"file":"'"$serve_file"'","offset":57,"receiver_type":null,"prefix":"","items":\[.*{"label":"x","kind":"local","detail":"[^"]*"}.*\]}}'
+    echo '{"id":"ren","result":{"schema_version":1,"file":"'"$serve_file"'","offset":4,"new_name":"start","ok":true,"error":null,"range":'"$serve_name_span"',"edits":\['"$serve_name_span"'\]}}'
+    echo '{"id":"inl","result":{"schema_version":1,"file":"'"$serve_file"'","inlays":\[\]}}'
+    echo '{"id":"tok","result":{"schema_version":1,"file":"'"$serve_file"'","tokens":\[{"byte_start":4,"byte_end":8,"type":"function"},{"byte_start":57,"byte_end":58,"type":"variable"}\]}}'
+    echo '{"id":"nooff","error":{"code":"invalid_params","message":"[^"]*"}}'
     echo '{"id":8,"error":{"code":"check_failed","message":"[^"]*"}}'
     echo '{"id":9,"error":{"code":"invalid_params","message":"[^"]*"}}'
     echo '{"id":10,"error":{"code":"unknown_method","message":"[^"]*"}}'

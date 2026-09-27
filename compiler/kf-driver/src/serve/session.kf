@@ -9,7 +9,6 @@ import kf_assemble.unstage
 import kf_core.diagnostic.*
 import kf_driver.build.CompileUnit
 import kf_driver.cli.query.QueryCrate
-import kf_driver.cli.query.render_hover_json
 import kf_driver.cli.query.typed_crate_with
 import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
@@ -47,6 +46,7 @@ impl ServeSession {
         val method = request.method.as_str()
         if method == "hello" { return self.hello(id, line) }
         if !self.greeted { return error_line(id, "not_ready", "the first request must be hello") }
+        if is_typed_method(method) { return self.typed_answer(id, method, line) }
         return when method {
             "stage" => self.stage(id, line)
             "unstage" => self.unstage(id, line)
@@ -54,7 +54,6 @@ impl ServeSession {
             "symbols" => outline_answer(id, method, line, &self.buffers)
             "folding" => outline_answer(id, method, line, &self.buffers)
             "selection" => outline_answer(id, method, line, &self.buffers)
-            "hover" => self.hover(id, line)
             "shutdown" => {
                 self.stopping = true
                 result_line(id, "null")
@@ -97,10 +96,11 @@ impl ServeSession {
         return result_line(id, "null")
     }
 
-    /// Types the crates once and answers every hover about them from that,
-    /// until a buffer changes.
-    mutating fun hover(id: str, line: str): String {
-        val params = read_typed_params(line) ?: return invalid_params(id, "hover")
+    /// Types the crates once and answers every typed question about them
+    /// from that, until a buffer changes.
+    mutating fun typed_answer(id: str, method: str, line: str): String {
+        val params = read_typed_params(line) ?: return invalid_params(id, method)
+        if needs_offset(method) && params.offset < 0 { return invalid_params(id, method) }
         if self.typed.is_empty() || self.typed_key.as_str() != params.key.as_str() {
             self.typed = List.new<QueryCrate>()
             self.typed.push(typed_crate_with(params.path.as_str(), &self.buffers, &params.crates))
@@ -109,7 +109,7 @@ impl ServeSession {
         if !self.typed[0].focus(params.path.as_str()) {
             return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")
         }
-        return result_line(id, render_hover_json(params.path.as_str(), params.offset, &self.typed[0]).as_str())
+        return result_line(id, typed_result(method, &params, &self.typed[0]).as_str())
     }
 
     fun check(id: str, line: str): String {
