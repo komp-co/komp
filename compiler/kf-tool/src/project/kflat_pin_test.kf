@@ -1,0 +1,21 @@
+import core.assert.assert_eq
+
+@test
+fun a_project_pins_its_toolchain(): void {
+    assert_eq(manifest_kflat_pin("[project]\nname = \"a\"\nkflat = \"0.5\"\n").as_str(), "0.5", "the requirement")
+}
+
+@test
+fun a_workspace_pins_its_toolchain(): void {
+    assert_eq(manifest_kflat_pin("[workspace]\nmembers = [\"a\"]\nkflat = \"0.5.3\"\n").as_str(), "0.5.3", "as written")
+}
+
+@test
+fun a_kflat_key_in_another_section_is_no_pin(): void {
+    assert_eq(manifest_kflat_pin("[dependencies]\nkflat = \"0.5\"\n").as_str(), "", "a dependency named kflat")
+}
+
+@test
+fun no_key_is_no_pin(): void {
+    assert_eq(manifest_kflat_pin("[project]\nname = \"a\"\n").as_str(), "", "unpinned")
+}

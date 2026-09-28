@@ -231,7 +231,15 @@ pub fun run_cli(): int32 {
             val from_manifest = manifest_root(nargs)
             if from_manifest.as_str() != "" { project = from_manifest }
             if project.as_str() == "" { project = String.from(".") }
-            if list { return list_lints(command_dir(project.as_str()).as_str()) }
+            if list {
+                val dir = command_dir(project.as_str())
+                val no_toolchain = toolchain_error_for(dir.as_str())
+                if no_toolchain.byte_len() > 0 {
+                    runtime_println(no_toolchain.as_str())
+                    return 1
+                }
+                return list_lints(dir.as_str())
+            }
             if fix { return run_on_selected("fix", project.as_str(), nargs, false) }
             return run_on_selected("lint", project.as_str(), nargs, as_json)
         }

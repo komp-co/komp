@@ -1,0 +1,60 @@
+import core.assert.assert_eq
+import std.fs.scratch_path
+
+extern "C" fun system(cmd: str): int32
+
+/// An install home holding a kflatc for each of `versions`, space-separated.
+fun home_with(name: str, versions: str): String {
+    val home = scratch_path(name)
+    var script = "rm -rf ${home} && mkdir -p ${home}/toolchains"
+    while version in &versions.split(" ") {
+        val bin = "${home}/toolchains/${version}/bin"
+        script.append(" && mkdir -p ${bin} && touch ${bin}/kflatc".as_str())
+    }
+    val _made = unsafe { system(script.as_str()) }
+    return String.from(home)
+}
+
+@test
+fun komps_own_compiler_wins_when_the_pin_allows_it(): void {
+    val home = home_with("kf_tc_own", "0.5.9")
+    assert_eq(choose_toolchain("0.5", "0.5.3", home.as_str()).kflatc.as_str(), "", "no other kflatc")
+}
+
+@test
+fun the_highest_installed_toolchain_the_pin_allows_is_chosen(): void {
+    val home = home_with("kf_tc_high", "0.4.1 0.4.7 0.4.3 0.5.0")
+    val chosen = choose_toolchain("0.4", "0.5.3", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/toolchains/0.4.7/bin/kflatc"), true, "0.4.7, not 0.5.0")
+}
+
+@test
+fun a_toolchain_directory_without_a_kflatc_is_passed_over(): void {
+    val home = home_with("kf_tc_empty", "0.4.1")
+    val _made = unsafe { system("mkdir -p ${home}/toolchains/0.4.2".as_str()) }
+    val chosen = choose_toolchain("0.4", "0.5.3", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/0.4.1/bin/kflatc"), true, "0.4.2 holds nothing")
+}
+
+@test
+fun no_fitting_toolchain_names_what_is_installed(): void {
+    val home = home_with("kf_tc_none", "0.5.0")
+    val error = choose_toolchain("0.3", "0.5.3", home.as_str()).error
+    assert_eq(error.as_str().contains("(installed: 0.5.0)"), true, "what there is")
+}
+
+@test
+fun a_pin_that_is_no_requirement_is_an_error(): void {
+    val home = home_with("kf_tc_bad", "")
+    assert_eq(choose_toolchain("latest", "0.5.3", home.as_str()).error.byte_len() > 0, true, "not a version")
+}
+
+@test
+fun a_member_takes_its_workspaces_pin(): void {
+    val ws = scratch_path("kf_tc_ws")
+    val setup = "rm -rf ${ws} && mkdir -p ${ws}/one/src && " +
+        "printf '[workspace]\\nmembers = [\"one\"]\\nkflat = \"0.4\"\\n' > ${ws}/kf.toml && " +
+        "printf '[project]\\nname = \"one\"\\nkflat = \"0.5\"\\n' > ${ws}/one/kf.toml"
+    val _made = unsafe { system(setup.as_str()) }
+    assert_eq(kflat_pin_for("${ws}/one".as_str()).as_str(), "0.4", "the workspace's, not the member's")
+}

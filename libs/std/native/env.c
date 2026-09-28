@@ -28,3 +28,7 @@ String kf_self_dir(void) {
     }
     return __kf_v2_str_from_cstr(path);
 }
+
+void kf_env_set(const char* name, const char* value) {
+    setenv(name, value, 1);
+}

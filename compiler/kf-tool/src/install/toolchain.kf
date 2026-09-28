@@ -1,0 +1,79 @@
+// The compiler a project's `kflat` pin picks: komp's own when the pin allows
+// it, else the highest toolchain installed under `<home>/toolchains` that it
+// allows.
+
+import alloc.list.*
+import kf_shared.join_path
+import kf_tool.project.Version
+import kf_tool.project.enclosing_workspace
+import kf_tool.project.manifest_kflat_pin
+import kf_tool.project.parse_requirement
+import kf_tool.project.parse_version
+import std.fs.exists
+import std.fs.is_file
+import std.fs.read_dir
+
+/// The kflatc to run, "" for komp's own, or `error` saying why none fits.
+pub struct ToolchainChoice {
+    pub val kflatc: String
+    pub val error: String
+}
+
+fun no_toolchain(error: String): ToolchainChoice {
+    return ToolchainChoice { kflatc: "", error: error }
+}
+
+/// The pin governing `crate_root`: its workspace's when it is a member, else
+/// its own; "" when there is none.
+pub fun kflat_pin_for(crate_root: str): String {
+    val workspace = enclosing_workspace(crate_root)
+    val dir = if workspace.byte_len() > 0 { workspace } else { String.from(crate_root) }
+    val manifest = join_path(dir.as_str(), "kf.toml")
+    if !exists(manifest.as_str()) { return "" }
+    return manifest_kflat_pin(read_file(manifest.as_str()).as_str())
+}
+
+pub fun choose_toolchain(pin: str, own_version: str, home: str): ToolchainChoice {
+    val wanted = parse_requirement(pin) ?: return no_toolchain(
+        "error: kf.toml: `kflat = \"${pin}\"` is not a version requirement"
+    )
+    val own = parse_version(own_version) ?: Version { major: 0, minor: 0, patch: 0 }
+    if wanted.allows(&own) { return ToolchainChoice { kflatc: "", error: "" } }
+    val installed = installed_toolchains(home)
+    // Ascending, so the last one allowed is the highest.
+    var chosen = ""
+    while version in &installed {
+        if wanted.allows(version) { chosen = version.render() }
+    }
+    if chosen.byte_len() == 0 { return no_toolchain(missing_toolchain(pin, own_version, &installed)) }
+    return ToolchainChoice { kflatc: toolchain_kflatc(home, chosen.as_str()), error: "" }
+}
+
+pub fun toolchain_kflatc(home: str, version: str): String {
+    return "${home}/toolchains/${version}/bin/kflatc"
+}
+
+/// The versions under `<home>/toolchains` that hold a kflatc, in ascending order.
+pub fun installed_toolchains(home: str): List<Version> {
+    var out = List.new<Version>()
+    val listed = read_dir("${home}/toolchains".as_str())
+    if listed.is_err() { return out }
+    val names = listed.unwrap()
+    while name in &names {
+        val version = parse_version(name.as_str()) ?: continue
+        if is_file(toolchain_kflatc(home, name.as_str()).as_str()) { out.push(version) }
+    }
+    out.sort()
+    return out
+}
+
+fun missing_toolchain(pin: str, own_version: str, installed: &List<Version>): String {
+    var found = ""
+    while version in installed {
+        found.append(if found.byte_len() == 0 { " (installed: " } else { ", " })
+        found.append(version.render().as_str())
+    }
+    if found.byte_len() > 0 { found.append(")") }
+    return "error: kf.toml pins kflat ${pin}: this komp is ${own_version} and no installed toolchain fits${found}; " +
+        "install a release it allows with that release's install.sh"
+}

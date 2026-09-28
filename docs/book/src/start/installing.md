@@ -22,7 +22,8 @@ beside them. `komp` and `kflatc` are linked into `~/.kflat/bin`, the same
 directory [`komp install`](../tools/cli.md#komp-install) puts programs in, so
 it is the one directory to put on `PATH`. `KFLAT_HOME` moves all of it
 somewhere other than `~/.kflat`. Installing a version again replaces it;
-other versions stay where they are.
+other versions stay where they are, for the projects that
+[pin](projects.md#pinning-the-toolchain) them.
 
 From then on, [`komp self update`](../tools/cli.md#komp-self-update) installs
 each new release the same way.

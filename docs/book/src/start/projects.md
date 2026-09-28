@@ -246,6 +246,33 @@ example an editor's `komp check` while a build runs in a terminal. komp writes
 each artifact under a temporary name and renames it into place, so a reader
 never sees a half-written file.
 
+## Pinning the toolchain
+
+`kflat` in `[project]` pins the release a project builds with, as a version
+requirement read the way a dependency's is:
+
+```toml
+[project]
+name = "app"
+version = "0.1.0"
+kflat = "0.4"
+```
+
+komp builds with its own compiler when the requirement allows komp's version.
+Otherwise it builds with the highest toolchain under `~/.kflat/toolchains`
+that the requirement allows, with that toolchain's `core`, `alloc` and `std`.
+[Installing a release](installing.md) puts one there. `komp metadata` names
+the compiler it chose, so tools that ask komp use it too. When nothing fits,
+the command stops before building:
+
+```console
+$ komp build
+error: kf.toml pins kflat 0.3: this komp is 0.5.3 and no installed toolchain fits (installed: 0.4.9); install a release it allows with that release's install.sh
+```
+
+In a workspace, `kflat` goes in `[workspace]` and pins every member; a
+member's own is not read. `KFLATC`, when set, wins over any pin.
+
 ## Native C sources
 
 If a crate ships C alongside KFlat, list the sources under `[native]`:

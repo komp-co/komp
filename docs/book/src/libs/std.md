@@ -85,6 +85,7 @@ separately.
 |---|---|
 | `current_dir()` | `Path` — the process's working directory |
 | `env_var(name: str)` | `String?` — the variable's value, or `null` when it is not set |
+| `set_env_var(name: str, value: str)` | `void` — sets it for this process and the processes it starts afterwards |
 
 A variable that is set to the empty string answers `""`, not `null`:
 

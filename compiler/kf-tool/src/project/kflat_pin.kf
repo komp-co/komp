@@ -1,0 +1,17 @@
+// The toolchain a kf.toml pins: `kflat = "0.5"` in `[project]`, `[package]`
+// or `[workspace]`.
+
+/// The requirement as written, or "" when the manifest pins none.
+pub fun manifest_kflat_pin(src: str): String {
+    var in_pinning_section = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = item.as_str().trim()
+        if line.starts_with("[") {
+            in_pinning_section = line == "[project]" || line == "[package]" || line == "[workspace]"
+        } else if in_pinning_section && read_key(String.from(line.as_str())).as_str() == "kflat" {
+            return read_string_value(line)
+        }
+    }
+    return ""
+}

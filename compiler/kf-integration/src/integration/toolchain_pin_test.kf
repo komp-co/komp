@@ -1,0 +1,56 @@
+// A project pinned to a toolchain komp is not: `kflat = "0.0.1"` against an
+// install home in scratch space whose `toolchains/0.0.1` holds a copy of the
+// compiler under test and the repository's libraries.
+
+import core.assert.assert_eq
+import kf_tool.build.bundled_libs_root
+import kf_tool.cli.run_project_mode
+import kf_tool.build.BuildMode
+import kf_tool.cli.toolchain_error_for
+import std.env.env_var
+import std.fs.scratch_root
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun setenv(name: str, value: str, overwrite: int32): int32
+extern "C" fun unsetenv(name: str): int32
+
+/// A bin crate pinned to 0.0.1 in `<scratch>/<name>`, and an install home
+/// beside it holding that toolchain, set as `KFLAT_HOME` with `KFLATC` unset.
+fun pinned_project(name: str): String {
+    val root = "${scratch_root()}/${name}"
+    val toolchain = "${root}_home/toolchains/0.0.1"
+    val compiler = env_var("KFLATC") ?: String.from("")
+    val setup = "rm -rf ${root} ${root}_home && mkdir -p ${root}/src ${toolchain}/bin && " +
+        "cp ${compiler} ${toolchain}/bin/kflatc && cp -R ${bundled_libs_root(".")} ${toolchain}/libs"
+    val _made = unsafe { system(setup.as_str()) }
+    write_file("${root}/kf.toml".as_str(),
+        "[project]\nname = \"pinned\"\nversion = \"0.1.0\"\nkind = \"bin\"\nkflat = \"0.0.1\"\n")
+    write_file("${root}/src/main.kf".as_str(), "fun main(): int32 { return 0 }\n")
+    val _home = unsafe { setenv("KFLAT_HOME", "${root}_home".as_str(), 1) }
+    val _unset = unsafe { unsetenv("KFLATC") }
+    return root
+}
+
+@test
+fun a_pin_points_kflatc_at_its_toolchain(): void {
+    val root = pinned_project("kf_pin_choice")
+    val _chosen = toolchain_error_for(root.as_str())
+    val kflatc = env_var("KFLATC") ?: String.from("")
+    assert_eq(kflatc.as_str(), "${root}_home/toolchains/0.0.1/bin/kflatc".as_str(), "the pinned compiler")
+}
+
+@test
+fun the_libraries_come_from_the_pinned_toolchain(): void {
+    val root = pinned_project("kf_pin_libs")
+    val _chosen = toolchain_error_for(root.as_str())
+    assert_eq(bundled_libs_root(root.as_str()).as_str().ends_with("_home/toolchains/0.0.1/libs"), true,
+        "what the compiler ships with")
+}
+
+@test
+fun a_pinned_project_runs(): void {
+    val root = pinned_project("kf_pin_run")
+    val chosen = toolchain_error_for(root.as_str())
+    assert_eq(chosen.is_empty() && run_project_mode(root.as_str(), BuildMode.Separate) == 0, true,
+        "built and run with the toolchain")
+}

@@ -187,7 +187,7 @@ $ komp metadata
 | Field | Meaning |
 |---|---|
 | `schema` | Raised when a field changes meaning or goes away; a new field leaves it as it is |
-| `kflatc` | The compiler komp would run |
+| `kflatc` | The compiler komp would run: the one the project's `kflat` pin picks, when it has one |
 | `workspace_root` | The directory holding `[workspace]`, or `null` |
 | `target_dir` | Where compiled crates' `.kfi`, `.h` and `.c` land; kflatc's `--out` |
 | `members` | The crates the command was about, as roots |
@@ -240,7 +240,8 @@ one of the same name.
 `kflat-<version>.tar.gz`, checks it against the sha256 published beside it,
 builds komp and kflatc with `cc`, and puts them in
 `~/.kflat/toolchains/<version>/`, where `~/.kflat/bin/komp` then points.
-Toolchains already installed stay where they are. `komp self update 0.5.1`
+Toolchains already installed stay where they are, for the projects that
+[pin](../start/projects.md#pinning-the-toolchain) them. `komp self update 0.5.1`
 installs that release instead of the newest, which also goes back to an
 earlier one.
 
