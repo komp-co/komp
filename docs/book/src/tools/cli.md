@@ -335,6 +335,30 @@ downloaded, and keeps the bootstrap seeds that `bootstrap/build.sh` stores
 in the same directory. Nothing is lost either way: a build fetches what its
 `kf.lock` pins again.
 
+### JSON output
+
+The listing commands take `--format=json` and print one JSON object on one
+line, for editors and scripts; a failure prints `{"error": "..."}` and exits
+1. A value that is absent is `null`, never `""`.
+
+| Command | Object |
+|---|---|
+| `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
+| `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
+| `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
+| `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
+| `komp self list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
+
+```console
+$ komp info json --format=json
+{"index":"https://github.com/komp-co/index","name":"json","description":null,"newest":"0.2.0","versions":[{"version":"0.1.0","yanked":false},{"version":"0.2.0","yanked":false}]}
+```
+
+`komp check` and `komp lint` take `--diagnostic-format=json` instead, one
+object per diagnostic (see [Structured fixes](#structured-fixes)), and
+[`komp metadata`](#komp-metadata) always prints JSON.
+
 ### komp self update
 
 `komp self update` installs the newest komp release, the way a release's

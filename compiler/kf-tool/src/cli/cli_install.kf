@@ -6,7 +6,10 @@
 import alloc.list.*
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
+import json.writer.JsonWriter
 import kf_tool.install.install_package
+import kf_tool.install.installed_tools
+import kf_tool.install.named
 import kf_tool.install.pinned_tool
 import kf_tool.install.project_tool_pin
 import kf_tool.install.stored_packages
@@ -31,7 +34,9 @@ pub fun install_command(nargs: int32): int32 {
     var i = 1
     while i < nargs {
         val arg = cli_arg_get(i)
-        if arg == "--index" {
+        if is_format_flag(arg) {
+            // read by wants_json
+        } else if arg == "--index" {
             if i + 1 >= nargs { return usage_error("install") }
             index = String.from(cli_arg_get(i + 1))
             i = i + 1
@@ -43,7 +48,10 @@ pub fun install_command(nargs: int32): int32 {
         i = i + 1
     }
     val home = install_home()
-    if package.byte_len() == 0 { return list_installed(home.as_str()) }
+    if package.byte_len() == 0 {
+        if wants_json(nargs) { return list_installed_json(home.as_str()) }
+        return list_installed(home.as_str())
+    }
     val at = package.index_of("@")
     val name = when (at) {
         Some(split) => package.substring(0, split)
@@ -181,6 +189,47 @@ fun list_installed(home: str): int32 {
             runtime_println("${package}  ${other_versions(home, package.as_str(), "")}, for the projects that pin it")
         }
     }
+    return 0
+}
+
+/// `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`,
+/// `default`, `binary` and `requirement` null for a program only stored.
+fun list_installed_json(home: str): int32 {
+    val tools = installed_tools(home)
+    var names = stored_packages(home)
+    while tool in &tools {
+        if !names.contains(&tool.entry.name) { names.push(tool.entry.name.clone()) }
+    }
+    names.sort()
+    var writer = JsonWriter.object()
+    writer.key("programs")
+    writer.begin_array()
+    while name in &names {
+        writer.begin_object()
+        writer.field_string("name", name.as_str())
+        val chosen = tools.named(name.as_str())
+        when (chosen) {
+            Some(tool) => {
+                writer.field_string("default", tool.entry.version.as_str())
+                val binary = "${installed_bin_dir(home)}/${installed_binary_name(name.as_str())}"
+                writer.field_string("binary", binary.as_str())
+                writer.field_string("requirement", tool.requirement.as_str())
+            }
+            None => {
+                writer.field_null("default")
+                writer.field_null("binary")
+                writer.field_null("requirement")
+            }
+        }
+        writer.key("versions")
+        writer.begin_array()
+        val versions = stored_versions(home, name.as_str())
+        while version in &versions { writer.write_string(version.render().as_str()) }
+        writer.end_array()
+        writer.end_object()
+    }
+    writer.end_array()
+    runtime_println(writer.finish().as_str())
     return 0
 }
 

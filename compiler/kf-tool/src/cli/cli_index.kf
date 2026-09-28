@@ -2,6 +2,7 @@
 // offers, read from its checkout in the cache.
 
 import alloc.list.*
+import json.writer.JsonWriter
 import kf_shared.cli_arg_get
 import kf_tool.fetch.IndexPackage
 import kf_tool.fetch.cache_root
@@ -23,7 +24,9 @@ fun index_args(nargs: int32): IndexArgs {
     var i = 1
     while i < nargs {
         val arg = cli_arg_get(i)
-        if arg == "--index" && i + 1 < nargs {
+        if is_format_flag(arg) {
+            // read by wants_json
+        } else if arg == "--index" && i + 1 < nargs {
             index = String.from(cli_arg_get(i + 1))
             i = i + 1
         } else if starts_with_dash(arg) || positional.byte_len() > 0 {
@@ -41,9 +44,22 @@ pub fun search_command(nargs: int32): int32 {
     val args = index_args(nargs)
     if !args.ok { return usage_error("search") }
     val found = search_index(args.index.as_str(), args.positional.as_str(), cache_root().as_str())
-    if found.error.byte_len() > 0 {
-        runtime_println("error: ${found.error}")
-        return 1
+    if found.error.byte_len() > 0 { return report_error(found.error.as_str(), wants_json(nargs)) }
+    if wants_json(nargs) {
+        var writer = JsonWriter.object()
+        writer.field_string("index", args.index.as_str())
+        writer.key("packages")
+        writer.begin_array()
+        while package in &found.packages {
+            writer.begin_object()
+            writer.field_string("name", package.name.as_str())
+            writer.write_optional("newest", package.newest().as_str())
+            writer.write_optional("description", package.description.as_str())
+            writer.end_object()
+        }
+        writer.end_array()
+        runtime_println(writer.finish().as_str())
+        return 0
     }
     if found.packages.is_empty() {
         runtime_println("no package in ${args.index} matches `${args.positional}`")
@@ -69,9 +85,10 @@ pub fun info_command(nargs: int32): int32 {
     val args = index_args(nargs)
     if !args.ok || args.positional.is_empty() { return usage_error("info") }
     val found = index_package(args.index.as_str(), args.positional.as_str(), cache_root().as_str())
-    if found.error.byte_len() > 0 {
-        runtime_println("error: ${found.error}")
-        return 1
+    if found.error.byte_len() > 0 { return report_error(found.error.as_str(), wants_json(nargs)) }
+    if wants_json(nargs) {
+        runtime_println(found.packages[0].versions_json(args.index.as_str()).as_str())
+        return 0
     }
     found.packages[0].print_versions(args.index.as_str())
     return 0
@@ -91,6 +108,30 @@ fun IndexPackage.print_versions(index: str): void {
 fun IndexPackage.shown_version(): String {
     val newest = self.newest()
     return if newest.is_empty() { String.from("(every version yanked)") } else { newest }
+}
+
+/// `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}`.
+fun IndexPackage.versions_json(index: str): String {
+    var writer = JsonWriter.object()
+    writer.field_string("index", index)
+    writer.field_string("name", self.name.as_str())
+    writer.write_optional("description", self.description.as_str())
+    writer.write_optional("newest", self.newest().as_str())
+    writer.key("versions")
+    writer.begin_array()
+    while version in &self.versions {
+        writer.begin_object()
+        writer.field_string("version", version.version.as_str())
+        writer.field_bool("yanked", version.yanked)
+        writer.end_object()
+    }
+    writer.end_array()
+    return writer.finish()
+}
+
+/// `name: value`, or `name: null` for "".
+mutating fun JsonWriter.write_optional(name: str, value: str): void {
+    if value.is_empty() { self.field_null(name) } else { self.field_string(name, value) }
 }
 
 fun padded(text: str, width: uint64): String {
