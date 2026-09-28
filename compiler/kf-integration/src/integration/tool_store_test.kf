@@ -1,0 +1,115 @@
+// Tool versions side by side: `komp install` building each version once into
+// the store, and a project's `[tools]` pin picking among them. The indexes
+// come from `tool_index` and `publish_tool_version`: 0.1.0 exits 7, 0.1.1
+// exits 8, 0.2.0 exits 9.
+
+import core.assert.assert_eq
+import kf_tool.install.install_package
+import kf_tool.install.pinned_tool
+import kf_tool.install.project_tool_pin
+import kf_tool.install.stored_binary
+import kf_tool.install.stored_versions
+import kf_tool.install.uninstall_package
+import kf_tool.project.render
+import std.fs.exists
+
+/// `name` 0.1.0 installed as the default, then 0.2.0 published.
+fun installed_at_0_1(name: str, home_name: str): String {
+    val index = tool_index(name, "bin")
+    val home = fresh_home(home_name)
+    val _done = install_package(name, "0.1", index.as_str(), test_cache().as_str(), home.as_str())
+    publish_tool_version(name, "0.2.0", 9)
+    return home
+}
+
+fun tool_index_url(name: str): String {
+    return "file://${dir_of("${name}_index".as_str())}"
+}
+
+fun versions_of(home: &String, name: str): String {
+    var out = ""
+    val versions = stored_versions(home.as_str(), name)
+    while version in &versions { out.append("${version.render()} ".as_str()) }
+    return out
+}
+
+fun install_again(name: str, requirement: str, home: &String): String {
+    val url = tool_index_url(name)
+    return install_package(name, requirement, url.as_str(), test_cache().as_str(), home.as_str()).error
+}
+
+/// A project pinning `name` to `requirement` under `[tools]`.
+fun pinning_project(project: str, name: str, requirement: str, index: str): String {
+    val root = dir_of(project)
+    sh("rm -rf ${root} && mkdir -p ${root}/src".as_str())
+    val manifest = "[project]\nname = \"${project}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n\n" +
+        "[tools]\n${name} = { version = \"${requirement}\", index = \"scratch\" }\n\n" +
+        "[indexes]\nscratch = \"${index}\"\n"
+    write_file("${root}/kf.toml".as_str(), manifest.as_str())
+    return root
+}
+
+@test
+fun a_second_version_is_stored_beside_the_first(): void {
+    val home = installed_at_0_1("komp_sta", "kf_store_home_a")
+    val _done = install_again("komp_sta", "0.2", &home)
+    assert_eq(versions_of(&home, "komp_sta").as_str(), "0.1.0 0.2.0 ", "both, each built once")
+}
+
+@test
+fun the_default_follows_the_latest_install(): void {
+    val home = installed_at_0_1("komp_stb", "kf_store_home_b")
+    val _done = install_again("komp_stb", "0.2", &home)
+    assert_eq(sh("${home}/bin/komp-stb".as_str()) / 256, 9, "bin runs 0.2.0")
+}
+
+@test
+fun a_stored_version_is_not_built_again(): void {
+    val home = installed_at_0_1("komp_stc", "kf_store_home_c")
+    val binary = stored_binary(home.as_str(), "komp_stc", "0.1.0")
+    write_file(binary.as_str(), "#!/bin/sh\nexit 42\n")
+    val _again = install_again("komp_stc", "0.1", &home)
+    assert_eq(sh("${home}/bin/komp-stc".as_str()) / 256, 42, "the stored binary, untouched")
+}
+
+@test
+fun a_pin_picks_its_stored_version_over_the_default(): void {
+    val home = installed_at_0_1("komp_std", "kf_store_home_d")
+    val _done = install_again("komp_std", "0.2", &home)
+    val project = pinning_project("kf_store_proj_d", "komp_std", "0.1", tool_index_url("komp_std").as_str())
+    val pin = project_tool_pin("${project}/src".as_str(), "komp_std") ?: return
+    val chosen = pinned_tool(&pin, "komp_std", test_cache().as_str(), home.as_str())
+    assert_eq(sh(chosen.binary.as_str()) / 256, 7, "0.1.0, though the default is 0.2.0")
+}
+
+@test
+fun a_pin_nothing_stored_meets_installs_it(): void {
+    val index = tool_index("komp_ste", "bin")
+    publish_tool_version("komp_ste", "0.2.0", 9)
+    val home = fresh_home("kf_store_home_e")
+    val project = pinning_project("kf_store_proj_e", "komp_ste", "0.2", index.as_str())
+    val pin = project_tool_pin(project.as_str(), "komp_ste") ?: return
+    val chosen = pinned_tool(&pin, "komp_ste", test_cache().as_str(), home.as_str())
+    val no_default = !exists("${home}/bin/komp-ste".as_str())
+    assert_eq(sh(chosen.binary.as_str()) / 256 == 9 && no_default, true, "0.2.0 stored, no default made")
+}
+
+@test
+fun uninstalling_one_version_keeps_the_other(): void {
+    val home = installed_at_0_1("komp_stf", "kf_store_home_f")
+    val _done = install_again("komp_stf", "0.2", &home)
+    val error = uninstall_package("komp_stf", "0.1.0", home.as_str())
+    assert_eq(error.is_empty() && versions_of(&home, "komp_stf").as_str() == "0.2.0 ", true, "0.2.0, still the default")
+}
+
+@test
+fun uninstalling_the_default_version_removes_the_default(): void {
+    val home = installed_at_0_1("komp_stg", "kf_store_home_g")
+    val _gone = uninstall_package("komp_stg", "0.1.0", home.as_str())
+    assert_eq(exists("${home}/bin/komp-stg".as_str()), false, "no default left pointing nowhere")
+}
+
+@test
+fun a_directory_outside_any_project_has_no_pin(): void {
+    assert_eq(project_tool_pin("/", "komp_fmt").is_none(), true, "nothing pins it")
+}

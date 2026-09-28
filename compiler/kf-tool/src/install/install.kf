@@ -1,25 +1,16 @@
-// Installing a binary package from an index: resolved like a dependency,
-// built from its source, and its binary copied into `bin/` under the install
-// home, where `installed.toml` records it.
+// Installing a program as the default: its version built into the tool
+// store if it is not there yet, `bin/<binary>` under the install home
+// pointing at it, and `installed.toml` recording it.
 
 import alloc.list.*
-import kf_shared.binary_path
 import kf_shared.ensure_dir
-import kf_tool.build.build_project_separate
-import kf_tool.build.default_fetch_policy
-import kf_tool.build.project_is_bin
-import kf_tool.build.sync_sources
-import kf_tool.build.target_dir
 import kf_tool.fetch.LockEntry
 import kf_tool.fetch.empty_lock_entry
-import kf_tool.fetch.fresh_staging
 import kf_tool.fetch.remove_tree
-import kf_tool.fetch.resolve_from_index
-import kf_tool.project.Dependency
+import kf_tool.project.render
 import std.fs.exists
 import std.fs.remove_file
 import std.process.Command
-import kf_tool.fetch.cached_root
 
 /// What an install did: the row it recorded, or `error` saying why nothing
 /// changed.
@@ -33,46 +24,48 @@ fun install_failed(message: String): Installed {
     return Installed { entry: empty_lock_entry(), binary: "", error: message }
 }
 
-/// Installs the highest version of `name` in the index at `index_url` that
-/// `requirement` allows, "" allowing any. The package's own `kf.lock`, when
-/// it ships one, pins its dependencies. A package already installed is
-/// replaced.
+/// Makes the highest version of `name` that `requirement` allows ("" any)
+/// the default, replacing the one before, which stays in the store.
 pub fun install_package(name: str, requirement: str, index_url: str, cache: str, home: str): Installed {
-    val dep = Dependency {
-        name: String.from(name), version: String.from(requirement), index: "", index_url: String.from(index_url),
-        path: "", git: "", rev: "", tag: "", branch: "", tarball: "", checksum: ""
-    }
-    var refreshed = List.new<String>()
-    val fetched = resolve_from_index(&dep, cache, &refreshed)
-    if fetched.error.byte_len() > 0 { return install_failed(fetched.error.clone()) }
-    val source = fetched.entry.cached_root(cache)
-    if !project_is_bin(source.as_str()) {
-        return install_failed("`${name}` is a library, not a program: add it to [dependencies] to use it")
-    }
-    val staging = fresh_staging(cache, "install")
-    if staging.byte_len() == 0 { return install_failed("cannot create a build directory under ${cache}") }
-    val built = build_in(source.as_str(), staging.as_str(), name, cache)
-    if built.byte_len() == 0 {
-        remove_tree(staging.as_str())
-        return install_failed("`${name}` ${fetched.entry.version} did not build")
-    }
+    val stored = store_tool(name, requirement, index_url, cache, home)
+    if stored.error.byte_len() > 0 { return install_failed(stored.error.clone()) }
     val bin = installed_bin_dir(home)
-    val binary = installed_binary_name(name)
-    val destination = "${bin}/${binary}"
-    val copied = ensure_dir(bin.as_str()) && copy_file(built.as_str(), destination.as_str())
-    remove_tree(staging.as_str())
-    if !copied { return install_failed("cannot write ${destination}") }
+    val destination = "${bin}/${installed_binary_name(name)}"
+    if !ensure_dir(bin.as_str()) || !link_default(stored.binary.as_str(), destination.as_str()) {
+        return install_failed("cannot write ${destination}")
+    }
     var tools = installed_tools(home)
     tools.remove_named(name)
-    tools.push(InstalledTool { entry: fetched.entry.clone(), requirement: String.from(requirement) })
+    tools.push(InstalledTool { entry: stored.entry.clone(), requirement: String.from(requirement) })
     if !write_installed(home, &tools) { return install_failed("cannot write ${installed_record(home)}") }
-    return Installed { entry: fetched.entry.clone(), binary: destination, error: "" }
+    return Installed { entry: stored.entry.clone(), binary: destination, error: "" }
 }
 
-/// Removes `name`'s binary and its row; "" on success, else why not.
-pub fun uninstall_package(name: str, home: str): String {
+/// `name` removes every version and the default; `name` with a `version`
+/// removes that one, and the default when it is that one. "" on success,
+/// else why not.
+pub fun uninstall_package(name: str, version: str, home: str): String {
+    if name.is_empty() || name.contains("/") || version.contains("/") || name.starts_with(".") {
+        return "`${name}` is not a package name"
+    }
     var tools = installed_tools(home)
-    if tools.named(name) == null { return "`${name}` is not installed" }
+    var default_version = String.from("")
+    while tool in &tools {
+        if tool.entry.name.as_str() == name { default_version = tool.entry.version.clone() }
+    }
+    val stored = stored_versions(home, name)
+    if version.is_empty() {
+        if default_version.is_empty() && stored.is_empty() { return "`${name}` is not installed" }
+        remove_tree("${home}/tools/${name}".as_str())
+    } else {
+        var found = false
+        while have in &stored {
+            if have.render().as_str() == version { found = true }
+        }
+        if !found { return "`${name}` ${version} is not installed" }
+        remove_tree(tool_dir(home, name, version).as_str())
+        if default_version.as_str() != version { return "" }
+    }
     val binary = "${installed_bin_dir(home)}/${installed_binary_name(name)}"
     if exists(binary.as_str()) && remove_file(binary.as_str()).is_err() { return "cannot remove ${binary}" }
     tools.remove_named(name)
@@ -88,26 +81,12 @@ pub fun installed_packages(home: str): List<LockEntry> {
     return out
 }
 
-/// The package's source, copied into `staging` and built there, so the
-/// cache stays as it was fetched; the built binary's path, or "".
-fun build_in(source: str, staging: str, name: str, cache: str): String {
-    var copy = Command.new("cp")
-    copy.arg("-R")
-    copy.arg(source)
-    copy.arg(staging)
-    if !copy.status().success() { return "" }
-    if sync_sources(staging, &default_fetch_policy(), cache).byte_len() > 0 { return "" }
-    if build_project_separate(staging, "") != 0 { return "" }
-    val built = binary_path(target_dir(staging).as_str(), name)
-    if !exists(built.as_str()) { return "" }
-    return built
-}
-
-/// Copied with its permissions, so the copy runs.
-fun copy_file(from: str, to: str): bool {
-    var copy = Command.new("cp")
-    copy.arg("-p")
-    copy.arg(from)
-    copy.arg(to)
-    return copy.status().success()
+/// `link` made a symbolic link to `target`, replacing what was there: a
+/// link, or the binary an earlier komp copied in.
+fun link_default(target: str, link: str): bool {
+    var command = Command.new("ln")
+    command.arg("-sfn")
+    command.arg(target)
+    command.arg(link)
+    return command.status().success()
 }

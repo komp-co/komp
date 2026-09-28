@@ -62,7 +62,7 @@ fun uninstalling_removes_the_program_and_its_record(): void {
     val index = tool_index("komp_nine", "bin")
     val home = fresh_home("kf_install_home_c")
     val _done = install_package("komp_nine", "", index.as_str(), test_cache().as_str(), home.as_str())
-    val error = uninstall_package("komp_nine", home.as_str())
+    val error = uninstall_package("komp_nine", "", home.as_str())
     assert_eq(error.is_empty() && !exists("${home}/bin/komp-nine".as_str()) &&
             installed_packages(home.as_str()).is_empty(), true, "nothing left")
 }
@@ -70,7 +70,7 @@ fun uninstalling_removes_the_program_and_its_record(): void {
 @test
 fun uninstalling_what_is_not_installed_says_so(): void {
     val home = fresh_home("kf_install_home_d")
-    assert_eq(uninstall_package("komp_never", home.as_str()).as_str(), "`komp_never` is not installed", "no row")
+    assert_eq(uninstall_package("komp_never", "", home.as_str()).as_str(), "`komp_never` is not installed", "no row")
 }
 
 @test

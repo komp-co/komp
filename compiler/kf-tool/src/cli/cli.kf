@@ -137,8 +137,8 @@ pub fun run_cli(): int32 {
     // An installed tool reads its own flags, `--help` among them. A
     // built-in command of the same name wins.
     if nargs >= 1 && !has_help(cli_arg_get(0)) {
-        val tool = installed_command(cli_arg_get(0))
-        if tool.byte_len() > 0 { return run_installed(tool.as_str(), nargs) }
+        val ran = run_tool_command(cli_arg_get(0), nargs)
+        if ran != null { return ran ?: 1 }
     }
     // A help flag before `--` wins, so a half-written command explains itself.
     if wants_help() {

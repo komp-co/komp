@@ -8,6 +8,11 @@ import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
 import kf_tool.install.self_update
 import kf_tool.install.install_package
+import kf_tool.install.pinned_tool
+import kf_tool.install.project_tool_pin
+import kf_tool.install.stored_packages
+import kf_tool.install.stored_versions
+import kf_tool.project.render
 import kf_tool.install.installed_bin_dir
 import kf_tool.install.installed_binary_name
 import kf_tool.install.installed_packages
@@ -63,13 +68,16 @@ pub fun install_command(nargs: int32): int32 {
 
 pub fun uninstall_command(nargs: int32): int32 {
     if nargs != 2 || starts_with_dash(cli_arg_get(1)) { return usage_error("uninstall") }
-    val name = cli_arg_get(1)
-    val error = uninstall_package(name, install_home().as_str())
+    val package = String.from(cli_arg_get(1))
+    val at = package.index_of("@")
+    val name = if at == null { package.clone() } else { package.substring(0, at ?: 0) }
+    val version = if at == null { String.from("") } else { package.substring((at ?: 0) + 1, package.byte_len()) }
+    val error = uninstall_package(name.as_str(), version.as_str(), install_home().as_str())
     if error.byte_len() > 0 {
         runtime_println("error: ${error}")
         return 1
     }
-    runtime_println("uninstalled `${name}`")
+    runtime_println(if version.is_empty() { "uninstalled `${name}`" } else { "uninstalled `${name}` ${version}" })
     return 0
 }
 
@@ -103,13 +111,40 @@ pub fun update_installed_command(nargs: int32): int32 {
     return if failed { 1 } else { 0 }
 }
 
-/// The installed `komp-<command>` that `komp <command>` runs, or "" when
-/// none is installed.
-pub fun installed_command(command: str): String {
-    if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return String.from("") }
-    val path = "${installed_bin_dir(install_home().as_str())}/komp-${command}"
-    if !exists(path.as_str()) { return String.from("") }
-    return path
+/// What `komp <command>` runs: `path` "" when no program answers to it, or
+/// `error` when a pin cannot be met.
+pub struct ToolCommand {
+    pub val path: String
+    pub val error: String
+}
+
+/// The `komp-<command>` that `komp <command>` runs: the version the current
+/// project's `[tools]` pins, installed on first use, else the default.
+pub fun installed_command(command: str): ToolCommand {
+    val none = ToolCommand { path: "", error: "" }
+    if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return none }
+    val home = install_home()
+    val package = "komp_${command.replace("-", "_")}"
+    val pinned = project_tool_pin(".", package.as_str())
+    if pinned != null {
+        val pin = pinned ?: return none
+        val chosen = pinned_tool(&pin, package.as_str(), cache_root().as_str(), home.as_str())
+        return ToolCommand { path: chosen.binary.clone(), error: chosen.error.clone() }
+    }
+    val path = "${installed_bin_dir(home.as_str())}/komp-${command}"
+    return if exists(path.as_str()) { ToolCommand { path: path, error: "" } } else { none }
+}
+
+/// `komp <command>` run as a program's: its exit status, or null when no
+/// program answers to `command`.
+pub fun run_tool_command(command: str, nargs: int32): int32? {
+    val tool = installed_command(command)
+    if tool.error.byte_len() > 0 {
+        runtime_println("error: ${tool.error}")
+        return Option.Some(1)
+    }
+    if tool.path.is_empty() { return null }
+    return Option.Some(run_installed(tool.path.as_str(), nargs))
 }
 
 /// Runs `path` with every argument after the command; its exit status.
@@ -123,17 +158,44 @@ pub fun run_installed(path: str, nargs: int32): int32 {
     return command.status().exit_code()
 }
 
+/// Each default, and every version in the store beside it.
 fun list_installed(home: str): int32 {
     val rows = installed_packages(home)
-    if rows.is_empty() {
+    val stored = stored_packages(home)
+    if rows.is_empty() && stored.is_empty() {
         runtime_println("nothing is installed")
         return 0
     }
     val bin = installed_bin_dir(home)
     while row in &rows {
-        runtime_println("${row.name} ${row.version}  ${bin}/${installed_binary_name(row.name.as_str())}")
+        val others = other_versions(home, row.name.as_str(), row.version.as_str())
+        val binary = "${bin}/${installed_binary_name(row.name.as_str())}"
+        val also = if others.is_empty() { String.from("") } else { "; also ${others}" }
+        runtime_println("${row.name} ${row.version}  ${binary}${also}")
+    }
+    while package in &stored {
+        var has_default = false
+        while row in &rows {
+            if row.name.as_str() == package.as_str() { has_default = true }
+        }
+        if !has_default {
+            runtime_println("${package}  ${other_versions(home, package.as_str(), "")}, for the projects that pin it")
+        }
     }
     return 0
+}
+
+/// "0.1.4, 0.1.5": the stored versions other than `except`.
+fun other_versions(home: str, package: str, except: str): String {
+    var out = ""
+    val versions = stored_versions(home, package)
+    while version in &versions {
+        val shown = version.render()
+        if shown.as_str() == except { continue }
+        if out.byte_len() > 0 { out.append(", ") }
+        out.append(shown.as_str())
+    }
+    return out
 }
 
 fun on_path(dir: str): bool {

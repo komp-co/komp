@@ -304,6 +304,24 @@ A `KFLATC` older than that is refused the same way, by name.
 In a workspace, `kflat` goes in `[workspace]` and pins every member; a
 member's own is not read. `KFLATC`, when set, wins over any pin.
 
+## Pinning tools
+
+`[tools]` pins the programs a project runs through komp, such as the
+formatter, written as dependencies are:
+
+```toml
+[tools]
+komp_fmt = "0.1"
+komp_doc = { version = "0.3", index = "work" }
+```
+
+Inside the project, `komp fmt` runs the highest version of `komp_fmt` that
+`"0.1"` allows among those installed, and installs one the first time none
+does; elsewhere it runs the default [`komp install`](../tools/cli.md#komp-install)
+made. Versions sit side by side in `~/.kflat/tools`, each built once, so a
+project on 0.1 and a default of 0.2 each run their own. In a workspace,
+`[tools]` goes in the root `kf.toml` and pins every member.
+
 ## Native C sources
 
 If a crate ships C alongside KFlat, list the sources under `[native]`:

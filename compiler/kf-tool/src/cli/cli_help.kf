@@ -14,7 +14,7 @@ pub fun command_usage(command: str): str {
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
-        "uninstall" => "komp uninstall <name>"
+        "uninstall" => "komp uninstall <name>[@<version>]"
         "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
         "search" => "komp search [<query>] [--index <url>]"
         "info" => "komp info <name> [--index <url>]"
@@ -76,15 +76,18 @@ kf.toml's [lint] table, then these flags.
   --dry-run           print what would change and write nothing
   -p, --package <c>   fix this workspace member
   --workspace         fix every workspace member"""
-        "install" => """Build a program from a package index and put it in ~/.kflat/bin
-($KFLAT_HOME/bin when set), replacing any earlier install of it. With no
-package, list what is installed. `komp <command>` runs an installed
-komp-<command>, so installing komp_fmt gives `komp fmt`.
+        "install" => """Build a program from a package index into ~/.kflat/tools, unless that
+version is there already, and make it the default in ~/.kflat/bin
+($KFLAT_HOME when set); earlier versions stay, for projects that pin them.
+With no package, list what is installed. `komp <command>` runs
+komp-<command>, the version the project's [tools] pins or the default, so
+installing komp_fmt gives `komp fmt`.
 
   <name>@<req>      the highest version the requirement allows, as in kf.toml;
                     without one, the highest published
   --index <url>     the index to look in, instead of the default"""
-        "uninstall" => """Remove a program `komp install` put in ~/.kflat/bin, and its record."""
+        "uninstall" => """Remove a program komp installed: every version, and the default in
+~/.kflat/bin; with @<version>, that version only."""
         "add" => """Add a library from a package index to the project's [dependencies],
 replacing an entry of that name, then fetch it and update kf.lock. Without a
 requirement, the newest version is written, which allows its compatible

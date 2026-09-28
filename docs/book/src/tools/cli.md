@@ -20,7 +20,7 @@ points, and then compiles and links the C with cc.
 | `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
 | `komp add <name>[@<req>]` | Add a library from a package index to `[dependencies]` |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
-| `komp uninstall <name>` | Remove an installed program |
+| `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
 | `komp <command>` | Run the installed `komp-<command>` |
@@ -243,38 +243,43 @@ error: `komp_fmt` is a program, not a library: `komp install komp_fmt` installs 
 
 ### komp install
 
-`komp install <name>` builds a program published to a package index and puts
-its binary in `~/.kflat/bin`, or in `bin/` under `$KFLAT_HOME` when that is
-set. The package is resolved as a dependency would be: `<name>@0.2` takes the
-highest version `0.2` allows, as the same requirement in `kf.toml` would, and
-a bare name the highest version published. `--index <url>` looks in another
-index than the default. A package that ships a `kf.lock` is built with the
-dependencies it pins.
+`komp install <name>` builds a program published to a package index and makes
+it the default: `~/.kflat/bin/<binary>` points at it, or `bin/` under
+`$KFLAT_HOME` when that is set. The package is resolved as a dependency would
+be: `<name>@0.2` takes the highest version `0.2` allows, as the same
+requirement in `kf.toml` would, and a bare name the highest version published.
+`--index <url>` looks in another index than the default. A package that ships
+a `kf.lock` is built with the dependencies it pins.
 
 ```console
 $ komp install komp_fmt
-installed `komp_fmt` 0.1.0 as /home/me/.kflat/bin/komp-fmt
+installed `komp_fmt` 0.2.0 as /home/me/.kflat/bin/komp-fmt
 $ komp install
-komp_fmt 0.1.0  /home/me/.kflat/bin/komp-fmt
-$ komp uninstall komp_fmt
-uninstalled `komp_fmt`
+komp_fmt 0.2.0  /home/me/.kflat/bin/komp-fmt; also 0.1.0
+$ komp uninstall komp_fmt@0.1.0
+uninstalled `komp_fmt` 0.1.0
 ```
 
-A binary is named after its package with `_` spelled `-`. Installing a
-package again replaces it, at whatever version it now resolves to. Only a
-`kind = "bin"` package installs; a library is a dependency, and belongs in
-`[dependencies]`. Each install is recorded in `installed.toml` beside
-`bin/`, in `kf.lock`'s format with the requirement it was installed with
-added, so the exact source of every program is known and
-[`komp update --installed`](#komp-update) can resolve it again; `komp
-install` with no package lists it, and `komp uninstall` removes a program and
-its row.
+Every version komp builds goes in `~/.kflat/tools/<package>/<version>`, once:
+a version already there is not built again, and installing another version
+makes it the default while the earlier one stays, for the projects that
+[pin](../start/projects.md#pinning-tools) it. `komp install` with no package
+lists each default and the other versions beside it. `komp uninstall
+<name>@<version>` removes one version, and `komp uninstall <name>` every one
+and the default.
 
-`komp <command>`, for a command komp does not have, runs an installed
-`komp-<command>` with the arguments that follow it and exits with its status.
-Installing `komp_fmt` is what makes `komp fmt` work, whether or not
-`~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
-one of the same name.
+A binary is named after its package with `_` spelled `-`. Only a
+`kind = "bin"` package installs; a library is a dependency, and belongs in
+`[dependencies]`. Each default is recorded in `installed.toml` beside `bin/`,
+in `kf.lock`'s format with the requirement it was installed with added, so
+the exact source of every program is known and
+[`komp update --installed`](#komp-update) can resolve it again.
+
+`komp <command>`, for a command komp does not have, runs `komp-<command>`
+with the arguments that follow it and exits with its status: the version the
+current project's `[tools]` pins, else the default. Installing `komp_fmt` is
+what makes `komp fmt` work, whether or not `~/.kflat/bin` is on `PATH`. A
+built-in command always wins over an installed one of the same name.
 
 ### komp search and komp info
 
