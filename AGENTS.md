@@ -77,6 +77,11 @@ no single-file mode.
   `Box<T>`, borrow with `&T` or `&var T`, and call the library rather than
   declaring an `extern`; bless a block that must stay with `--update` and say
   why in the commit.
+- **Lints are errors in CI.** The sweep runs `komp lint --deny-warnings` on
+  every crate. Fix what it reports; when a finding must stay, put
+  `@allow(<lint>)` on the declaration and say why in the commit. The seed
+  refuses an `@allow` naming a lint it predates, so for a lint newer than
+  `bootstrap/stage0.toml`'s release, set it in the crate's `lint.toml`.
 - **Output is deterministic.** The fixpoint is a byte comparison, so nothing
   whose order depends on hashing or addresses may reach emitted C or a `.kfi`.
 - **Replace, don't accrete.** No `parse_expr_v2` beside `parse_expr`, no

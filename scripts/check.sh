@@ -1084,10 +1084,10 @@ notests=""
 # Run, then report: runs may fan out while the per-crate lines stay in crate
 # order. Each run records its status beside its log.
 #
-# Each crate is also checked for import hygiene, the only place the import
-# lints are enforced; `-D` makes them errors. After the crate's test, so a warm
-# check loads the interfaces it wrote; per crate, since the unity project
-# resolves names without their imports.
+# Each crate is also linted with every warning an error: `komp lint
+# --deny-warnings`, at the levels lint.toml and the lints' defaults give. After
+# the crate's test, so a warm check loads the interfaces it wrote; per crate,
+# since the unity project resolves names without their imports.
 #
 # A stable scratch root per crate, so ccache sees the same `-I` and `-c`
 # paths every run. The checkout and the crate are in the name, keeping a
@@ -1171,7 +1171,7 @@ rc=0
 KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
 echo "$rc" > "$log.rc"
 lrc=0
-KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" check -D unused_import -D wildcard_import "$c" > "$log.lint" 2>&1 || lrc=$?
+KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" lint --deny-warnings "$c" > "$log.lint" 2>&1 || lrc=$?
 echo "$lrc" > "$log.lint.rc"
 echo "$(( $(date +%s) - t0 ))" > "$log.secs"
 SWEEP_ONE
@@ -1241,23 +1241,23 @@ if [ -n "$lintfailed" ] && [ -z "$failed" ]; then
     for c in $lintfailed; do
         lintlog="$WORK/$(echo "$c" | tr / _).log.lint"
         echo ""
-        if grep -qE "error: (unused|wildcard) import" "$lintlog"; then
-            echo "--- $c: import hygiene ---"
-            grep -E "error: (unused|wildcard) import" "$lintlog" | head -20 | sed 's/^/       /'
+        if grep -qE "^lint: " "$lintlog"; then
+            echo "--- $c: lints ---"
+            grep -E "error: |^lint: |^  [a-z_]+ +[0-9]+$" "$lintlog" | head -30 | sed 's/^/       /'
         else
-            echo "--- $c: \`komp check\` failed, and not on an import ---"
+            echo "--- $c: \`komp lint\` failed before it could lint ---"
             tail -20 "$lintlog" | sed 's/^/       /'
             other="$other $c"
         fi
     done
     echo ""
     if [ -n "$other" ]; then
-        echo "FAIL: \`komp check\` failed for:$other" >&2
+        echo "FAIL: \`komp lint\` failed for:$other" >&2
         exit 1
     fi
-    echo "FAIL: imports need naming or deleting in:$lintfailed" >&2
-    echo "      \`komp check\` names each one and carries the repair; the lint" >&2
-    echo "      is \`wildcard_import\` / \`unused_import\`." >&2
+    echo "FAIL: lints to fix in:$lintfailed" >&2
+    echo "      \`komp lint <crate>\` names each one, and \`komp fix\` carries the repairs" >&2
+    echo "      it can; \`@allow(<lint>)\` on the declaration keeps one on purpose." >&2
     exit 1
 fi
 
