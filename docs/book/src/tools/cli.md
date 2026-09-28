@@ -23,6 +23,7 @@ points, and then compiles and links the C with cc.
 | `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
+| `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
@@ -305,6 +306,33 @@ JSON reading and writing
 
 A package's description is the one `komp publish` took from its `kf.toml`;
 a package published without one shows none.
+
+### komp cache
+
+Fetched sources live in komp's cache, `$KFLAT_CACHE` or else
+`~/.cache/kflat`: each under `git/<commit>` or `tarball/<sha256>`, never
+changed once written, with the package index checkouts under `index/`.
+
+```console
+$ komp cache list
+json 0.2.0  git 44a09fc77681  /home/me/.cache/kflat/git/44a09fc776814a7aa1871619f1c1b5786a9d5b43
+index  /home/me/.cache/kflat/index/github.com_komp-co_index
+$ komp cache verify
+ok       json 0.2.0 (git 44a09fc77681)
+1 checked, 0 damaged
+```
+
+When komp fetches a source it records a digest of its files beside it.
+`komp cache verify` hashes each source again: one that no longer matches is
+reported, removed and fetched again by the next command that needs it, and
+the exit status is 1. A source fetched before digests were kept has its
+digest recorded the first time it is verified.
+
+`komp cache remove <name>[@<version>]` removes the sources of that package,
+or of that one version; `komp cache clean` removes everything komp
+downloaded, and keeps the bootstrap seeds that `bootstrap/build.sh` stores
+in the same directory. Nothing is lost either way: a build fetches what its
+`kf.lock` pins again.
 
 ### komp self update
 

@@ -41,9 +41,11 @@ pub fun fetch_tarball(dep: &Dependency, pinned_checksum: str, cache: str): Fetch
             remove_tree(staged.as_str())
             return fetch_failed("${dep.tarball} does not unpack to a crate: no kf.toml at its root or one level down")
         }
+        val digest = tree_digest(unpacked.as_str())
         val published = publish_fetched(unpacked.as_str(), root.as_str())
         remove_tree(staged.as_str())
         if !published { return fetch_failed("cannot write ${root}") }
+        val _recorded = write_digest(root.as_str(), digest.as_str())
     } else {
         remove_tree(archive.as_str())
     }

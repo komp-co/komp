@@ -352,6 +352,7 @@ pub fun run_cli(): int32 {
         "install" => return install_command(nargs)
         "add" => return add_command(nargs)
         "search" => return search_command(nargs)
+        "cache" => return cache_command(nargs)
         "info" => return info_command(nargs)
         "uninstall" => return uninstall_command(nargs)
         "self" => return self_command(nargs)

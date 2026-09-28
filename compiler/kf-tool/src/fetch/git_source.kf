@@ -45,7 +45,9 @@ pub fun fetch_git(dep: &Dependency, pinned_rev: str, cache: str): Fetched {
         return fetch_failed("`git checkout ${rev}` failed in a clone of ${dep.git}")
     }
     remove_tree("${staged}/.git".as_str())
+    val digest = tree_digest(staged.as_str())
     if !publish_fetched(staged.as_str(), root.as_str()) { return fetch_failed("cannot write ${root}") }
+    val _recorded = write_digest(root.as_str(), digest.as_str())
     return git_entry(dep, root.as_str(), rev)
 }
 

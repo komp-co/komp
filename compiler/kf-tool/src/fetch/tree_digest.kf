@@ -1,0 +1,46 @@
+// A digest of a directory's contents, recorded beside each fetched source as
+// `<root>.sum` so that `komp cache verify` can tell a damaged copy.
+
+import alloc.path.Path
+import std.fs.exists
+import std.fs.write_text
+import std.process.Command
+
+/// The sha256 over every file's relative path and contents, in path order;
+/// "" when it cannot be computed.
+pub fun tree_digest(dir: str): String {
+    val out = "${dir}.digest"
+    // `sha256sum`, else `shasum -a 256`: whichever the host has.
+    val script = String.from("h() { if command -v sha256sum >/dev/null 2>&1; then sha256sum; ") +
+        "else shasum -a 256; fi; }; " +
+        "cd \"$KOMP_TREE\" && find . -type f | LC_ALL=C sort | " +
+        "while IFS= read -r f; do printf '%s\\n' \"$f\"; h < \"$f\"; done | h"
+    var command = Command.new("sh")
+    command.arg("-c")
+    command.arg(script.as_str())
+    command.env("KOMP_TREE", dir)
+    command.stdout_to(Path.new(out.as_str()))
+    val ok = command.status().success()
+    val text = read_file(out.as_str())
+    remove_tree(out.as_str())
+    if !ok { return "" }
+    return first_word(text.as_str())
+}
+
+pub fun digest_record(root: str): String {
+    return "${root}.sum"
+}
+
+/// Records `digest` as `root`'s, taken before it was published; false when
+/// there is none to record or it cannot be written.
+pub fun write_digest(root: str, digest: str): bool {
+    if digest.is_empty() { return false }
+    return write_text(digest_record(root).as_str(), "${digest}\n".as_str()).is_ok()
+}
+
+/// The digest recorded for `root`, or "" when none was.
+pub fun recorded_digest(root: str): String {
+    val record = digest_record(root)
+    if !exists(record.as_str()) { return "" }
+    return first_word(read_file(record.as_str()).as_str())
+}

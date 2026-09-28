@@ -17,6 +17,7 @@ pub fun command_usage(command: str): str {
         "uninstall" => "komp uninstall <name>[@<version>]"
         "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
         "search" => "komp search [<query>] [--index <url>]"
+        "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
         "info" => "komp info <name> [--index <url>]"
         "self" => "komp self update [<version>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
@@ -97,6 +98,14 @@ successors. A program is refused: `komp install` installs one.
   --index <name>      an index kf.toml declares under [indexes]
   -p, --package <c>   add it to this workspace member
   --manifest-path <p> the project's kf.toml, or its directory"""
+        "cache" => """Look after the sources komp downloads, in $KFLAT_CACHE or ~/.cache/kflat.
+
+  list                       every fetched source and index checkout
+  remove <name>[@<version>]  those sources; the next build fetches them again
+  clean                      everything downloaded; the bootstrap seeds stay
+  verify                     each source against the digest taken when it was
+                             fetched; a damaged one is removed, to be fetched
+                             again, and the exit status is 1"""
         "search" => """List the packages a package index offers whose names contain <query>,
 each with its newest version; with no query, every package.
 
@@ -169,6 +178,7 @@ pub fun print_usage(): void {
     runtime_println("  install   build a program from a package index into ~/.kflat/bin")
     runtime_println("  uninstall remove an installed program")
     runtime_println("  search    list the packages an index offers")
+    runtime_println("  cache     list, remove, clean or verify downloaded sources")
     runtime_println("  info      list a package's versions in an index")
     runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
