@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/komp-co/kf-extensions/main/brand/kiwi.svg" width="96" alt="The KFlat paper kiwi">
+
 # Introduction
 
 KFlat is a systems programming language that compiles to C. It is
