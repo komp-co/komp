@@ -1,0 +1,56 @@
+// `komp outdated` over `catalog_index`: komp_alpha (0.1.0, 0.2.0, and 0.2.1
+// yanked) and komp_beta 1.0.0. The report reads the index and kf.lock only,
+// so nothing is fetched or built.
+
+import core.assert.assert_eq
+import kf_tool.build.Outdated
+import kf_tool.build.outdated
+
+/// A project taking komp_alpha "0.1", locked at 0.1.0, and a package from an
+/// index [indexes] does not declare; its [tools] pins komp_beta "1".
+fun outdated_project(name: str, index: str): String {
+    val dir = dir_of(name)
+    sh("rm -rf ${dir} && mkdir -p ${dir}/src".as_str())
+    var manifest = String.from("[project]\nname = \"app\"\nkind = \"bin\"\n\n[indexes]\n")
+    manifest.append("scratch = \"${index}\"\n\n[dependencies]\n".as_str())
+    manifest.append("komp_alpha = { version = \"0.1\", index = \"scratch\" }\n")
+    manifest.append("lost = { version = \"1\", index = \"elsewhere\" }\n\n[tools]\n")
+    manifest.append("komp_beta = { version = \"1\", index = \"scratch\" }\n")
+    write_file("${dir}/kf.toml".as_str(), manifest.as_str())
+    var lock = String.from("schema = 1\n\n[[package]]\nname = \"komp_alpha\"\nversion = \"0.1.0\"\n")
+    lock.append("source = { git = \"file:///nowhere\", rev = \"0000000000000000000000000000000000000000\" }\n")
+    write_file("${dir}/kf.lock".as_str(), lock.as_str())
+    return dir
+}
+
+fun report(name: str): Outdated {
+    val index = catalog_index("${name}_index".as_str())
+    return outdated(outdated_project(name, index.as_str()).as_str(), test_cache().as_str(), false)
+}
+
+@test
+fun a_dependency_shows_what_kf_lock_holds(): void {
+    assert_eq(report("kf_outdated_a").dependencies[0].locked.as_str(), "0.1.0", "komp_alpha as locked")
+}
+
+@test
+fun a_dependency_shows_the_newest_its_requirement_allows(): void {
+    assert_eq(report("kf_outdated_b").dependencies[0].allowed.as_str(), "0.1.0", "\"0.1\" allows no 0.2")
+}
+
+@test
+fun a_dependency_shows_the_newest_not_yanked(): void {
+    assert_eq(report("kf_outdated_c").dependencies[0].newest.as_str(), "0.2.0", "0.2.1 is yanked")
+}
+
+@test
+fun an_undeclared_index_is_an_error_on_its_row(): void {
+    assert_eq(report("kf_outdated_d").dependencies[1].error.contains("`elsewhere`"), true, "names the index")
+}
+
+@test
+fun a_tool_pin_is_reported_unlocked(): void {
+    val found = report("kf_outdated_e")
+    val shown = "${found.tools[0].name} ${found.tools[0].allowed} [${found.tools[0].locked}]"
+    assert_eq(shown.as_str(), "komp_beta 1.0.0 []", "tools are never locked")
+}

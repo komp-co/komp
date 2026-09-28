@@ -1,0 +1,20 @@
+// kf.toml's `[tools]`: the programs a project pins, one row per package
+// written as a dependency would be.
+
+import alloc.list.*
+
+/// Every `[tools]` row in `src`, in file order.
+pub fun tools_rows(src: str): List<Dependency> {
+    var out = List.new<Dependency>()
+    var in_tools = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = item.as_str().trim()
+        if line.starts_with("[") {
+            in_tools = line.as_str() == "[tools]"
+        } else if in_tools && !line.is_empty() && !line.starts_with("#") {
+            out.push(parse_dependency(read_key(String.from(line.as_str())), line.as_str()))
+        }
+    }
+    return out
+}

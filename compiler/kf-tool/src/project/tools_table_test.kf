@@ -1,0 +1,30 @@
+import core.assert.assert_eq
+
+fun manifest(): str {
+    return """[project]
+name = "app"
+
+[tools]
+# pins
+komp_fmt = "0.1"
+komp_doc = { version = "0.3", index = "work" }
+
+[dependencies]
+json = "0.2"
+"""
+}
+
+@test
+fun every_tools_row_is_read(): void {
+    assert_eq(tools_rows(manifest()).size(), 2, "two pins; the comment and [dependencies] are not rows")
+}
+
+@test
+fun a_tools_row_keeps_its_requirement(): void {
+    assert_eq(tools_rows(manifest())[0].version.as_str(), "0.1", "komp_fmt's requirement")
+}
+
+@test
+fun a_tools_row_keeps_its_index(): void {
+    assert_eq(tools_rows(manifest())[1].index.as_str(), "work", "komp_doc's named index")
+}

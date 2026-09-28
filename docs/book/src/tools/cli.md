@@ -23,6 +23,7 @@ points, and then compiles and links the C with cc.
 | `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
+| `komp outdated [<dir>]` | Compare a project's index packages and tools with their newest versions |
 | `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
@@ -313,6 +314,28 @@ JSON reading and writing
 A package's description is the one `komp publish` took from its `kf.toml`;
 a package published without one shows none.
 
+### komp outdated
+
+`komp outdated [<project-dir>]` lists every dependency the project takes
+from a package index, and every program its [`[tools]`](../start/projects.md#pinning-tools)
+table pins. Each row shows its requirement, the version `kf.lock` holds, the
+newest version the requirement allows, and the newest version the index has
+that is not yanked. A dependency by path, git or tarball has no index to ask,
+so it is not listed. A tool is never locked.
+
+```console
+$ komp outdated
+dependencies
+  json  0.1        locked 0.1.0     allowed 0.1.0     newest 0.2.0
+tools
+  komp_fmt  0.1        locked -         allowed 0.1.0     newest 0.1.0
+```
+
+Here `json = "0.1"` holds the project to 0.1.x while 0.2.0 exists; changing
+the requirement to `"0.2"` and running `komp update` moves to it. Each index
+is brought up to date once per run; `--offline` reads each as the cache has
+it, and a package whose index was never fetched reports that on its row.
+
 ### komp cache
 
 Fetched sources live in komp's cache, `$KFLAT_CACHE` or else
@@ -350,6 +373,7 @@ line, for editors and scripts; a failure prints `{"error": "..."}` and exits
 |---|---|
 | `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
 | `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp outdated` | `{"project", "dependencies": [{"name", "requirement", "index", "locked", "allowed", "newest", "error"}], "tools"}`, each tool a row of the same shape |
 | `komp lint --list` | `{"groups", "lints": [{"name", "group", "level", "default", "description", "options": [{"key", "value", "default", "description"}]}]}` |
 | `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
 | `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |

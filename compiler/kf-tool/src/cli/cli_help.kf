@@ -19,6 +19,7 @@ pub fun command_usage(command: str): str {
         "search" => "komp search [<query>] [--index <url>]"
         "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
         "info" => "komp info <name> [--index <url>]"
+        "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
         "self" => "komp self update [<version>] | list | uninstall <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
@@ -115,6 +116,13 @@ each with its newest version; with no query, every package.
 and any yanked.
 
   --index <url>     the index to look in, instead of the default"""
+        "outdated" => """List the project's index dependencies and [tools] pins, each with its
+requirement, the version kf.lock holds, the newest version the requirement
+allows, and the newest version in its index.
+
+  --offline         read each index as the cache has it, not bringing it up
+                    to date first
+  --format=json     one JSON object"""
         "self" => """Install the newest komp release, or the version named, from its
 release archive, checked against the sha256 published beside it. It goes in
 ~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
@@ -185,6 +193,7 @@ pub fun print_usage(): void {
     runtime_println("  search    list the packages an index offers")
     runtime_println("  cache     list, remove, clean or verify downloaded sources")
     runtime_println("  info      list a package's versions in an index")
+    runtime_println("  outdated  compare a project's packages with their newest versions")
     runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")

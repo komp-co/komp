@@ -6,8 +6,6 @@
 //                                      compile one whole-program C file
 //   komp run <project-dir>             build artifacts and run
 //   komp check <project-dir>           type-check only
-//   komp check --diagnostic-format=json <project-dir>
-//                                      type-check with JSON diagnostics
 //   komp fix [--dry-run] <project-dir>
 //                                      write the machine-applicable repairs
 //   komp test <project-dir>            run @test functions from artifacts
@@ -354,6 +352,7 @@ pub fun run_cli(): int32 {
         "search" => return search_command(nargs)
         "cache" => return cache_command(nargs)
         "info" => return info_command(nargs)
+        "outdated" => return outdated_command(nargs)
         "uninstall" => return uninstall_command(nargs)
         "self" => return self_command(nargs)
         _ => { }

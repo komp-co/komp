@@ -17,7 +17,12 @@ pub struct IndexPackage {
 impl IndexPackage {
     /// The highest version not yanked, or "" when every one is.
     pub fun newest(): String {
-        return self.versions.highest_allowed("")?.version ?: String.from("")
+        return self.newest_allowed("")
+    }
+
+    /// The highest version not yanked that `requirement` allows, or "".
+    pub fun newest_allowed(requirement: str): String {
+        return self.versions.highest_allowed(requirement)?.version ?: String.from("")
     }
 }
 
@@ -58,8 +63,18 @@ pub fun search_index(url: str, query: str, cache: str): IndexQuery {
 /// The package `name` in the index at `url`, or `error` when it lists none.
 pub fun index_package(url: str, name: str, cache: str): IndexQuery {
     var refreshed = List.new<String>()
-    val checkout = index_checkout(url, cache, &refreshed)
+    return index_package_in(url, name, cache, &var refreshed)
+}
+
+/// As `index_package`, bringing the index up to date only when `refreshed`
+/// does not list `url` yet, so many lookups pull it once. A url listed in
+/// `refreshed` beforehand is read as the cache has it.
+pub fun index_package_in(url: str, name: str, cache: str, refreshed: &var List<String>): IndexQuery {
+    val checkout = index_checkout(url, cache, refreshed)
     if checkout.error.byte_len() > 0 { return query_failed(checkout.error.clone()) }
+    if !is_directory(checkout.dir.as_str()) {
+        return query_failed("the index ${url} is not in the cache yet; run once without --offline")
+    }
     val file = "${checkout.dir}/${index_file_path(name)}"
     if !is_file(file.as_str()) { return query_failed("the index ${url} has no package `${name}`") }
     var packages = List.new<IndexPackage>()

@@ -11,11 +11,10 @@ import kf_tool.fetch.empty_lock_entry
 import kf_tool.project.discover_manifest_root
 import kf_tool.project.enclosing_workspace
 import kf_tool.project.declared_index_url
-import kf_tool.project.parse_dependency
+import kf_tool.project.Dependency
+import kf_tool.project.tools_rows
 import kf_tool.project.parse_requirement
-import kf_tool.project.read_key
 import kf_tool.project.render
-import kf_tool.project.split_lines
 import std.fs.exists
 import std.io.eprintln
 
@@ -35,19 +34,25 @@ pub fun project_tool_pin(dir: str, package: str): ToolPin? {
     val manifest = join_path(if workspace.is_empty() { root.as_str() } else { workspace.as_str() }, "kf.toml")
     if !exists(manifest.as_str()) { return null }
     val src = read_file(manifest.as_str())
-    val row = tools_row(src.as_str(), package)
-    if row.is_empty() { return null }
-    val dep = parse_dependency(String.from(package), row.as_str())
+    val rows = tools_rows(src.as_str())
+    while dep in &rows {
+        if dep.name.as_str() == package { return Option.Some(pin_of(dep, src.as_str(), package)) }
+    }
+    return null
+}
+
+/// The pin `dep`, a `[tools]` row of the manifest `src`, puts on `package`.
+fun pin_of(dep: &Dependency, src: str, package: str): ToolPin {
     if parse_requirement(dep.version.as_str()) == null {
         val error = "kf.toml's [tools] gives `${package}` no version"
-        return Option.Some(ToolPin { requirement: "", index_url: "", error: error })
+        return ToolPin { requirement: "", index_url: "", error: error }
     }
-    val url = declared_index_url(src.as_str(), dep.index.as_str())
+    val url = declared_index_url(src, dep.index.as_str())
     if url.is_empty() {
         val error = "kf.toml's [tools] names index `${dep.index}` for `${package}`, which [indexes] does not declare"
-        return Option.Some(ToolPin { requirement: "", index_url: "", error: error })
+        return ToolPin { requirement: "", index_url: "", error: error }
     }
-    return Option.Some(ToolPin { requirement: dep.version.clone(), index_url: url, error: "" })
+    return ToolPin { requirement: dep.version.clone(), index_url: url, error: "" }
 }
 
 /// The stored binary `pin` picks: the highest version it allows, installed
@@ -70,19 +75,4 @@ pub fun pinned_tool(pin: &ToolPin, package: str, cache: str, home: str): StoredT
 
 fun pinned_tool_failed(error: str): StoredTool {
     return StoredTool { entry: empty_lock_entry(), binary: "", error: String.from(error) }
-}
-
-/// `[tools]`'s whole row for `package`, or "".
-fun tools_row(src: str, package: str): String {
-    var in_tools = false
-    val lines = split_lines(src)
-    while item in &lines {
-        val line = item.as_str().trim()
-        if line.starts_with("[") {
-            in_tools = line.as_str() == "[tools]"
-        } else if in_tools && read_key(String.from(line.as_str())).as_str() == package {
-            return line
-        }
-    }
-    return ""
 }
