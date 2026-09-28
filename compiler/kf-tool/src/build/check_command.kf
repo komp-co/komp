@@ -9,8 +9,6 @@ import kf_shared.ensure_dir
 import kf_shared.render_json_error
 import std.fs.exists
 
-
-
 /// Returns 0 when the project checks clean. `as_json` prints diagnostics as
 /// newline-delimited JSON.
 pub fun check_project_with_kflatc(root_dir: str, as_json: bool): int32 {

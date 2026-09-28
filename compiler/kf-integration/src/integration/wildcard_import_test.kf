@@ -11,7 +11,6 @@ import kf_driver.build.fresh_diag_list
 import kf_integration.harness.assemble_project
 import std.fs.scratch_root
 
-
 extern "C" fun system(cmd: str): int32
 
 /// A dependency crate exporting four functions and a type, and an app whose

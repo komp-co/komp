@@ -13,29 +13,29 @@ pub enum DeriveExpander {
 }
 
 pub struct DeriveInfo {
-    pub val name:       String
-    pub val struct_ok:  bool
-    pub val enum_ok:    bool
-    pub val expander:   DeriveExpander
+    pub val name: String
+    pub val struct_ok: bool
+    pub val enum_ok: bool
+    pub val expander: DeriveExpander
     /// The key the synthesized impl names: `@derive(Equal)` writes
     /// `impl <lang("equal")> for X`.
-    pub val lang_key:   String
+    pub val lang_key: String
 }
 
 /// Adding one is an entry here plus a case in kf-typecheck's
 /// `expand_one_derive`.
 pub fun derive_registry(): List<DeriveInfo> {
     var out = List.new<DeriveInfo>()
-    out.push(DeriveInfo { name: String.from("Default"), struct_ok: true,  enum_ok: false,
-                          expander: DeriveExpander.Default, lang_key: String.from(lang_default_key()) })
-    out.push(DeriveInfo { name: String.from("Equal"),   struct_ok: true,  enum_ok: true,
-                          expander: DeriveExpander.Equal,   lang_key: String.from(lang_equal_key()) })
-    out.push(DeriveInfo { name: String.from("Clone"),   struct_ok: true,  enum_ok: true,
-                          expander: DeriveExpander.Clone,   lang_key: String.from(lang_clone_key()) })
-    out.push(DeriveInfo { name: String.from("Copy"),    struct_ok: true,  enum_ok: true,
-                          expander: DeriveExpander.Copy,    lang_key: String.from(lang_copy_key()) })
-    out.push(DeriveInfo { name: String.from("Hash"),    struct_ok: true,  enum_ok: false,
-                          expander: DeriveExpander.Hash,    lang_key: String.from(lang_hash_key()) })
+    out.push(DeriveInfo { name: String.from("Default"), struct_ok: true, enum_ok: false,
+        expander: DeriveExpander.Default, lang_key: String.from(lang_default_key()) })
+    out.push(DeriveInfo { name: String.from("Equal"), struct_ok: true, enum_ok: true,
+        expander: DeriveExpander.Equal, lang_key: String.from(lang_equal_key()) })
+    out.push(DeriveInfo { name: String.from("Clone"), struct_ok: true, enum_ok: true,
+        expander: DeriveExpander.Clone, lang_key: String.from(lang_clone_key()) })
+    out.push(DeriveInfo { name: String.from("Copy"), struct_ok: true, enum_ok: true,
+        expander: DeriveExpander.Copy, lang_key: String.from(lang_copy_key()) })
+    out.push(DeriveInfo { name: String.from("Hash"), struct_ok: true, enum_ok: false,
+        expander: DeriveExpander.Hash, lang_key: String.from(lang_hash_key()) })
     return out
 }
 
@@ -46,7 +46,7 @@ pub fun lookup_derive(name: str): DeriveInfo {
         if d.name.as_str().equals(name) { return d.clone() }
     }
     return DeriveInfo { name: "", struct_ok: false, enum_ok: false,
-                        expander: DeriveExpander.Default, lang_key: "" }
+        expander: DeriveExpander.Default, lang_key: "" }
 }
 
 pub fun derive_options_of(annotation: str): List<String> {

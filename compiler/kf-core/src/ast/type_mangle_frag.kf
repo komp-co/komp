@@ -9,28 +9,28 @@ impl Type {
     /// `List<&A>`, `List<&B>` and `List<A>` must all differ.
     pub fun mangle_frag(): String {
         when (self.kind) {
-            Int8     => return String.from("int8")
-            Int16    => return String.from("int16")
-            Int32    => return String.from("int32")
-            Int64    => return String.from("int64")
-            UInt8    => return String.from("uint8")
-            UInt16   => return String.from("uint16")
-            UInt32   => return String.from("uint32")
-            UInt64   => return String.from("uint64")
-            Float32  => return String.from("float32")
-            Float64  => return String.from("float64")
-            Bool     => return String.from("bool")
-            Char     => return String.from("char")
-            StrTy    => return String.from("str")
-            Void     => return String.from("void")
-            Never    => return String.from("never")
-            Struct(n)  => return type_identity_display(n)
-            EnumTy(n)  => return type_identity_display(n)
+            Int8 => return String.from("int8")
+            Int16 => return String.from("int16")
+            Int32 => return String.from("int32")
+            Int64 => return String.from("int64")
+            UInt8 => return String.from("uint8")
+            UInt16 => return String.from("uint16")
+            UInt32 => return String.from("uint32")
+            UInt64 => return String.from("uint64")
+            Float32 => return String.from("float32")
+            Float64 => return String.from("float64")
+            Bool => return String.from("bool")
+            Char => return String.from("char")
+            StrTy => return String.from("str")
+            Void => return String.from("void")
+            Never => return String.from("never")
+            Struct(n) => return type_identity_display(n)
+            EnumTy(n) => return type_identity_display(n)
             TraitTy(n) => return type_identity_display(n)
             DynTraitTy(_) => return self.dyn_trait_identity().as_string()
             Generic(n) => return String.from(n.as_str())
-            PtrTo(p)    => return wrapped_type_frag("Ptr__", p)
-            BoxOf(p)    => return wrapped_type_frag("Box__", p)
+            PtrTo(p) => return wrapped_type_frag("Ptr__", p)
+            BoxOf(p) => return wrapped_type_frag("Box__", p)
             RefTo(is_mut, p) => {
                 // `&dyn Trait` is a fat value already named by its dyn identity.
                 val pointee = unsafe { *p }
@@ -41,13 +41,13 @@ impl Type {
                 // Reserved-prefixed and carrying mutability; see c_names.kf.
                 return wrapped_type_frag(borrow_frag_marker(is_mut), p)
             }
-            FnTy(_)  => return String.from("fn")
+            FnTy(_) => return String.from("fn")
             // Kept, not poisoned, so `F` stays a segment substitution can reach.
             Projection(owner, member) => {
                 val inner = unsafe { *owner }.mangle_frag()
                 return projection_mangle_frag(inner.as_str(), member.as_str())
             }
-            Poison   => return String.from("poison")
+            Poison => return String.from("poison")
         }
     }
 

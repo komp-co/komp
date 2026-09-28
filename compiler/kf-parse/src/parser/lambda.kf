@@ -9,7 +9,7 @@ import kf_core.ast.*
 
 impl Parser {
     pub mutating fun parse_lambda(span: Span): Expr {
-        unsafe { self.advance() }                     // consume the opening `|`
+        unsafe { self.advance() } // consume the opening `|`
         var params = List.new<Param>()
         if is_op(self.peek(), Operator.Pipe) {
             unsafe { self.advance() }
@@ -29,7 +29,7 @@ impl Parser {
 
     /// `||` arrives as one token.
     pub mutating fun parse_lambda_no_params(span: Span): Expr {
-        unsafe { self.advance() }                     // consume `||`
+        unsafe { self.advance() } // consume `||`
         return self.finish_lambda(List.new<Param>(), span)
     }
 

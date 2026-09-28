@@ -12,14 +12,14 @@ pub fun inherent_method_symbol(recv_ty: Type, method_name: String, arg_count: ui
     if type_name.as_str().equals("") { return "" }
     val candidate = type_name + String.from("_") + method_name
     when (unsafe { (*sigs).find_signature(candidate.as_str()) }) {
-      Some(sig) => {
-        // A static takes no receiver.
-        if sig.is_static { return "" }
-        // Self plus the arguments; another arity may be the trait's.
-        if sig.params.size() != arg_count + 1 { return "" }
-        return candidate
-      }
-      None => { }
+        Some(sig) => {
+            // A static takes no receiver.
+            if sig.is_static { return "" }
+            // Self plus the arguments; another arity may be the trait's.
+            if sig.params.size() != arg_count + 1 { return "" }
+            return candidate
+        }
+        None => { }
     }
     return ""
 }

@@ -8,9 +8,9 @@ import kf_core.ast.*
 /// order, naming the traits it is bounded by joined with `+` ("" for none).
 @derive(Clone)
 pub struct ImplParamBounds {
-    pub val type_name:  String
+    pub val type_name: String
     pub val trait_name: String
-    pub val bounds:     List<String>
+    pub val bounds: List<String>
 }
 
 impl SigTable {

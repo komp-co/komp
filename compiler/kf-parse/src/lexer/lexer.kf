@@ -5,9 +5,9 @@ import kf_core.ast.intern
 
 /// Tokenizer. Errors become `LexError` tokens, which the parser reports.
 pub struct Lexer {
-    pub var src:     String
-    pub var len:     uint64
-    pub var pos:     uint64
+    pub var src: String
+    pub var len: uint64
+    pub var pos: uint64
     pub var file_id: uint32
 }
 

@@ -139,7 +139,7 @@ pub fun BuildGraph.compile_graph_outputs(errp: Ptr<ErrCount>): List<CrateCodegen
 }
 
 fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
-                                                     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
+    interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
     if self.error.as_str() != "" {
         runtime_println(self.error.as_str())
@@ -190,7 +190,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
             unsafe { errp.n = errp.n + 1 }
         }
         val encoded = emit_interface_full(&merged, String.from(interface_crate.name.as_str()), &interface_crate.deps,
-                                          &dependency_hashes, smap)
+            &dependency_hashes, smap)
         emitted_names.push(String.from(interface_crate.name.as_str()))
         emitted_hashes.push(content_hash(encoded.as_str()))
         unsafe { interfaces.push(encoded) }
@@ -205,7 +205,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
 }
 
 fun dependency_interface_hashes(dependencies: &List<String>, names: &List<String>,
-                                hashes: &List<String>): List<String> {
+    hashes: &List<String>): List<String> {
     var out = List.new<String>()
     while dependency in &dependencies {
         out.push(interface_hash_lookup(dependency.as_str(), names, hashes))

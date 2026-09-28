@@ -56,7 +56,7 @@ pub fun writable_place(place: Ptr<Expr>, ctx: &var TypeCtx): bool {
 /// A subscript receiver borrows through `IndexMut`; anything else is
 /// reported.
 pub fun check_receiver_is_writable(recv: Ptr<Expr>, recv_ty: &Type, method_name: String, arity: uint64, span: Span,
-                                   ctx: &var TypeCtx): void {
+    ctx: &var TypeCtx): void {
     if place_is_mutable(unsafe { *recv }, ctx) { return }
     if !recv_ty.method_is_mutating(method_name.clone(), arity, ctx) { return }
     if promote_subscript_to_mut(unsafe { &var *recv }, ctx) { return }

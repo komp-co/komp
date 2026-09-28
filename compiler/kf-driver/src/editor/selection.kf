@@ -26,7 +26,6 @@ pub fun render_selection_json(path: str, offset: uint32, m: &Module): String {
     return out.finish()
 }
 
-
 /// Narrowest first, without duplicates: a parenthesised expression shares
 /// its contents' span.
 pub fun Module.selection_chain(file_id: uint32, offset: uint32): List<Span> {

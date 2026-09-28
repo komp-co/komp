@@ -54,4 +54,3 @@ fun warning_has_a_subject(span: Span, ctx: &var MoveCtx): bool {
     }
     return warn_span_is_new(unsafe { &var *w }, span)
 }
-

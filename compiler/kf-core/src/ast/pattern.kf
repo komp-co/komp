@@ -42,10 +42,10 @@ pub fun pattern_poison(span: Span): Pattern {
 
 /// A `when` arm: pattern, optional guard, body.
 pub struct Arm {
-    pub val span:    Span
+    pub val span: Span
     pub val pattern: Box<Pattern>
-    pub var guard:   Box<Expr>?
-    pub var body:    List<Stmt>
+    pub var guard: Box<Expr>?
+    pub var body: List<Stmt>
 }
 
 pub fun new_arm(span: Span, pattern: Box<Pattern>, guard: Box<Expr>?, body: List<Stmt>): Arm {

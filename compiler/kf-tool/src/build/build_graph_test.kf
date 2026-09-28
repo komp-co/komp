@@ -5,7 +5,6 @@ import core.assert.assert_eq
 import alloc.list.*
 import std.fs.scratch_path
 
-
 extern "C" fun system(cmd: str): int32
 
 fun write_graph_crate(root: str, name: str, kind: str, deps: str): void {

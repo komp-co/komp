@@ -4,7 +4,6 @@
 
 import alloc.list.*
 
-
 /// `str`, `&T` and `&var T`: types whose validity is bounded by another frame.
 pub fun TypeRef.type_ref_is_borrow(): bool {
     when (self.kind) {

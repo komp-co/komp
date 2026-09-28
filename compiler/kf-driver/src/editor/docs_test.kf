@@ -1,6 +1,5 @@
 import core.assert.assert_eq
 
-
 /// Where the declaration after a doc run starts.
 fun end_of(src: str): uint32 {
     return src.byte_len() as uint32

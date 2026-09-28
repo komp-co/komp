@@ -166,11 +166,11 @@ fun subst_name_segments(mangled: str, param: str, repl: str): String {
 }
 
 fun is_int_tag(t: uint64): bool {
-    if t == TAG_INT8()   { return true }
-    if t == TAG_INT16()  { return true }
-    if t == TAG_INT32()  { return true }
-    if t == TAG_INT64()  { return true }
-    if t == TAG_UINT8()  { return true }
+    if t == TAG_INT8() { return true }
+    if t == TAG_INT16() { return true }
+    if t == TAG_INT32() { return true }
+    if t == TAG_INT64() { return true }
+    if t == TAG_UINT8() { return true }
     if t == TAG_UINT16() { return true }
     if t == TAG_UINT32() { return true }
     if t == TAG_UINT64() { return true }
@@ -179,13 +179,13 @@ fun is_int_tag(t: uint64): bool {
 
 /// 0 for a non-integer.
 fun int_tag_width(t: uint64): uint64 {
-    if t == TAG_INT8()   { return 8 }
-    if t == TAG_UINT8()  { return 8 }
-    if t == TAG_INT16()  { return 16 }
+    if t == TAG_INT8() { return 8 }
+    if t == TAG_UINT8() { return 8 }
+    if t == TAG_INT16() { return 16 }
     if t == TAG_UINT16() { return 16 }
-    if t == TAG_INT32()  { return 32 }
+    if t == TAG_INT32() { return 32 }
     if t == TAG_UINT32() { return 32 }
-    if t == TAG_INT64()  { return 64 }
+    if t == TAG_INT64() { return 64 }
     if t == TAG_UINT64() { return 64 }
     return 0
 }

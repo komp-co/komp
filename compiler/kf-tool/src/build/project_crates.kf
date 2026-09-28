@@ -6,8 +6,6 @@ import kf_shared.absolutize
 import kf_shared.join_path
 import std.fs.exists
 
-
-
 /// None when the graph is broken.
 pub fun project_crates(root_dir: str): List<BuildCrate> {
     var graph = build_crate_graph(root_dir)

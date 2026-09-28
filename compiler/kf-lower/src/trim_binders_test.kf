@@ -158,7 +158,7 @@ fun Module.tb_first_arm_return_has_value(i: uint64): uint64 {
                     when (body.at(0).kind) {
                         Switch(_subj, arms) => {
                             when (arms.at(0).body.at(0).kind) {
-                                Return(e) => { return when (e) { Some(_p) => 1  None => 0 } }
+                                Return(e) => { return when (e) { Some(_p) => 1 None => 0 } }
                                 _ => { return 999 }
                             }
                         }

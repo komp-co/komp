@@ -17,7 +17,6 @@ pub fun render_inlays_json(path: str, crate: &TypedCrate): String {
     return out.finish()
 }
 
-
 fun inlay_decl_list(decls: &List<TopDecl>, crate: &TypedCrate, arr: &var JsonWriter): void {
     while decl in &decls {
         decl.inlay_decl(crate, arr)

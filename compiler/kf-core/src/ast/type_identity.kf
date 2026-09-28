@@ -2,9 +2,9 @@
 /// kept for diagnostics and unity C emission.
 @derive(Copy)
 pub struct TypeIdentity {
-    pub val crate:  CrateId
+    pub val crate: CrateId
     pub val module: Sym
-    pub val name:   Sym
+    pub val name: Sym
 }
 
 pub fun new_type_identity(crate: CrateId, module: Sym, name: Sym): TypeIdentity {
@@ -44,7 +44,6 @@ pub fun type_identity_matches(actual: Sym, expected: TypeIdentity): bool {
 pub fun type_identity_display(identity: Sym): String {
     return identity_display_of(identity.as_str())
 }
-
 
 /// The same over a `str`, for codegen, which holds names as String.
 pub fun identity_display_of(text: str): String {

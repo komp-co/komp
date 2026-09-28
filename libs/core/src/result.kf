@@ -6,7 +6,6 @@ pub enum Result<T, E> {
     Err(E)
 }
 
-
 // The predicates match `Ok` without a binder: `Result<void, E>.Ok` carries
 // nothing.
 impl Result<T, E> {

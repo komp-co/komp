@@ -21,57 +21,57 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
     var types = List.new<Type>()
     val base = mangle_base_name(sname.clone())
     when (unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) }) {
-      Some(gi) => {
-        when (unsafe { (*ctx.sigs).find_inst(sname.as_str()) }) {
-          Some(inst) => {
-            // The registry holds the arguments as written, so nested receivers
-            // need no name splitting. Read quietly: the refs belong to another
-            // scope. A row mangling back to the template (`Wrap__T`) or poison
-            // carries nothing.
-            val was_quiet = ctx.quiet
-            ctx.quiet = true
-            var concrete = true
-            while i in 0..gi.type_params.size() {
-                if i < inst.args.size() {
-                    val arg = (*inst.args.at(i)).resolve_type_ref(ctx)
-                    val frag = mangle_type(arg.clone())
-                    if frag.as_str().equals("poison") { concrete = false }
-                    if frag.as_str().equals(gi.type_params.at(i).as_str()) { concrete = false }
-                    names.push(*gi.type_params.at(i))
-                    types.push(arg)
+        Some(gi) => {
+            when (unsafe { (*ctx.sigs).find_inst(sname.as_str()) }) {
+                Some(inst) => {
+                    // The registry holds the arguments as written, so nested receivers
+                    // need no name splitting. Read quietly: the refs belong to another
+                    // scope. A row mangling back to the template (`Wrap__T`) or poison
+                    // carries nothing.
+                    val was_quiet = ctx.quiet
+                    ctx.quiet = true
+                    var concrete = true
+                    while i in 0..gi.type_params.size() {
+                        if i < inst.args.size() {
+                            val arg = (*inst.args.at(i)).resolve_type_ref(ctx)
+                            val frag = mangle_type(arg.clone())
+                            if frag.as_str().equals("poison") { concrete = false }
+                            if frag.as_str().equals(gi.type_params.at(i).as_str()) { concrete = false }
+                            names.push(*gi.type_params.at(i))
+                            types.push(arg)
+                        }
+                    }
+                    ctx.quiet = was_quiet
+                    if !concrete {
+                        return RecvBinding { names: List.new<String>(), types: List.new<Type>() }
+                    }
                 }
-            }
-            ctx.quiet = was_quiet
-            if !concrete {
-                return RecvBinding { names: List.new<String>(), types: List.new<Type>() }
-            }
-          }
-          None => {
-            // No registered instance: a name reached by substitution never was,
-            // so the name is all there is.
-            val base_len = base.as_str().byte_len()
-            val name_len = sname.as_str().byte_len()
-            if base_len + 2 < name_len {
-                val suffix = mangle_suffix(sname, base_len + 2)
-                if gi.type_params.size() == 1 {
-                    // One parameter takes the whole suffix.
-                    names.push(*gi.type_params.at(0))
-                    types.push(ty_from_mangle_frag(suffix, span, ctx.string_name()))
-                } else {
-                    // Otherwise split by segment, only when the counts agree.
-                    val segs = mangle_segments(suffix.as_str())
-                    if segs.size() == gi.type_params.size() {
-                        while s in 0..segs.size() {
-                            names.push(*gi.type_params.at(s))
-                            types.push(ty_from_mangle_frag(*segs.at(s), span, ctx.string_name()))
+                None => {
+                    // No registered instance: a name reached by substitution never was,
+                    // so the name is all there is.
+                    val base_len = base.as_str().byte_len()
+                    val name_len = sname.as_str().byte_len()
+                    if base_len + 2 < name_len {
+                        val suffix = mangle_suffix(sname, base_len + 2)
+                        if gi.type_params.size() == 1 {
+                            // One parameter takes the whole suffix.
+                            names.push(*gi.type_params.at(0))
+                            types.push(ty_from_mangle_frag(suffix, span, ctx.string_name()))
+                        } else {
+                            // Otherwise split by segment, only when the counts agree.
+                            val segs = mangle_segments(suffix.as_str())
+                            if segs.size() == gi.type_params.size() {
+                                while s in 0..segs.size() {
+                                    names.push(*gi.type_params.at(s))
+                                    types.push(ty_from_mangle_frag(*segs.at(s), span, ctx.string_name()))
+                                }
+                            }
                         }
                     }
                 }
             }
-          }
         }
-      }
-      None => { }
+        None => { }
     }
     return RecvBinding { names: names, types: types }
 }

@@ -8,7 +8,7 @@ import kf_core.span.*
 import kf_core.ast.*
 
 fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: CrateId, module_path: Sym,
-                       trait_sym: Sym): TopDecl {
+    trait_sym: Sym): TopDecl {
     // return Name { field: <default>, ... }
     var inits = List.new<FieldInit>()
     while f in &fields {
@@ -43,7 +43,7 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
 }
 
 fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: CrateId, module_path: Sym,
-                     trait_sym: Sym): TopDecl {
+    trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *other_named = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
@@ -80,7 +80,7 @@ fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: Crat
 //
 // The multiply makes position matter. A field-less struct hashes to 0.
 fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: CrateId, module_path: Sym,
-                    trait_sym: Sym): TopDecl {
+    trait_sym: Sym): TopDecl {
     // Seeded with the first field's hash: a literal 0 would be int32.
     var accumulator: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *accumulator = new_expr(span, ExprKind.LitInt(0)) }
@@ -125,7 +125,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
 }
 
 fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
-                           span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
+    span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     val bool_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *bool_type = new_type_ref(span, TypeRefKind.Named(intern("bool"), List.new<TypeRef>())) }
     var equals_fn = new_top_decl(span, String.from("equals"),
@@ -170,7 +170,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
 
 // `impl Copy for X { }`, reported at `name_span` so a derived impl names the type.
 fun synth_copy_impl(name: String, span: Span, name_span: Span, owner: CrateId, module_path: Sym,
-                    trait_sym: Sym): TopDecl {
+    trait_sym: Sym): TopDecl {
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, List.new<TopDecl>()))

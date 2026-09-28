@@ -14,7 +14,7 @@ import kf_shared.starts_with_path
 /// was written.
 struct LocatedFix {
     val path: String
-    val fix:  PendingFix
+    val fix: PendingFix
 }
 
 /// Only bounds a repair that keeps being re-suggested.

@@ -476,18 +476,18 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
 @test fun retarget_rewrites_only_the_template_half(): void {
     assert_eq(retarget_callee_owner("Wrap_peek", "Wrap__int32").as_str(),
-              "Wrap__int32_peek", "a self-call names the instance the body sits in")
+        "Wrap__int32_peek", "a self-call names the instance the body sits in")
     assert_eq(retarget_callee_owner("Wrap_next__Iterator__int32", "Wrap__int32").as_str(),
-              "Wrap__int32_next__Iterator__int32", "the method tail keeps its trait identity")
+        "Wrap__int32_next__Iterator__int32", "the method tail keeps its trait identity")
 }
 
 @test fun retarget_leaves_a_foreign_or_settled_callee_alone(): void {
     assert_eq(retarget_callee_owner("String_clone", "Wrap__int32").as_str(),
-              "String_clone", "another receiver's callee is already correct")
+        "String_clone", "another receiver's callee is already correct")
     assert_eq(retarget_callee_owner("Wrap__int32_peek", "Wrap__int32").as_str(),
-              "Wrap__int32_peek", "an already-concrete callee is not rewritten twice")
+        "Wrap__int32_peek", "an already-concrete callee is not rewritten twice")
     assert_eq(retarget_callee_owner("", "Wrap__int32").as_str(),
-              "", "an unstamped callee is left for the receiver's type to name")
+        "", "an unstamped callee is left for the receiver's type to name")
     assert_eq(retarget_callee_owner("bare", "Wrap__int32").as_str(),
-              "bare", "a callee with no receiver half has nothing to retarget")
+        "bare", "a callee with no receiver half has nothing to retarget")
 }

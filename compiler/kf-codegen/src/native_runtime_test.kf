@@ -14,7 +14,6 @@ fun checked_in_native_sources_own_runtime_symbols(): void {
     assert_eq(ok, true, "native functions live with their owning crates")
 }
 
-
 fun occurrences(hay: str, needle: str): uint64 {
     val n = hay.byte_len()
     val m = needle.byte_len()
@@ -44,10 +43,10 @@ fun the_allocation_abi_is_replaceable(): void {
     val hosted = read_file("libs/core/native/core_hosted.c")
     // Freestanding half: kf_alloc_failed, kf_alloc, kf_realloc.
     assert_eq(occurrences(core.as_str(), "__attribute__((weak))"), 3,
-              "the derived pair and the failure policy are overridable")
+        "the derived pair and the failure policy are overridable")
     // Hosted half: kf_try_alloc, kf_try_realloc, kf_free, which name libc.
     assert_eq(occurrences(hosted.as_str(), "__attribute__((weak))"), 3,
-              "so is each primitive that reaches the C library")
+        "so is each primitive that reaches the C library")
 }
 
 /// The infallible pair is derived from the fallible pair, so replacing only
@@ -57,11 +56,11 @@ fun the_infallible_allocators_are_wrappers_over_the_fallible_ones(): void {
     val text = read_file("libs/core/native/core.c")
     val core = text.as_str()
     assert_eq(core.contains("void* memory = kf_try_alloc(size);"), true,
-              "kf_alloc goes through kf_try_alloc")
+        "kf_alloc goes through kf_try_alloc")
     assert_eq(core.contains("void* memory = kf_try_realloc(ptr, size);"), true,
-              "kf_realloc goes through kf_try_realloc")
+        "kf_realloc goes through kf_try_realloc")
     assert_eq(occurrences(core, "kf_alloc_failed(size);"), 2,
-              "and both route failure through the one replaceable handler")
+        "and both route failure through the one replaceable handler")
 }
 
 /// `kf_alloc` never returns NULL, so `kf_alloc_failed` must never return.

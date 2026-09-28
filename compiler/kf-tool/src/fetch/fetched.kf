@@ -49,7 +49,7 @@ pub fun publish_fetched(staged: str, root: str): bool {
 
 /// The row for the crate published at `root`, named by its own manifest.
 pub fun entry_at(root: str, git: &String, tag: &String, branch: &String, rev: String, tarball: &String,
-                 checksum: String): Fetched {
+    checksum: String): Fetched {
     if !is_fetched(root) { return fetch_failed("the source has no kf.toml at its root") }
     val manifest = parse_manifest(read_file("${root}/kf.toml".as_str()).as_str())
     if manifest.error.byte_len() > 0 { return fetch_failed("its kf.toml is invalid: ${manifest.error}") }

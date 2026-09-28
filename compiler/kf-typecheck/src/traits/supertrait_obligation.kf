@@ -6,7 +6,6 @@ import alloc.list.*
 import kf_core.diagnostic.*
 import kf_core.ast.*
 
-
 /// Every implementor of a trait implements what it requires. Walks this
 /// module's own impls (for spans; dependencies were checked in their crate);
 /// the satisfying impl may come from anywhere. Arguments must match:

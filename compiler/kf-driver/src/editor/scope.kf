@@ -16,8 +16,8 @@ import json.writer.*
 
 /// `kind` is KFlat's word; the plugins translate.
 pub struct ScopeItem {
-    pub val label:  String
-    pub val kind:   String
+    pub val label: String
+    pub val kind: String
     pub val detail: String
 }
 

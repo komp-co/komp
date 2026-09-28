@@ -65,7 +65,7 @@ pub fun BuildCrate.invoke_kflatc_check_into(project: str, tdir: str, report: str
 /// `mode` is one of kflatc's `--bin`, `--tests` or `--json`, or empty. A
 /// non-empty `stdout_path` receives kflatc's output.
 fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: &List<String>, mode: str,
-                          stdout_path: str): int32 {
+    stdout_path: str): int32 {
     val path = kflatc_path()
     if kflatc_missing(&path) { return 1 }
     var command = Command.new(path.as_str())
@@ -163,4 +163,3 @@ fun forward_compiler_flags(command: &var Command, project: str): void {
         i = i + 1
     }
 }
-

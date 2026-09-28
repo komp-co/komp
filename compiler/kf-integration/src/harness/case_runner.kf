@@ -15,7 +15,6 @@
 // CONSTRAINT: a plain module because `CaseSpec` is declared here, and a test
 // file's structs get no C type. The walker is in case_runner_test.kf.
 
-
 /// "" in an ordinary run. The walker re-execs the test binary with it, one
 /// process per case.
 pub fun case_build_arg(): str {

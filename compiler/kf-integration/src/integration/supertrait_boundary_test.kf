@@ -6,7 +6,6 @@ import kf_driver.*
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
 
-
 extern "C" fun system(cmd: str): int32
 
 fun write_supertrait_fixtures(app_src: str): void {

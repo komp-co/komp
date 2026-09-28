@@ -10,7 +10,7 @@ extern "C" fun kf_current_dir(): String
 pub fun absolutize(p: str): String {
     val n = p.byte_len()
     if n > 0 {
-        if p.byte_at(0) == 47 {   // '/'
+        if p.byte_at(0) == 47 { // '/'
             return String.from(p)
         }
     }

@@ -13,7 +13,7 @@ import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.check_generic_bounds
 import kf_core.ast.dyn_meta.dyn_trait_type
 
-    // Declared per file: the shim is in every translation unit.
+// Declared per file: the shim is in every translation unit.
 
 pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
     when (self.kind) {
@@ -47,8 +47,8 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 "str" => return str_ty(self.span)
                 _ => { }
             }
-            if is_lang_string      { return ctx.string_name().lang_struct_ty(self.span) }
-            if s.equals("void")    { return void_ty(self.span) }
+            if is_lang_string { return ctx.string_name().lang_struct_ty(self.span) }
+            if s.equals("void") { return void_ty(self.span) }
             if s.equals("Self") && !ctx.self_ty.is_poison() { return ctx.self_ty.clone() }
 
             // `Ptr<T>` is `PtrTo(T)`, emitted `T*`, not a container.
@@ -79,25 +79,25 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             // A user type, through the decl table. The pre-passes have no table
             // and skip the lookup.
             when (ctx.table) {
-              Some(tab) => {
-                val d = (unsafe { *tab }).lookup(s)
-                if d.is_none() {
-                    val lab = new_label(self.span, "unknown type `${name.as_string()}`")
-                    ctx.emit(new_diagnostic(Severity.Error, lab))
-                    return poison_ty()
+                Some(tab) => {
+                    val d = (unsafe { *tab }).lookup(s)
+                    if d.is_none() {
+                        val lab = new_label(self.span, "unknown type `${name.as_string()}`")
+                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                        return poison_ty()
+                    }
                 }
-              }
-              None => { }
+                None => { }
             }
             when (unsafe { (*ctx.sigs).find_generic_info(s, ctx.owner_crate) }) {
-              Some(info) => {
-                if info.type_params.size() != args.size() {
-                    val message = "type `${s}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                    return poison_ty()
+                Some(info) => {
+                    if info.type_params.size() != args.size() {
+                        val message = "type `${s}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
+                        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                        return poison_ty()
+                    }
                 }
-              }
-              None => { }
+                None => { }
             }
             if args.size() == 0 {
                 val identity = unsafe { (*ctx.sigs).lookup_type_identity(s, ctx.owner_crate, ctx.owner_module) }
@@ -107,8 +107,8 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 }
                 val imported = unsafe { (*ctx.sigs).lookup_unique_type_identity(s) }
                 if !imported.crate.is_poison() {
-            // Writing the name is a use of its module's import, even though
-            // types resolve globally.
+                    // Writing the name is a use of its module's import, even though
+                    // types resolve globally.
                     note_import_use(ctx.sigs, ctx.owner_file, imported.module)
                     return named_struct_ty(imported, self.span)
                 }
@@ -225,8 +225,8 @@ fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCt
         return poison_ty()
     }
     if found > 1 {
-    // Inside an impl, the impl says which instantiation `Self.Out` means;
-    // elsewhere two bindings are genuinely ambiguous.
+        // Inside an impl, the impl says which instantiation `Self.Out` means;
+        // elsewhere two bindings are genuinely ambiguous.
         if !ctx.impl_trait.as_str().equals("") {
             val tn = ctx.impl_trait.as_str()
             val ta = ctx.impl_trait_args.as_str()
@@ -295,34 +295,34 @@ pub fun instantiate_generic_layout(name: String, args: &List<TypeRef>, mangled: 
         }
     }
     when (unsafe { sp.find_struct(name.as_str(), ctx.owner_crate) }) {
-      Some(tmpl) => {
-        var fs = List.new<StructFieldInfo>()
-        while f in &tmpl.fields {
-            val cty = subst_all_generics(f.ty, gi.type_params, argtys)
-            fs.push(StructFieldInfo { name: f.name, ty: cty, is_var: f.is_var })
+        Some(tmpl) => {
+            var fs = List.new<StructFieldInfo>()
+            while f in &tmpl.fields {
+                val cty = subst_all_generics(f.ty, gi.type_params, argtys)
+                fs.push(StructFieldInfo { name: f.name, ty: cty, is_var: f.is_var })
+            }
+            unsafe { sp.insert_struct(StructLayout { name: mangled, fields: fs, is_refcounted: false, owner_crate: tmpl.owner_crate }) }
+            return
         }
-        unsafe { sp.insert_struct(StructLayout { name: mangled, fields: fs, is_refcounted: false, owner_crate: tmpl.owner_crate }) }
-        return
-      }
-      None => { }
+        None => { }
     }
     when (unsafe { sp.find_enum(name.as_str(), ctx.owner_crate) }) {
-      Some(etmpl) => {
-        var vs = List.new<VariantInfo>()
-        while v in &etmpl.variants {
-            var ptys = List.new<Type>()
-            while item in &v.payloads {
-                val pty = subst_all_generics(item, gi.type_params, argtys)
-                // A `void` payload keeps its slot, so `Ok =>` and `Ok(u)` both
-                // work. CONSTRAINT: must agree with `clone_subst`, which builds
-                // the layout codegen emits.
-                ptys.push(pty)
+        Some(etmpl) => {
+            var vs = List.new<VariantInfo>()
+            while v in &etmpl.variants {
+                var ptys = List.new<Type>()
+                while item in &v.payloads {
+                    val pty = subst_all_generics(item, gi.type_params, argtys)
+                    // A `void` payload keeps its slot, so `Ok =>` and `Ok(u)` both
+                    // work. CONSTRAINT: must agree with `clone_subst`, which builds
+                    // the layout codegen emits.
+                    ptys.push(pty)
+                }
+                vs.push(VariantInfo { name: v.name, payloads: ptys })
             }
-            vs.push(VariantInfo { name: v.name, payloads: ptys })
+            unsafe { sp.insert_enum(EnumLayout { name: mangled, variants: vs, owner_crate: etmpl.owner_crate }) }
+            return
         }
-        unsafe { sp.insert_enum(EnumLayout { name: mangled, variants: vs, owner_crate: etmpl.owner_crate }) }
-        return
-      }
-      None => { }
+        None => { }
     }
 }

@@ -7,7 +7,6 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_codegen.emit.glue.is_box_tref
 
-
 /// `keys` are "<Enum>/<Variant>/<index>", `rels` their release functions ("" for
 /// none). Flat lists: a nested generic does not survive mono.
 pub struct ArmPayloads {

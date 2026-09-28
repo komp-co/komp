@@ -111,27 +111,27 @@ fun ptr_to(inner: Type): Type {
 
 @test fun mutable_borrow_satisfies_a_shared_borrow(): void {
     assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ref_to(false, int32_ty(no_span())), intern("String")), true,
-              "`&var int32` → `&int32`: dropping mutability is safe")
+        "`&var int32` → `&int32`: dropping mutability is safe")
 }
 
 @test fun shared_borrow_does_not_satisfy_a_mutable_borrow(): void {
     val mutable_int = ref_to(true, int32_ty(no_span()))
     assert_eq(can_coerce(ref_to(false, int32_ty(no_span())), mutable_int, intern("String")), false,
-              "`&int32` → `&var int32`: gaining mutability is not")
+        "`&int32` → `&var int32`: gaining mutability is not")
 }
 
 @test fun a_borrow_satisfies_a_ptr_of_the_same_pointee(): void {
     assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ptr_to(int32_ty(no_span())), intern("String")), true,
-              "`&var int32` → `Ptr<int32>`: the same `T*` in the emitted C")
+        "`&var int32` → `Ptr<int32>`: the same `T*` in the emitted C")
 }
 
 @test fun a_borrow_does_not_satisfy_a_ptr_of_another_pointee(): void {
     assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ptr_to(bool_ty(no_span())), intern("String")), false,
-              "`&var int32` → `Ptr<bool>`: same shape, different pointee")
+        "`&var int32` → `Ptr<bool>`: same shape, different pointee")
 }
 
 // A borrow does not fit a by-value slot.
 @test fun a_borrow_does_not_satisfy_a_by_value_slot(): void {
     assert_eq(can_coerce(ref_to(false, int32_ty(no_span())), int32_ty(no_span()), intern("String")), false,
-              "`&int32` → `int32` is not a coercion")
+        "`&int32` → `int32` is not a coercion")
 }

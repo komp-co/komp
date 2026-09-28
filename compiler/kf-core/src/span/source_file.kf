@@ -3,7 +3,7 @@
 /// not survive.
 @derive(Clone)
 pub struct SourceFile {
-    pub val path:    String
+    pub val path: String
     pub val content: String
 }
 

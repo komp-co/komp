@@ -2,8 +2,6 @@ import alloc.list.*
 import kf_shared.canonicalize_path
 import std.fs.exists
 
-
-
 pub struct NativeSources {
     pub val text: String
     pub val error: String

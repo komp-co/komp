@@ -34,7 +34,7 @@ pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, dia
 }
 
 fun check_one_copy_impl(td: &TopDecl, copy_name: str, drop_name: str, ctx: &var TypeCtx,
-                        diags: Ptr<List<Diagnostic>>): void {
+    diags: Ptr<List<Diagnostic>>): void {
     val sigs = ctx.sigs
     if !drop_name.equals("") && td.receiver_implements(drop_name, "", unsafe { &*sigs }) {
         td.report_unsound_copy("it implements Drop, and a bitwise copy would run the destructor twice", diags)

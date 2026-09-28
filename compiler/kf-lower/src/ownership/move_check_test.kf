@@ -55,9 +55,9 @@ fun fresh_ctx(dp: Ptr<List<Diagnostic>>): MoveCtx {
     val wp: Ptr<WarnState> = unsafe { alloc<WarnState>() }
     // No module: each test asserts one warning at a time.
     unsafe { *wp = WarnState {
-            warned: List.new<Span>(), reached: new_reached(),
-            prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
-        } }
+        warned: List.new<Span>(), reached: new_reached(),
+        prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
+    } }
     return new_move_ctx(dp, names, pt, mc, String.from("test_fn"), sm, wp)
 }
 

@@ -45,8 +45,8 @@ fun Sym.written_named_ref(span: Span, sigs: Ptr<SigTable>): TypeRef {
 // inside a generic body. "" for mono-suffixed names, borrows and poison.
 fun Type.ty_flat_ref_name(): String {
     when (self.kind) {
-        Struct(n)  => return n.flat_written_name()
-        EnumTy(n)  => return n.flat_written_name()
+        Struct(n) => return n.flat_written_name()
+        EnumTy(n) => return n.flat_written_name()
         Generic(n) => return n.as_string()
         _ => return self.ty_base_name()
     }

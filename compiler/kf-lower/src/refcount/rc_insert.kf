@@ -19,7 +19,7 @@ pub mutating fun Module.rc_insert_module(list_name: Sym): void {
 /// `vp` says which payloads each enum variant owns, so a `when` arm can take
 /// responsibility for those it binds.
 pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<List<ParamEntry>>, vp: Ptr<VariantPayloads>,
-                              string_name: Sym, free: &List<String>): void {
+    string_name: Sym, free: &List<String>): void {
     when (td.kind) {
         Function(params, ret, body, p, u, m, s) => {
             val fn_name_a = td.name.as_string()
@@ -55,7 +55,6 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
     }
 }
 
-
 enum BorrowMode { Value, Borrow }
 
 /// Names moved into the returned value, as opposed to borrowed to compute a
@@ -69,10 +68,10 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
             if self.coerce == coerce_addr_of() { return }
             if self.coerce == coerce_to_cstr() { return }
             if self.coerce == coerce_clone() { return }
-            when (mode) { Value => out.push(name.as_string())  Borrow => {} }
+            when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Release(name) => {
-            when (mode) { Value => out.push(name.as_string())  Borrow => {} }
+            when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Call(_n, args) => collect_moved_names_list(args, BorrowMode.Value, out)
         StructLit(_n, finits) => {

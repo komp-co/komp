@@ -24,6 +24,6 @@ pub fun Type.type_is_copy(ctx: &var TypeCtx): bool {
         Projection(_, _) => true
         Generic(name) => owner_has_bound(ctx.fn_owner.clone(), name.as_string(), copy_name.as_string(), ctx)
         _ => self.bound_type_implements(copy_name.as_str(), ctx.sigs) &&
-             self.instance_args_meet(copy_name.as_str(), no_span(), ctx)
+            self.instance_args_meet(copy_name.as_str(), no_span(), ctx)
     }
 }

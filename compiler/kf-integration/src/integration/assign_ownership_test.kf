@@ -6,7 +6,6 @@ import core.assert.assert_eq
 import kf_tool.build.build_project_separate
 import std.fs.scratch_root
 
-
 extern "C" fun system(cmd: str): int32
 
 fun prepare_assign_fixture(name: str, src: str): int32 {

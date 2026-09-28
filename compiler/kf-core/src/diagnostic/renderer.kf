@@ -125,9 +125,9 @@ fun severity_prefix(s: Severity): str {
 fun severity_color(s: Severity, color: bool): str {
     if !color { return "" }
     return when (s) {
-        Error   => "\033[1;31m"
+        Error => "\033[1;31m"
         Warning => "\033[1;33m"
-        Note    => "\033[1;36m"
+        Note => "\033[1;36m"
     }
 }
 

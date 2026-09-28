@@ -5,7 +5,6 @@ import core.assert.fail
 import kf_core.span.no_span
 import kf_core.ast.*
 
-
 @test
 fun qualified_method_owner_returns_owned_str(): void {
     val ty = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) }

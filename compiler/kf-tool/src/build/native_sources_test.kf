@@ -1,7 +1,6 @@
 import core.assert.assert_eq
 import std.fs.scratch_path
 
-
 extern "C" fun system(command: str): int32
 
 fun write_native_fixture_crate(root: str, manifest: str, source_path: str, source: str): void {

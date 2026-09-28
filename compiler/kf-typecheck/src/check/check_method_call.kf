@@ -11,7 +11,6 @@ import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
 import kf_typecheck.check.borrow.coerce_call_arg
 
-
 /// `Equal`, `Compare` and `Display` on built-in types are satisfied without an
 /// impl. Says only that the name is not an error; the type stays poison.
 fun primitive_intrinsic_method(name: str): bool {
@@ -190,19 +189,19 @@ fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, 
     val binding = bound_checked_recv_bindings(autoderef_ty(recv_ty).kind.trait_impl_owner_name(), method_name.clone(), tm_span, ctx)
     var pre = poison_ty()
     when (unsafe { (*ctx.sigs).find_signature(selected.sig_name.as_str()) }) {
-      Some(sig) => {
-        pre = sig.ret
-    // The selected impl's parameter types are the arguments' only expectation.
-    // Through `coerce_call_arg`: dispatch already accepted them.
-        if !sig.is_static {
-            if sig.params.size() == args.size() + 1 {
-                while ai in 0..args.size() {
-                    coerce_call_arg(args, ai, subst_recv(*sig.params.at(ai + 1), &binding), ctx)
+        Some(sig) => {
+            pre = sig.ret
+            // The selected impl's parameter types are the arguments' only expectation.
+            // Through `coerce_call_arg`: dispatch already accepted them.
+            if !sig.is_static {
+                if sig.params.size() == args.size() + 1 {
+                    while ai in 0..args.size() {
+                        coerce_call_arg(args, ai, subst_recv(*sig.params.at(ai + 1), &binding), ctx)
+                    }
                 }
             }
         }
-      }
-      None => { }
+        None => { }
     }
     val ret = subst_recv(pre.clone(), &binding)
     // The receiver's arguments pin a return type naming another generic.
@@ -220,7 +219,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     var ai = 0
     while ai < args.size() {
         val aa = args.at_mut(ai)
-    // A lambda with a bare parameter waits for its bound's type.
+        // A lambda with a bare parameter waits for its bound's type.
         if aa.lambda_wants_expectation() {
             arg_tys.push(poison_ty())
         } else {
@@ -439,20 +438,20 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             if binding.recv_is_instance() {
                 val bmangled = base + String.from("_") + method_name
                 when (unsafe { (*ctx.sigs).find_signature(bmangled.as_str()) }) {
-                  Some(bsig) => {
-                    if !bsig.is_static {
-                        if args.size() + 1 == bsig.params.size() {
-                            // The method's own parameters (`fun map<F>`) are
-                            // solved from the call.
-                            note_import_use(ctx.sigs, ctx.owner_file, bsig.owner_module)
-                            return bsig.check_method_generics(&binding, sname.clone(), method_name.clone(), args, &arg_tys, call, _span, ctx)
-                        } else {
-                            emit_method_arity(method_name, bsig.params.size() - 1, args.size(), _span, ctx)
-                            return poison_ty()
+                    Some(bsig) => {
+                        if !bsig.is_static {
+                            if args.size() + 1 == bsig.params.size() {
+                                // The method's own parameters (`fun map<F>`) are
+                                // solved from the call.
+                                note_import_use(ctx.sigs, ctx.owner_file, bsig.owner_module)
+                                return bsig.check_method_generics(&binding, sname.clone(), method_name.clone(), args, &arg_tys, call, _span, ctx)
+                            } else {
+                                emit_method_arity(method_name, bsig.params.size() - 1, args.size(), _span, ctx)
+                                return poison_ty()
+                            }
                         }
                     }
-                  }
-                  None => { }
+                    None => { }
                 }
             }
         }

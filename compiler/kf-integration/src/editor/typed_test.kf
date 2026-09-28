@@ -342,14 +342,14 @@ fun says_unused(diags: &List<Diagnostic>, path: str): bool {
 fun an_import_nothing_names_is_reported(): void {
     val diags = unused_fixture_diags()
     assert_eq(says_unused(&diags, "unused_import.spare"), true,
-              "nothing in main.kf names anything spare declares")
+        "nothing in main.kf names anything spare declares")
 }
 
 @test
 fun an_import_that_is_named_is_left_alone(): void {
     val diags = unused_fixture_diags()
     assert_eq(says_unused(&diags, "unused_import.helper"), false,
-              "`Pair` is written, so its import earns its line")
+        "`Pair` is written, so its import earns its line")
 }
 
 @test
@@ -400,7 +400,7 @@ fun a_typed_query_checks_the_staged_buffer(): void {
     val crate = typed_crate_for_overlay(typed_fixture_path(), staged_typed_source().as_str())
     val hit = crate.module.innermost_expr_at(crate.file_id, offset_of_staged_param())
     assert_eq(hit.ty.written_type(crate.sigs).as_str(), "int32",
-              "a function nobody has saved still has types")
+        "a function nobody has saved still has types")
 }
 
 @test
@@ -420,7 +420,7 @@ fun a_staged_file_keeps_the_identity_the_walk_gave_it(): void {
     val crate = typed_crate_for_overlay(typed_fixture_path(), staged_typed_source().as_str())
     assert_eq(crate.ok, true, "still found inside its own project")
     assert_eq(path_for_file_id(crate.smap, crate.file_id).as_str(), typed_fixture_path(),
-              "and still registered under its own path")
+        "and still registered under its own path")
 }
 
 @test
@@ -428,7 +428,7 @@ fun a_staged_buffer_is_the_source_an_answer_quotes(): void {
     prepare_typed_fixture()
     val crate = typed_crate_for_overlay(typed_fixture_path(), staged_typed_source().as_str())
     assert_eq(crate.source.as_str(), staged_typed_source().as_str(),
-              "so a span rendered back to the reader quotes what they wrote")
+        "so a span rendered back to the reader quotes what they wrote")
 }
 
 // `Cell`'s parameter is `A` while the receiver binds `K` and `V`, so a match

@@ -51,7 +51,6 @@ pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): S
     return out.finish()
 }
 
-
 /// Index of the `.` being completed after, or 0 off a member position. Skips
 /// a partly typed name: `p.`, `p.x`, `p.sca`.
 pub fun member_dot_before(src: str, offset: uint32): uint32 {

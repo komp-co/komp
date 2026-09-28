@@ -77,11 +77,11 @@ impl Parser {
     mutating fun parse_annotated_decl(): TopDecl {
         var names = List.new<String>()
         while is_op(self.peek(), Operator.At) {
-            unsafe { self.advance() }          // consume `@`
+            unsafe { self.advance() } // consume `@`
             names.push(self.parse_annotation_name())
             self.skip_newlines()
         }
-        var td = self.parse_top_decl()             // parse the decl they annotate
+        var td = self.parse_top_decl() // parse the decl they annotate
         td.annotations = names
         return td
     }
@@ -113,7 +113,7 @@ impl Parser {
 
     /// `(a, b)` as `"(a,b)"`, stopping at `)` or EOF.
     mutating fun parse_annotation_args(): String {
-        unsafe { self.advance() }                 // consume `(`
+        unsafe { self.advance() } // consume `(`
         var out = String.from("(")
         var first = true
         while true {
@@ -135,10 +135,10 @@ impl Parser {
                 _ => {}
             }
             if done { break }
-            unsafe { self.advance() }              // ident, comma, or stray token
+            unsafe { self.advance() } // ident, comma, or stray token
         }
         if is_op(self.peek(), Operator.RParen) {
-            unsafe { self.advance() }              // consume `)`
+            unsafe { self.advance() } // consume `)`
         }
         return out + String.from(")")
     }
@@ -189,7 +189,7 @@ impl Parser {
     /// `mutating` at top level is only for an extension, which has a receiver.
     mutating fun parse_top_mutating(span: Span, is_pub: bool): TopDecl {
         if !is_keyword(self.peek_at(1), Keyword.Fun) { return self.advance_and_poison(span) }
-        unsafe { self.advance() }                              // consume `mutating`
+        unsafe { self.advance() } // consume `mutating`
         val decl = self.parse_fun(span, is_pub, true, false)
         if decl.ext_name.as_str().equals("") {
             val message = "only a method or an extension function (`mutating fun Type.name()`) can be `mutating`"

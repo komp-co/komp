@@ -6,7 +6,6 @@ import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_references_json
 
-
 fun references_fixture_path(): str {
     return scratch_path("kf_query_refs/src/lib.kf")
 }

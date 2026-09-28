@@ -20,7 +20,6 @@ import kf_typecheck.traits.assoc_owner_key
 import kf_typecheck.check.autoderef_ty
 import kf_core.ast.dyn_meta.dyn_trait_type
 
-
 pub mutating fun Module.subst_projections_module(sigs: Ptr<SigTable>): void {
     while i in 0..self.decls.size() {
         subst_projections_decl(self.decls.at_mut(i), "", "", "", sigs)

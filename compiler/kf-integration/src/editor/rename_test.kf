@@ -120,4 +120,3 @@ fun an_empty_new_name_still_refuses_an_impossible_target(): void {
     val json = rename_at(1, "")
     assert_eq(json.as_str().contains("\"ok\":false"), true, "validating a non-name still refuses")
 }
-

@@ -20,7 +20,7 @@ import kf_core.diagnostic.*
 
 /// kf.toml first, then CLI flags; later entries override.
 pub struct LintConfig {
-    pub var names:  List<String>
+    pub var names: List<String>
     pub var levels: List<LintLevel>
     pub var deny_warnings: bool
     /// lint.toml's option rows, over the registry's defaults.
@@ -138,14 +138,14 @@ fun TopDecl.allows_lint(name: str): bool {
 /// Segment by segment, so `unused` does not match `unused_import`.
 pub fun allow_names_include(annotation: str, name: str): bool {
     val n = annotation.byte_len()
-    var i: uint64 = 6            // past `allow(`
+    var i: uint64 = 6 // past `allow(`
     var start = 6
     while i <= n {
         val at_end = i == n
         var is_sep = false
         if !at_end {
             val b = annotation.byte_at(i)
-            is_sep = b == 44 || b == 41      // `,` or `)`
+            is_sep = b == 44 || b == 41 // `,` or `)`
         }
         if at_end || is_sep {
             if i > start {
@@ -253,7 +253,7 @@ pub mutating fun LintConfig.apply_cli_lint_flags(diags: &var List<Diagnostic>): 
         when a {
             "-A" => { level = LintLevel.Allow; is_flag = true }
             "-W" => { level = LintLevel.Warn; is_flag = true }
-            "-D" => { level = LintLevel.Deny;  is_flag = true }
+            "-D" => { level = LintLevel.Deny; is_flag = true }
             _ => { }
         }
         if is_flag {

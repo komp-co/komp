@@ -8,38 +8,38 @@ import kf_core.ast.intern
 @test
 fun a_mangled_callee_yields_its_method(): void {
     assert_eq(mangled_method_name("String_from__From__str").as_str(), "from",
-              "owner comes off, trait suffix comes off")
+        "owner comes off, trait suffix comes off")
 }
 
 @test
 fun the_owner_boundary_is_the_first_single_underscore(): void {
     // A `__` before the boundary is not the boundary.
     assert_eq(mangled_method_name("List__int32_push").as_str(), "push",
-              "a mangled owner keeps its own `__` out of the split")
+        "a mangled owner keeps its own `__` out of the split")
 }
 
 @test
 fun a_callee_with_no_trait_suffix_is_all_method(): void {
     assert_eq(mangled_method_name("Vec2_area").as_str(), "area",
-              "no `__` means the method runs to the end")
+        "no `__` means the method runs to the end")
 }
 
 @test
 fun a_bare_name_has_no_owner_to_strip(): void {
     assert_eq(mangled_method_name("main").as_str(), "",
-              "nothing to decode, and saying so beats inventing a name")
+        "nothing to decode, and saying so beats inventing a name")
 }
 
 @test
 fun a_trait_impl_method_decodes_to_its_plain_name(): void {
     assert_eq(base_method_name("from__From__str").as_str(), "from",
-              "the declared name carries the trait it implements")
+        "the declared name carries the trait it implements")
 }
 
 @test
 fun a_plain_method_name_decodes_to_nothing(): void {
     assert_eq(base_method_name("push").as_str(), "",
-              "an undecorated name has no base to strip to")
+        "an undecorated name has no base to strip to")
 }
 
 @test
@@ -63,7 +63,7 @@ fun a_trait_impl_method_answers_to_the_name_a_call_site_writes(): void {
     var r = new_reached()
     r.reached_mark(intern("from"))
     assert_eq(r.name_is_reached(intern("from__From__str")), true,
-              "one mark, both spellings")
+        "one mark, both spellings")
 }
 
 @test
@@ -71,5 +71,5 @@ fun an_unrelated_trait_impl_method_stays_unreached(): void {
     var r = new_reached()
     r.reached_mark(intern("from"))
     assert_eq(r.name_is_reached(intern("display__Display")), false,
-              "decoding is not a wildcard")
+        "decoding is not a wildcard")
 }

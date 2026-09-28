@@ -29,7 +29,7 @@ fun bare_return(span: Span): Stmt {
 
 impl Parser {
     mutating fun parse_let(span: Span, is_var: bool): Stmt {
-        unsafe { self.advance() }                     // consume val/var
+        unsafe { self.advance() } // consume val/var
         // Taken before the name is interned, since a Sym has no position.
         val binder_span: Span = self.peek().span
         val name: String = self.expect_name("variable")
@@ -48,7 +48,7 @@ impl Parser {
         // `val x = OPT ?: BAIL`: the rest of the block becomes the `Some` arm.
         if self.peek_is_elvis() {
             self.skip_newlines()
-            unsafe { self.advance() }                 // consume `?:`
+            unsafe { self.advance() } // consume `?:`
             return self.desugar_elvis(name, init, span, is_var)
         }
 
@@ -156,7 +156,7 @@ impl Parser {
     }
 
     mutating fun parse_return(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `return`
+        unsafe { self.advance() } // consume `return`
         val next = self.peek()
         when (next.kind) {
             Newline => return bare_return(span)

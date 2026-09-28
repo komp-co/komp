@@ -19,9 +19,9 @@ import core.entry.*
 pub struct HashMap<K, V> {
     // Entry `i` is `keys[i]` -> `vals[i]`; the three entry arrays move
     // together.
-    var keys:  List<K>
-    var vals:  List<V>
-    var next:  List<uint64>
+    var keys: List<K>
+    var vals: List<V>
+    var next: List<uint64>
     // Per bucket, the index of its first entry.
     var heads: List<uint64>
 }

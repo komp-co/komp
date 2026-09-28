@@ -78,7 +78,7 @@ fun Expr.place_path_copy(): Expr? {
 ///
 /// The temp's name, or null when it does not apply.
 fun lower_place_assign_drop(place_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx,
-                            out: &var List<Stmt>): Sym? {
+    out: &var List<Stmt>): Sym? {
     val pe = unsafe { *place_ptr }
     if !is_heap_ty_rc(pe.ty) { return null }
     val rhs = unsafe { &*rhs_ptr }

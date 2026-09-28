@@ -17,16 +17,16 @@ pub struct Stmt {
 /// cross-file typedef order follows file names.
 @derive(Clone)
 pub struct SwitchArm {
-    pub val span:    Span
-    pub val tag:     SwitchTag
+    pub val span: Span
+    pub val tag: SwitchTag
     pub var binders: List<Sym>
     /// Null when unguarded. Any guard makes codegen emit the whole `Switch`
     /// as an if/else-if chain.
-    pub val guard:   Box<Expr>?
+    pub val guard: Box<Expr>?
     /// Runs before the guard, inside it: binds the guard's owned temporaries
     /// and its value, then drops them. Empty when the guard owns nothing.
     pub var guard_prelude: List<Stmt>
-    pub var body:    List<Stmt>
+    pub var body: List<Stmt>
 }
 
 @derive(Clone)

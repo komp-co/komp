@@ -184,8 +184,8 @@ fun span_list_contains(spans: &List<Span>, span: Span): bool {
 // unsubstituted `List__T`.
 
 pub struct OpenGenericCall {
-    pub var span:   Span
-    pub var base:   String
+    pub var span: Span
+    pub var base: String
     pub var method: String
 }
 

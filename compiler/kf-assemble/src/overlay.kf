@@ -7,7 +7,7 @@ import alloc.list.*
 /// A staged file with empty text is a real, empty document, not an absent
 /// one.
 pub struct Overlay {
-    var paths:    List<String>
+    var paths: List<String>
     var contents: List<String>
 }
 

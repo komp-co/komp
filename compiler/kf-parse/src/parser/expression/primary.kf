@@ -206,7 +206,7 @@ impl Parser {
             DotDotEq => return self.advance_and_poison_expr(span)
             // `*ptr`: binds tighter than binary operators.
             Star => {
-                unsafe { self.advance() }                 // consume `*`
+                unsafe { self.advance() } // consume `*`
                 val operand = self.parse_primary()
                 val operand_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *operand_ptr = operand }
@@ -226,7 +226,7 @@ impl Parser {
             // expression is returned tagged; an un-annotated `val b = &xs`
             // would otherwise move.
             Amp => {
-                unsafe { self.advance() }                 // consume `&`
+                unsafe { self.advance() } // consume `&`
                 var written = coerce_written_amp()
                 if is_keyword(self.peek(), Keyword.Var) {
                     unsafe { self.advance() }
@@ -275,7 +275,7 @@ impl Parser {
 
     /// `unsafe { EXPR }`; `unsafe` already consumed.
     mutating fun parse_unsafe_expr(span: Span): Expr {
-        unsafe { self.advance() }                     // consume `unsafe`
+        unsafe { self.advance() } // consume `unsafe`
         val _ob = self.expect_op(Operator.LBrace, "after `unsafe`")
         val inner = self.parse_expr()
         self.skip_newlines()

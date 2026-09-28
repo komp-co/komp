@@ -27,7 +27,6 @@ pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
     return out.finish()
 }
 
-
 /// In source order. The walk is nearly sorted but argument lists nest.
 fun tokens_in_file(names: &List<NameSpan>, file_id: uint32): List<NameSpan> {
     var mine = List.new<NameSpan>()

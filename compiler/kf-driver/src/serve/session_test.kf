@@ -38,7 +38,7 @@ fun an_unknown_method_is_named(): void {
 fun a_line_that_is_not_json_is_a_parse_error(): void {
     var session = greeted()
     assert_eq(session.answer("check please").as_str().contains("\"id\":null,\"error\":{\"code\":\"parse_error\""),
-              true, "parse error")
+        true, "parse error")
 }
 
 @test

@@ -1,6 +1,5 @@
 import core.assert.assert_eq
 
-
 fun folding_of(src: str): String {
     val m = module_for(src)
     return render_folding_json("t.kf", &m)

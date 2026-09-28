@@ -2,7 +2,6 @@
 
 import core.assert.assert_eq
 
-
 fun hit_in(src: str, offset: uint32): ExprHit {
     val m = module_for(src)
     return m.innermost_expr_at(1, offset)

@@ -12,7 +12,6 @@ fun char_scalar_of(src: str): int64 {
     }
 }
 
-
 @test fun a_char_literal_carries_its_scalar(): void {
     assert_eq(char_scalar_of("'A'"), 65, "'A' is 65")
 }

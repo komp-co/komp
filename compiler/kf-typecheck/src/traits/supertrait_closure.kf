@@ -7,7 +7,6 @@ import alloc.list.*
 
 import kf_core.span.no_span
 
-
 /// Each once, in first-reached order, never the starting trait. An
 /// unregistered trait requires nothing; name resolution reports it.
 pub fun SigTable.supertrait_closure(name: str): List<String> {

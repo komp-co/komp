@@ -15,10 +15,10 @@ pub mutating fun Module.typecheck_module(table: &var DeclTable): List<Diagnostic
 }
 
 pub fun typecheck_module_with_imports(m: &var Module,
-                                      table: &var DeclTable,
-                                      caller_files: Ptr<List<uint32>>,
-                                      imported_targets: Ptr<List<Sym>>,
-                                      imported_names: Ptr<List<Sym>>): List<Diagnostic> {
+    table: &var DeclTable,
+    caller_files: Ptr<List<uint32>>,
+    imported_targets: Ptr<List<Sym>>,
+    imported_names: Ptr<List<Sym>>): List<Diagnostic> {
     val typed = typecheck_module_typed(m, table, caller_files, imported_targets, imported_names)
     return typed.diags.clone()
 }
@@ -27,15 +27,15 @@ pub fun typecheck_module_with_imports(m: &var Module,
 /// `List<int32>` needs this one.
 pub struct TypedModule {
     pub var diags: List<Diagnostic>
-    pub var sigs:  Box<SigTable>
+    pub var sigs: Box<SigTable>
 }
 
 /// `typecheck_module` drops the table; tooling that renders types keeps it.
 pub fun typecheck_module_typed(m: &var Module,
-                               table: &var DeclTable,
-                               caller_files: Ptr<List<uint32>>,
-                               imported_targets: Ptr<List<Sym>>,
-                               imported_names: Ptr<List<Sym>>): TypedModule {
+    table: &var DeclTable,
+    caller_files: Ptr<List<uint32>>,
+    imported_targets: Ptr<List<Sym>>,
+    imported_names: Ptr<List<Sym>>): TypedModule {
     var diags = List.new<Diagnostic>()
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)

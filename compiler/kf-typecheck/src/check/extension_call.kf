@@ -16,7 +16,7 @@ import kf_typecheck.traits.receiver_declares_trait_method
 
 /// True when either took the call.
 pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, name: Sym, args: &var List<Expr>,
-                              ctx: &var TypeCtx): bool {
+    ctx: &var TypeCtx): bool {
     if e.check_dyn_method_call(recv, name, args, ctx) { return true }
     if !has_extension_named(name.as_str(), ctx) || recv.ty.is_poison() { return false }
     val renders = renders_through_display(recv.ty.clone(), name.as_str(), args.size(), ctx)
@@ -45,7 +45,7 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
     if args.size() == 0 || !has_extension_named(name.as_str(), ctx) { return false }
     val sigs = ctx.sigs
     val ordinary = unsafe { (*sigs).find_imported_signature(name.as_str(), ctx.owner_file,
-                                                             ctx.owner_crate, ctx.owner_module) }
+        ctx.owner_crate, ctx.owner_module) }
     if ordinary.is_some() { return false }
     check_call_argument(args.at_mut(0), ctx)
     val link = chosen_extension(name.as_str(), &args.at(0).ty, self.span, ctx)

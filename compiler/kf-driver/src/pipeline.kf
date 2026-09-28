@@ -6,7 +6,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
 
-
 import kf_resolve.*
 import kf_typecheck.typecheck_module_with_imports
 import kf_mono.mono_module
@@ -224,4 +223,3 @@ fun Diagnostic.warning_belongs_to_a_dependency(smap: Ptr<SourceMap>): bool {
     // CONSTRAINT: normalized: `komp check .` yields `./src/main.kf`.
     return !normalized_path(path.as_str()).as_str().starts_with(root)
 }
-

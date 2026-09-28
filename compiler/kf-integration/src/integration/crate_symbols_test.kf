@@ -3,7 +3,6 @@
 
 import core.assert.assert_eq
 
-
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_crate_separate
 import std.fs.scratch_path

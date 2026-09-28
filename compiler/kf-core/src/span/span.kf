@@ -2,8 +2,8 @@
 @derive(Copy)
 pub struct Span {
     pub val file_id: uint32
-    pub val start:   uint32
-    pub val end:     uint32
+    pub val start: uint32
+    pub val end: uint32
 }
 
 impl Span {

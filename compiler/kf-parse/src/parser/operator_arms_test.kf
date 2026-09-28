@@ -3,7 +3,6 @@
 
 import core.assert.*
 
-
 @test fun op_to_binop_at_is_not_a_binary_operator(): void {
     assert_eq(op_to_binop(Operator.At).is_none(), true, "`@` is an annotation marker, never infix")
 }

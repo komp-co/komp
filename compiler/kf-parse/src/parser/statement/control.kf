@@ -2,7 +2,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.*
 
-
 fun Arm.arm_body_ends_in_expression(): bool {
     // An arm ending in an `if` yields through both branches.
     return list_yields_value(&self.body)
@@ -10,7 +9,7 @@ fun Arm.arm_body_ends_in_expression(): bool {
 
 impl Parser {
     pub mutating fun parse_if_stmt(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `if`
+        unsafe { self.advance() } // consume `if`
         // So `if x { ... }` is not read as a struct literal.
         self.no_struct_lit = true
         // A condition that is one parenthesised group ends at a visible `)`,
@@ -97,7 +96,7 @@ impl Parser {
     /// A name followed by `in` selects iteration; `in` cannot start an
     /// expression, so no backtracking is needed.
     mutating fun parse_while(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `while`
+        unsafe { self.advance() } // consume `while`
         if self.at_iteration_header() { return self.parse_while_in(span) }
         self.no_struct_lit = true
         val cond = self.parse_expr()
@@ -117,8 +116,8 @@ impl Parser {
     // ordinary expression, so ranges and collections share one grammar.
     mutating fun parse_while_in(span: Span): Stmt {
         val name: String = self.expect_name("loop variable")
-        unsafe { self.advance() }                     // consume loop variable
-        unsafe { self.advance() }                     // consume `in`
+        unsafe { self.advance() } // consume loop variable
+        unsafe { self.advance() } // consume `in`
         self.no_struct_lit = true
         val subject = self.parse_expr()
         self.no_struct_lit = false
@@ -131,14 +130,14 @@ impl Parser {
     /// `for` only opens a trait impl; as a loop it gets one diagnostic and is
     /// parsed as `while`.
     mutating fun for_loop_removed_err(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `for`
+        unsafe { self.advance() } // consume `for`
         self.parse_err(span, String.from("`while` is the only loop keyword — write `while i in a..b` or `while x in xs`"))
         if self.at_iteration_header() { return self.parse_while_in(span) }
         return stmt_poison(span)
     }
 
     mutating fun parse_when_stmt(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `when`
+        unsafe { self.advance() } // consume `when`
         var arms = List.new<Arm>()
         val subject_ptr = self.parse_when_subject_and_arms(&var arms)
         return new_stmt(span, StmtKind.When(subject_ptr, arms))
@@ -146,7 +145,7 @@ impl Parser {
 
     /// `when subject { pattern => EXPR }` in value position.
     pub mutating fun parse_when_expr(span: Span): Expr {
-        unsafe { self.advance() }                     // consume `when`
+        unsafe { self.advance() } // consume `when`
         var arms = List.new<Arm>()
         val subject_ptr = self.parse_when_subject_and_arms(&var arms)
         self.require_expression_arms(&arms)

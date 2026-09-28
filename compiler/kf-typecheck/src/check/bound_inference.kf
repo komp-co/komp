@@ -18,7 +18,7 @@ import kf_typecheck.traits.trait_arg_segments
 /// Binds in place each unbound parameter a bound determines, repeating while
 /// bindings appear (`A: Tr<B>, B: Tr<C>`).
 pub fun infer_from_bounds(callee: str, gnames: &List<String>, inf_tys: &var List<Type>, span: Span,
-                          ctx: &var TypeCtx): void {
+    ctx: &var TypeCtx): void {
     val bounds = unsafe { (*ctx.sigs).bounds }
     var progress = true
     while progress {
@@ -46,7 +46,7 @@ pub fun infer_from_bounds(callee: str, gnames: &List<String>, inf_tys: &var List
 /// The trait arguments of the single impl of `trait_name` for `self_ty`
 /// agreeing with `wanted` where known; empty for none or several.
 fun impl_trait_arg_types(self_ty: &Type, trait_name: str, wanted: &List<String>, gnames: &List<String>,
-                         inf_tys: &List<Type>, span: Span, ctx: &var TypeCtx): List<Type> {
+    inf_tys: &List<Type>, span: Span, ctx: &var TypeCtx): List<Type> {
     val have = autoderef_ty(self_ty.clone())
     val base = have.ty_base_name()
     val impls = unsafe { (*ctx.sigs).trait_impls }
@@ -143,7 +143,7 @@ fun name_index(names: &List<String>, name: str): uint64 {
 
 /// An argument naming a still-unbound parameter in `free` accepts anything.
 pub fun bound_type_implements_here(bound_ty: &Type, trait_name: str, args: String, free: &List<String>, span: Span,
-                                   ctx: &var TypeCtx): bool {
+    ctx: &var TypeCtx): bool {
     if trait_name.equals(ctx.lang_trait_name(lang_copy_key()).as_str()) { return bound_ty.type_is_copy(ctx) }
     if !bound_ty.bound_type_implements(trait_name, ctx.sigs) { return false }
     if !impl_args_agree(bound_ty, trait_name, args.as_str(), free, span, ctx) { return false }
@@ -154,7 +154,7 @@ pub fun bound_type_implements_here(bound_ty: &Type, trait_name: str, args: Strin
 /// with `args_key`; otherwise `impl Iterable<T> for List<T>` would pass for
 /// `Iterable<Point>` on `List<int32>`. True when undecidable here.
 fun impl_args_agree(bound_ty: &Type, trait_name: str, args_key: str, free: &List<String>, span: Span,
-                    ctx: &var TypeCtx): bool {
+    ctx: &var TypeCtx): bool {
     val have = autoderef_ty(bound_ty.clone())
     val base = have.ty_base_name()
     val wanted = key_segments(args_key)

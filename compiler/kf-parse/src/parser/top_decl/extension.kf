@@ -127,7 +127,7 @@ impl Parser {
         unsafe { self.advance() }
         val receiver_args = self.parse_receiver_arguments(receiver_name.as_str())
         val receiver = new_type_ref(receiver_at, TypeRefKind.Named(intern(receiver_name.as_str()), receiver_args))
-        unsafe { self.advance() }                             // consume `.`
+        unsafe { self.advance() } // consume `.`
         val name_at = self.peek().span
         val name = self.expect_name("extension function")
         unsafe { self.advance() }
@@ -163,7 +163,7 @@ impl Parser {
     mutating fun parse_receiver_arguments(receiver_name: str): List<TypeRef> {
         var args = List.new<TypeRef>()
         if !is_op(self.peek(), Operator.Lt) { return args }
-        unsafe { self.advance() }                             // consume `<`
+        unsafe { self.advance() } // consume `<`
         while true {
             if is_op(self.peek(), Operator.Gt) {
                 unsafe { self.advance() }
@@ -190,14 +190,14 @@ impl Parser {
     /// `fun Iterable<T: Add>.sum()`: names the list that can carry the bound.
     mutating fun report_receiver_bound(arg: &TypeRef, receiver_name: str): void {
         val at = self.peek().span
-        unsafe { self.advance() }                             // consume `:`
+        unsafe { self.advance() } // consume `:`
         var shown = String.from("")
         while true {
             val bound_ptr = self.parse_type_ref_ptr()
             if shown.byte_len() == 0 { shown = (unsafe { &*bound_ptr }).type_ref_head_name() }
             unsafe { dealloc<TypeRef>(bound_ptr) }
             if !is_op(self.peek(), Operator.Plus) { break }
-            unsafe { self.advance() }                         // consume `+`, next bound
+            unsafe { self.advance() } // consume `+`, next bound
         }
         if shown.byte_len() == 0 { shown = String.from("Bound") }
         val n = arg.type_ref_head_name()

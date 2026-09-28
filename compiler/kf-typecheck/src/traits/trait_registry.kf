@@ -116,7 +116,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
 }
 
 fun insert_dyn_vtable(td: &var TopDecl, trait_ref: TypeRef, members: &List<TopDecl>, layout: &DynTraitLayout,
-                      sigs: Ptr<SigTable>): void {
+    sigs: Ptr<SigTable>): void {
     var receiver_identity = td.name
     if !td.crate.is_poison() {
         receiver_identity = canonical_type_identity(new_type_identity(td.crate, td.module_path, td.name))

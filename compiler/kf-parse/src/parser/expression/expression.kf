@@ -38,8 +38,8 @@ fun Token.op_may_open_a_continuation_line(): bool {
 fun operator_is_infix_only(o: Operator): bool {
     return when (o) {
         Minus => false
-        Star  => false
-        Amp   => false
+        Star => false
+        Amp => false
         // Infix-only, though not in the BinOp table.
         DotDot => true
         DotDotEq => true
@@ -65,7 +65,7 @@ impl Parser {
         if !self.peek_is_elvis() { return lhs }
         if self.elvis_rhs_is_a_bail() { return lhs }
         self.skip_newlines()
-        unsafe { self.advance() }                     // consume `?:`
+        unsafe { self.advance() } // consume `?:`
         self.skip_newlines()
         val rhs = self.parse_elvis()
         return self.build_defaulting_elvis(lhs, rhs)
@@ -75,7 +75,7 @@ impl Parser {
     mutating fun elvis_rhs_is_a_bail(): bool {
         var off = 0
         while tok_is_newline(self.peek_at(off)) { off = off + 1 }
-        off = off + 1                              // step over the `?:` itself
+        off = off + 1 // step over the `?:` itself
         while tok_is_newline(self.peek_at(off)) { off = off + 1 }
         val t = self.peek_at(off)
         if t.is_keyword(Keyword.Return) { return true }
@@ -137,31 +137,31 @@ impl Parser {
             if opens_range && range_prec() >= min_prec {
                 lhs = self.parse_range_rest(lhs, is_op(self.peek(), Operator.DotDotEq))
             } else {
-            val op_opt = self.peek_binop()
-            when (op_opt) {
-                Some(op_info) => {
-                    val prec: int32 = op_info.prec
-                    if prec < min_prec {
-                        more = false
-                    } else {
-                        unsafe { self.advance() }
-                        when (op_info.op) {
-                            Shr => unsafe { self.advance() }
-                            _ => {}
+                val op_opt = self.peek_binop()
+                when (op_opt) {
+                    Some(op_info) => {
+                        val prec: int32 = op_info.prec
+                        if prec < min_prec {
+                            more = false
+                        } else {
+                            unsafe { self.advance() }
+                            when (op_info.op) {
+                                Shr => unsafe { self.advance() }
+                                _ => {}
+                            }
+                            // A line break after an operator continues the expression.
+                            self.skip_newlines()
+                            val rhs = self.parse_binary(prec + 1)
+                            val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+                            unsafe { *lhs_ptr = lhs }
+                            val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+                            unsafe { *rhs_ptr = rhs }
+                            val span = lhs_ptr_span(lhs_ptr).merge(rhs_ptr_span(rhs_ptr))
+                            lhs = new_expr(span, ExprKind.Binary(lhs_ptr, op_info.op, rhs_ptr))
                         }
-                        // A line break after an operator continues the expression.
-                        self.skip_newlines()
-                        val rhs = self.parse_binary(prec + 1)
-                        val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-                        unsafe { *lhs_ptr = lhs }
-                        val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-                        unsafe { *rhs_ptr = rhs }
-                        val span = lhs_ptr_span(lhs_ptr).merge(rhs_ptr_span(rhs_ptr))
-                        lhs = new_expr(span, ExprKind.Binary(lhs_ptr, op_info.op, rhs_ptr))
                     }
+                    None => more = false
                 }
-                None => more = false
-            }
             }
         }
         return lhs
@@ -171,7 +171,7 @@ impl Parser {
     /// call, not a `Range { }` literal: a generic function infers its type
     /// argument, and the literal `1` takes the endpoints' type.
     mutating fun parse_range_rest(lhs: Expr, inclusive: bool): Expr {
-        unsafe { self.advance() }                     // consume `..` or `..=`
+        unsafe { self.advance() } // consume `..` or `..=`
         self.skip_newlines()
         val rhs = self.parse_binary(range_prec() + 1)
         self.used_range = true

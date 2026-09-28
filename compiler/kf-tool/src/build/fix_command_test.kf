@@ -12,7 +12,7 @@ fun canon(p: str): String {
 @test
 fun a_file_inside_the_root_is_writable(): void {
     assert_eq(fix_targets_root(canon("/w/app/src/main.kf").as_str(), canon("/w/app").as_str()), true,
-              "the crate being fixed is the point")
+        "the crate being fixed is the point")
 }
 
 @test
@@ -21,26 +21,26 @@ fun a_sibling_reached_through_dotdot_is_not_writable(): void {
     val dep = canon("/w/app/../lib/src/main.kf")
     assert_eq(dep.as_str(), "/w/lib/src/main.kf", "canonicalization is what makes the test meaningful")
     assert_eq(fix_targets_root(dep.as_str(), canon("/w/app").as_str()), false,
-              "a dependency is not the project you pointed at")
+        "a dependency is not the project you pointed at")
 }
 
 @test
 fun the_raw_spelling_is_what_would_have_slipped_through(): void {
     // The comparison that was wrong, kept so nobody reintroduces it.
     assert_eq(fix_targets_root("/w/app/../lib/src/main.kf", "/w/app"), true,
-              "an uncanonicalized path really does pass the prefix test")
+        "an uncanonicalized path really does pass the prefix test")
 }
 
 @test
 fun a_neighbouring_directory_sharing_a_prefix_is_not_writable(): void {
     assert_eq(fix_targets_root(canon("/w/application/src/main.kf").as_str(), canon("/w/app").as_str()), false,
-              "`/w/app` must not match `/w/application`")
+        "`/w/app` must not match `/w/application`")
 }
 
 @test
 fun the_root_directory_itself_is_writable(): void {
     assert_eq(fix_targets_root(canon("/w/app").as_str(), canon("/w/app").as_str()), true,
-              "an exact match is inside")
+        "an exact match is inside")
 }
 
 fun sample_report(applicability: str): String {
@@ -54,7 +54,7 @@ fun sample_report(applicability: str): String {
 fun a_machine_applicable_fix_is_read_from_the_report(): void {
     val fixes = fixes_from_report(sample_report("machine-applicable").as_str(), "/w/app")
     assert_eq(fixes.size() == 1 && fixes.at(0).fix.start == 7 && fixes.at(0).fix.replacement == "only_one", true,
-              "the repair, its offsets and its text come through")
+        "the repair, its offsets and its text come through")
 }
 
 @test

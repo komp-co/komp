@@ -144,4 +144,3 @@ fun the_top_level_does_not_offer_a_statement_keyword(): void {
     val json = completion_at(0)
     assert_eq(json.as_str().contains("\"label\":\"return\""), false, "`return` cannot appear between declarations")
 }
-

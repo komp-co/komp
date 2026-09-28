@@ -48,4 +48,3 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String
     }
     return out.finish()
 }
-

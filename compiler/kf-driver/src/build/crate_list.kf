@@ -9,7 +9,6 @@ import kf_core.span.*
 import kf_assemble.Overlay
 import kf_assemble.assemble_crate_inc
 
-
 /// A crate named on kflatc's command line: its name and source root.
 pub struct CrateSource {
     pub val name: String
@@ -19,7 +18,7 @@ pub struct CrateSource {
 /// Each crate's modules in order. `root_tests` includes the last crate's
 /// `_test.kf` files; `overlay` stands in for a file an editor has open.
 pub fun assemble_crate_list(crates: &List<CrateSource>, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>,
-                            root_tests: bool, overlay: &Overlay): List<Module> {
+    root_tests: bool, overlay: &Overlay): List<Module> {
     var modules = List.new<Module>()
     while i in 0..crates.size() {
         val item = crates.at(i)

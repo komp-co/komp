@@ -4,7 +4,6 @@ import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_tokens_json
 
-
 fun tokens_fixture_path(): str {
     return scratch_path("kf_query_tokens/src/lib.kf")
 }

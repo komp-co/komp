@@ -13,9 +13,9 @@ fun at(file: uint32, start: uint32): Span {
 
 fun fresh_warn_state(): WarnState {
     return WarnState {
-            warned: List.new<Span>(), reached: new_reached(),
-            prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
-        }
+        warned: List.new<Span>(), reached: new_reached(),
+        prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
+    }
 }
 
 @test fun the_first_time_a_span_is_offered_it_is_new(): void {

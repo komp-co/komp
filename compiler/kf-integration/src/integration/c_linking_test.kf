@@ -5,7 +5,6 @@ import alloc.list.*
 import core.assert.assert_eq
 import kf_tool.build.build_project_separate
 
-
 @test
 fun c_linking_project_builds(): void {
     val code = build_project_separate("tests/c_linking", "")

@@ -271,9 +271,9 @@ fun impl_method_is_mutating(td: TopDecl, i: uint64): bool {
     var p = parser_for("impl Foo { mutating fun bump(): void { } fun peek(): int32 { return 1 } pub mutating fun grow(): void { } }")
     val m = p.parse_module(List.new<String>())
     val td = first_decl(m)
-    assert_eq(impl_method_is_mutating(td, 0), true,  "mutating fun -> is_mutating")
+    assert_eq(impl_method_is_mutating(td, 0), true, "mutating fun -> is_mutating")
     assert_eq(impl_method_is_mutating(td, 1), false, "plain fun -> not mutating")
-    assert_eq(impl_method_is_mutating(td, 2), true,  "pub mutating fun -> is_mutating")
+    assert_eq(impl_method_is_mutating(td, 2), true, "pub mutating fun -> is_mutating")
 }
 
 fun bound_head_name(tr: TypeRef): String {

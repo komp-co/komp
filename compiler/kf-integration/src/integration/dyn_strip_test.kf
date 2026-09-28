@@ -6,7 +6,6 @@ import core.assert.assert_eq
 import kf_tool.build.build_project_separate
 import std.fs.scratch_path
 
-
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 

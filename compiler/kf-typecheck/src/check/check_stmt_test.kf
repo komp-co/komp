@@ -222,7 +222,7 @@ fun str_type_list(): List<Type> {
     var vs = List.new<VariantInfo>()
     var ok_p = List.new<Type>()
     ok_p.push(int32_ty(no_span()))
-    vs.push(VariantInfo { name: String.from("Ok"),  payloads: ok_p })
+    vs.push(VariantInfo { name: String.from("Ok"), payloads: ok_p })
     vs.push(VariantInfo { name: String.from("Err"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("R"), variants: vs, owner_crate: crate_id_poison() }) }
     // subject r: R
@@ -259,7 +259,7 @@ fun str_type_list(): List<Type> {
     var vs = List.new<VariantInfo>()
     var ok_p = List.new<Type>()
     ok_p.push(int32_ty(no_span()))
-    vs.push(VariantInfo { name: String.from("Ok"),  payloads: ok_p })
+    vs.push(VariantInfo { name: String.from("Ok"), payloads: ok_p })
     vs.push(VariantInfo { name: String.from("Err"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("R"), variants: vs, owner_crate: crate_id_poison() }) }
     ctx.declare(String.from("r"), Type { kind: TypeKind.Struct(intern("R")), provenance: Provenance.Declared(no_span()) })

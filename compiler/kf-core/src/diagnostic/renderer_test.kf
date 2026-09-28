@@ -83,7 +83,7 @@ fun with_note(d: Diagnostic, sp: Span, message: str): Diagnostic {
     // The note's echo is indented further; the primary's must not move.
     val smp = one_file_map("val x = 1\nval y = true\n")
     val d = with_note(error_at(Span { file_id: 1, start: 18, end: 22 }, String.from("bad init")),
-                      Span { file_id: 1, start: 4, end: 5 }, "see here")
+        Span { file_id: 1, start: 4, end: 5 }, "see here")
     val s = render(&d, smp).as_str()
     assert_eq(s.contains("\n    val y = true\n"), true, "primary echo still at four spaces")
 }
@@ -159,4 +159,3 @@ fun str_starts_with_at(haystack: str, needle: str, at: uint64): bool {
     }
     return true
 }
-

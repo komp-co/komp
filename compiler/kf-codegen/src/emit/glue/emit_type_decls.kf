@@ -45,8 +45,8 @@ pub fun Module.emit_type_bodies_ordered(): String {
     while td in &decls {
         val k = td.kind
         when (k) {
-            Struct(_f, _p)   => visit_type_body(td.name.as_string(), self, &var visited, &var parts)
-            EnumDecl(_v, _p)  => visit_type_body(td.name.as_string(), self, &var visited, &var parts)
+            Struct(_f, _p) => visit_type_body(td.name.as_string(), self, &var visited, &var parts)
+            EnumDecl(_v, _p) => visit_type_body(td.name.as_string(), self, &var visited, &var parts)
             _ => {}
         }
     }
@@ -122,7 +122,7 @@ fun is_user_type_name(name: String, m: &Module): bool {
         if match {
             val k = td.kind
             when (k) {
-                Struct(_f, _p)  => return true
+                Struct(_f, _p) => return true
                 EnumDecl(_v, _p) => return true
                 _ => {}
             }

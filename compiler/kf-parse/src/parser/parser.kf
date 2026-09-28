@@ -6,7 +6,7 @@ import kf_parse.lexer.*
 /// Recursive descent over a token stream. Grammar lives in sibling files.
 pub struct Parser {
     pub var toks: List<Token>
-    pub var pos:  uint64
+    pub var pos: uint64
     /// Set in an `if`/`while` condition, where `Name { ... }` is not a struct
     /// literal: the `{` opens the body.
     pub var no_struct_lit: bool
@@ -42,9 +42,9 @@ pub struct Parser {
 /// A postfix `?` not yet desugared: its subject and the carry-on binder name.
 @derive(Clone)
 pub struct PendingTry {
-    pub val name:    String
+    pub val name: String
     pub val subject: Expr
-    pub val span:    Span
+    pub val span: Span
 }
 
 pub fun new_parser(toks: List<Token>): Parser {
@@ -238,7 +238,7 @@ pub fun Token.is_int_literal(): bool {
     }
 }
 
-    /// 0 unless an IntLiteral.
+/// 0 unless an IntLiteral.
 pub fun Token.int_literal_value(): int64 {
     return when (self.kind) {
         IntLiteral(n) => n
@@ -277,7 +277,7 @@ pub fun Token.string_literal_text(): String? {
     }
 }
 
-    /// 0 unless a CharLiteral.
+/// 0 unless a CharLiteral.
 pub fun Token.char_literal_value(): uint32 {
     return when (self.kind) {
         CharLiteral(c) => c

@@ -7,7 +7,6 @@ import kf_integration.harness.check_project
 import kf_tool.build.build_project_separate
 import std.fs.scratch_root
 
-
 extern "C" fun system(cmd: str): int32
 
 /// `outer.inner` holds one `pub` and one private function; `main.kf` calls

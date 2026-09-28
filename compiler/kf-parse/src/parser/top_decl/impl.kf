@@ -16,7 +16,7 @@ fun type_params_to_refs(tps: List<TypeParam>): List<TypeRef> {
 
 impl Parser {
     mutating fun parse_impl(span: Span): TopDecl {
-        unsafe { self.advance() }                     // consume `impl`
+        unsafe { self.advance() } // consume `impl`
         // `impl<A, B: Show> ...` declares the parameters up front.
         val declared = self.parse_type_params()
         val has_list = declared.size() > 0
@@ -36,7 +36,7 @@ impl Parser {
             }
         }
         if is_trait_impl {
-            unsafe { self.advance() }                  // consume `for`
+            unsafe { self.advance() } // consume `for`
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
@@ -50,10 +50,10 @@ impl Parser {
             return td
         }
         self.pos = after_first
-        val first_tps = self.parse_type_params()           // <...> after the first name
+        val first_tps = self.parse_type_params() // <...> after the first name
 
         if is_keyword(self.peek(), Keyword.For) {
-            unsafe { self.advance() }                  // consume `for`
+            unsafe { self.advance() } // consume `for`
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
@@ -101,18 +101,18 @@ impl Parser {
     /// trait and which in an impl is a typecheck question.
     mutating fun parse_assoc_type(methods: &var List<TopDecl>): void {
         val span = self.peek().span
-        unsafe { self.advance() }                       // consume `type`
+        unsafe { self.advance() } // consume `type`
         val name = self.expect_name("associated type")
         unsafe { self.advance() }
         if is_op(self.peek(), Operator.Eq) {
-            unsafe { self.advance() }                   // consume `=`
+            unsafe { self.advance() } // consume `=`
             val chosen = self.parse_type_ref_ptr()
             methods.push(new_top_decl(span, name, TopDeclKind.AssocTypeBinding(chosen)))
             return
         }
         var bounds = List.new<TypeRef>()
         if is_op(self.peek(), Operator.Colon) {
-            unsafe { self.advance() }                   // consume `:`
+            unsafe { self.advance() } // consume `:`
             while true {
                 val before: uint64 = self.pos
                 val bound_ptr = self.parse_type_ref_ptr()
@@ -176,7 +176,7 @@ impl Parser {
 
     /// `extern "C" fun NAME(params): ret`, with no body.
     mutating fun parse_extern(span: Span, is_pub: bool): TopDecl {
-        unsafe { self.advance() }                     // consume `extern`
+        unsafe { self.advance() } // consume `extern`
 
         // The ABI string is skipped unexamined; inspecting it would copy a
         // Drop token.
@@ -187,7 +187,7 @@ impl Parser {
         if !is_keyword(self.peek(), Keyword.Fun) {
             return new_top_decl(span, "", TopDeclKind.Poison)
         }
-        unsafe { self.advance() }                     // consume `fun`
+        unsafe { self.advance() } // consume `fun`
 
         val name_at = self.peek().span
         val name = self.expect_name("method")

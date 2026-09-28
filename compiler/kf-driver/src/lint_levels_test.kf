@@ -37,7 +37,7 @@ fun allow_drops_the_diagnostic_entirely(): void {
     var cfg = new_lint_config()
     cfg.set_lint_level("unused_import", LintLevel.Allow)
     assert_eq(apply_lint_levels(a_lint(no_span()), &bare_module(), &cfg).size(), 0,
-              "allowed means not reported, not reported quietly")
+        "allowed means not reported, not reported quietly")
 }
 
 @test
@@ -92,7 +92,7 @@ fun deny_warnings_reaches_a_warning_no_lint_produced(): void {
     var cfg = new_lint_config()
     cfg.deny_warnings = true
     assert_eq(severity_of(apply_lint_levels(l, &bare_module(), &cfg).at(0)), "error",
-              "a warning is a warning whoever emitted it")
+        "a warning is a warning whoever emitted it")
 }
 
 @test
@@ -137,14 +137,14 @@ fun inside_decl(): Span {
 fun an_allow_on_the_enclosing_declaration_suppresses(): void {
     val m = module_with_decl(annotated_decl("allow(unused_import)"))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 0,
-              "a suppression written next to the code wins")
+        "a suppression written next to the code wins")
 }
 
 @test
 fun an_allow_naming_another_lint_does_not_suppress(): void {
     val m = module_with_decl(annotated_decl("allow(dead_code)"))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 1,
-              "suppression is per lint, not per declaration")
+        "suppression is per lint, not per declaration")
 }
 
 @test
@@ -162,7 +162,7 @@ fun an_allow_does_not_reach_outside_its_declaration(): void {
     val m = module_with_decl(annotated_decl("allow(unused_import)"))
     val above = Span { file_id: 1, start: 2, end: 5 }
     assert_eq(apply_lint_levels(a_lint(above), &m, &new_lint_config()).size(), 1,
-              "a diagnostic before the declaration is not inside it")
+        "a diagnostic before the declaration is not inside it")
 }
 
 @test
@@ -170,7 +170,7 @@ fun an_allow_in_another_file_does_not_reach(): void {
     val m = module_with_decl(annotated_decl("allow(unused_import)"))
     val elsewhere = Span { file_id: 2, start: 50, end: 60 }
     assert_eq(apply_lint_levels(a_lint(elsewhere), &m, &new_lint_config()).size(), 1,
-              "same offsets, different file")
+        "same offsets, different file")
 }
 
 @test
@@ -194,7 +194,7 @@ fun allow_coexists_with_test_on_one_declaration(): void {
 fun an_implicit_copy(span: Span): List<Diagnostic> {
     var l = List.new<Diagnostic>()
     l.push(lint_at("implicit_copy", span,
-                   String.from("auto-inserted a copy in `f` (arg 0 of `g`)")))
+        String.from("auto-inserted a copy in `f` (arg 0 of `g`)")))
     return l
 }
 
@@ -225,7 +225,7 @@ fun allowing_an_implicit_copy_drops_it(): void {
     var cfg = new_lint_config()
     cfg.set_lint_level("implicit_copy", LintLevel.Allow)
     assert_eq(apply_lint_levels(an_implicit_copy(no_span()), &bare_module(), &cfg).size(), 0,
-              "the accessor that must return an owned value can say so")
+        "the accessor that must return an owned value can say so")
 }
 
 @test
@@ -234,7 +234,7 @@ fun the_two_advisories_are_configured_apart(): void {
     cfg.set_lint_level("copy_after_move", LintLevel.Deny)
     val out = apply_lint_levels(an_implicit_copy(no_span()), &bare_module(), &cfg)
     assert_eq(severity_of(out.at(0)), "warning",
-              "denying one advisory does not deny the other")
+        "denying one advisory does not deny the other")
 }
 
 // A copy into a type that never said it could be copied: denied by default.
@@ -242,7 +242,7 @@ fun the_two_advisories_are_configured_apart(): void {
 fun an_unauthorized_copy(span: Span): List<Diagnostic> {
     var l = List.new<Diagnostic>()
     l.push(lint_at("unauthorized_copy", span,
-                   String.from("copying `Unique` here, but it does not implement `Clone`")))
+        String.from("copying `Unique` here, but it does not implement `Clone`")))
     return l
 }
 
@@ -251,7 +251,7 @@ fun an_unauthorized_copy_is_an_error_by_default(): void {
     val out = apply_lint_levels(an_unauthorized_copy(no_span()), &bare_module(), &new_lint_config())
     assert_eq(out.size(), 1, "it is reported")
     assert_eq(severity_of(out.at(0)), "error",
-              "a copy nobody authorized fails the build without being asked to")
+        "a copy nobody authorized fails the build without being asked to")
 }
 
 @test
@@ -260,7 +260,7 @@ fun an_unauthorized_copy_can_be_downgraded(): void {
     cfg.set_lint_level("unauthorized_copy", LintLevel.Warn)
     val out = apply_lint_levels(an_unauthorized_copy(no_span()), &bare_module(), &cfg)
     assert_eq(severity_of(out.at(0)), "warning",
-              "a crate mid-migration can ask for the old behaviour back")
+        "a crate mid-migration can ask for the old behaviour back")
 }
 
 @test
@@ -268,7 +268,7 @@ fun an_allowed_unauthorized_copy_is_silent(): void {
     var cfg = new_lint_config()
     cfg.set_lint_level("unauthorized_copy", LintLevel.Allow)
     assert_eq(apply_lint_levels(an_unauthorized_copy(no_span()), &bare_module(), &cfg).size(), 0,
-              "and can turn it off entirely")
+        "and can turn it off entirely")
 }
 
 @test
@@ -277,7 +277,7 @@ fun denying_the_authorized_copy_leaves_the_unauthorized_one_alone(): void {
     cfg.set_lint_level("implicit_copy", LintLevel.Allow)
     val out = apply_lint_levels(an_unauthorized_copy(no_span()), &bare_module(), &cfg)
     assert_eq(severity_of(out.at(0)), "error",
-              "accepting the copies you authorized does not accept the ones you did not")
+        "accepting the copies you authorized does not accept the ones you did not")
 }
 
 @test
@@ -286,7 +286,7 @@ fun a_table_row_sets_the_level_it_names(): void {
     var diags = List.new<Diagnostic>()
     cfg.apply_table_lint("kf.toml [lint]", "unused_import", "allow", &var diags)
     assert_eq(lint_level_allows(cfg.configured_level("unused_import")) && diags.size() == 0, true,
-              "a known row is applied and reports nothing")
+        "a known row is applied and reports nothing")
 }
 
 @test
@@ -295,7 +295,7 @@ fun a_table_row_naming_no_lint_is_reported_as_the_tables(): void {
     var diags = List.new<Diagnostic>()
     cfg.apply_table_lint("kf.toml [lint]", "unused_imports", "deny", &var diags)
     assert_eq(diags.at(0).primary.message.as_str(), "kf.toml [lint]: no lint or lint group named `unused_imports`",
-              "the misspelled row is named in the table's words")
+        "the misspelled row is named in the table's words")
 }
 
 @test

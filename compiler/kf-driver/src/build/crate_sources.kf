@@ -47,4 +47,3 @@ pub fun CompileUnit.write_test_sources(tdir: str, errp: Ptr<ErrCount>): bool {
 fun publish_runtime_header(tdir: str): bool {
     return publish_text(runtime_header_path(tdir).as_str(), emit_runtime_header().as_str())
 }
-

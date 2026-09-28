@@ -178,7 +178,7 @@ fun expand_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_v
 /// The new loop holds a copy of the condition, taken after its values are
 /// hoisted: the statement it came from is dropped whole.
 fun expand_while(span: Span, cond_ptr: Ptr<Expr>, body: &List<Stmt>, temps: &var WhenTemps,
-                 out: &var List<Stmt>): void {
+    out: &var List<Stmt>): void {
     var hoisted = List.new<Stmt>()
     hoist_when_values(cond_ptr, temps, &var hoisted)
     val cond = unsafe { &*cond_ptr }.clone()

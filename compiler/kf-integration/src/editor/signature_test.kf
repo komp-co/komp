@@ -70,4 +70,3 @@ fun signature_help_is_silent_outside_a_call(): void {
     val json = signature_at(2)
     assert_eq(json.as_str().contains("\"label\":null"), true, "the `fun` keyword is not inside a call")
 }
-

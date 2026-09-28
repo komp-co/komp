@@ -5,7 +5,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import json.writer.*
 
-
 /// "" when the declaration cannot be sliced (synthesized, or its span is
 /// outside the map).
 pub fun TopDecl.template_source_slice(smap: Ptr<SourceMap>): String {

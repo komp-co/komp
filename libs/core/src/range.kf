@@ -3,11 +3,10 @@
 //
 // `step` is a field: core has no trait producing one at a type parameter.
 
-
 pub struct Range<T> {
     pub val start: T
-    pub val end:   T
-    pub val step:  T
+    pub val end: T
+    pub val step: T
     /// Whether `end` is itself yielded. `0..n` is exclusive, `0..=n` is not.
     pub val inclusive: bool
     /// Which way `start` travels, never inferred from the operands, so `0..0`
@@ -131,8 +130,8 @@ impl Iterable<T> for Range<T: Compare + Add + Sub + Mod + Copy> {
 
 /// Holds its own copy of the endpoints, so it may outlive its `Range`.
 pub struct RangeIter<T> {
-    pub var cur:  T
-    pub var end:  T
+    pub var cur: T
+    pub var end: T
     pub val step: T
     pub val inclusive: bool
     /// See `Range.descending`.

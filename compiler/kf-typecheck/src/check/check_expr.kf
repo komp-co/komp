@@ -39,8 +39,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         Binary(lhs_ptr, op, rhs_ptr) => {
             check_expr(unsafe { &var *lhs_ptr }, ctx)
             check_expr(unsafe { &var *rhs_ptr }, ctx)
-    // Before literal coercion, which would give `7` in `n == 7` the borrow's
-    // type.
+            // Before literal coercion, which would give `7` in `n == 7` the borrow's
+            // type.
             deref_borrowed_operands(lhs_ptr, rhs_ptr, ctx)
             val checked_lhs = unsafe { *lhs_ptr }
             val checked_rhs = unsafe { *rhs_ptr }
@@ -360,7 +360,6 @@ fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool
     return unsafe { (*ctx.sigs).type_implements(base.as_str(), trait_name, "") }
 }
 
-
 fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val equal = ctx.lang_trait_name(lang_equal_key()).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
@@ -422,7 +421,6 @@ fun relational_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     return bool_ty(span)
 }
 
-
 fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val bool_ty_val = bool_ty(no_span())
     val is_bool_l = lhs.ty.type_eq(bool_ty_val)
@@ -437,8 +435,8 @@ fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
 /// against the pointee, repeatedly.
 pub fun autoderef_ty(t: Type): Type {
     return when (t.kind) {
-        PtrTo(p)    => autoderef_ty(unsafe { *p })
-        BoxOf(p)    => autoderef_ty(unsafe { *p })
+        PtrTo(p) => autoderef_ty(unsafe { *p })
+        BoxOf(p) => autoderef_ty(unsafe { *p })
         RefTo(_, p) => autoderef_ty(unsafe { *p })
         _ => t
     }

@@ -126,13 +126,13 @@ fun the_string_forward_declaration_precedes_its_layout(): void {
     val body = m.emit_module_body(false)
     var ok = false
     when (body.as_str().index_of("typedef struct String String;")) {
-      Some(fwd) => {
-        when (body.as_str().index_of("typedef struct String {")) {
-          Some(layout) => { ok = fwd < layout }
-          None => { }
+        Some(fwd) => {
+            when (body.as_str().index_of("typedef struct String {")) {
+                Some(layout) => { ok = fwd < layout }
+                None => { }
+            }
         }
-      }
-      None => { }
+        None => { }
     }
     assert_eq(ok, true, "the declaration comes before the definition")
 }

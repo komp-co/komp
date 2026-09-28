@@ -71,16 +71,16 @@ pub fun kw_str(k: Keyword): str {
 /// variants. An if-chain, because integer-literal `when` arms all lower to
 /// `default:`.
 pub fun keyword_at(i: uint64): Keyword? {
-    if i == 0  { return Keyword.Fun }
-    if i == 1  { return Keyword.Val }
-    if i == 2  { return Keyword.Var }
-    if i == 3  { return Keyword.Return }
-    if i == 4  { return Keyword.If }
-    if i == 5  { return Keyword.Else }
-    if i == 6  { return Keyword.While }
-    if i == 7  { return Keyword.True }
-    if i == 8  { return Keyword.False }
-    if i == 9  { return Keyword.Import }
+    if i == 0 { return Keyword.Fun }
+    if i == 1 { return Keyword.Val }
+    if i == 2 { return Keyword.Var }
+    if i == 3 { return Keyword.Return }
+    if i == 4 { return Keyword.If }
+    if i == 5 { return Keyword.Else }
+    if i == 6 { return Keyword.While }
+    if i == 7 { return Keyword.True }
+    if i == 8 { return Keyword.False }
+    if i == 9 { return Keyword.Import }
     if i == 10 { return Keyword.Pub }
     if i == 11 { return Keyword.Struct }
     if i == 12 { return Keyword.Enum }

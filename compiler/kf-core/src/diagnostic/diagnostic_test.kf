@@ -63,15 +63,10 @@ fun severity_is_error(s: Severity): bool {
     assert_eq(d.secondary.size(), 2, "two secondary labels")
 }
 
-
-
 @test fun label_vec_starts_empty(): void {
     val v = List.new<Label>()
     assert_eq(v.size(), 0, "fresh vec has size 0")
 }
-
-
-
 
 @test fun a_diagnostic_carries_no_fix_by_default(): void {
     val d = error_at(no_span(), String.from("something went wrong"))

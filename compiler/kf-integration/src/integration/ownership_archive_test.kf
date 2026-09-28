@@ -2,7 +2,6 @@ import core.assert.assert_eq
 import kf_tool.build.build_project_separate
 import std.fs.scratch_path
 
-
 extern "C" fun system(cmd: str): int32
 
 fun prepare_ownership_archive_fixture(early_return: bool): int32 {

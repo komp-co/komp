@@ -2,7 +2,6 @@
 //
 // CONSTRAINT: allocates nothing.
 
-
 fun digit(d: uint64): str {
     if d == 0 { return "0" }
     if d == 1 { return "1" }

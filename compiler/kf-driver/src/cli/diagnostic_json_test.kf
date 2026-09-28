@@ -40,7 +40,7 @@ fun the_json_names_the_lint_that_fired(): void {
     val d = lint_at("unused_import", no_span(), String.from("unused import `x`"))
     val json = d.render_json_diag(fresh_source_map())
     assert_eq(json.as_str().contains("\"code\":\"unused_import\""), true,
-              "a client filters and suppresses on this")
+        "a client filters and suppresses on this")
 }
 
 @test
@@ -52,9 +52,9 @@ fun the_json_carries_each_supporting_label(): void {
     d.secondary.push(new_label(Span { file_id: file_id, start: 4, end: 5 }, String.from("first declared here")))
     val json = d.render_json_diag(smap).as_str()
     assert_eq(json.contains("\"secondary\":[{\"message\":\"first declared here\""), true,
-              "an editor renders this as related information")
+        "an editor renders this as related information")
     assert_eq(json.contains("\"byte_start\":4,\"byte_end\":5,\"file\":\"a.kf\",\"line\":1,\"column\":5"), true,
-              "with its own span, because a note routinely points elsewhere")
+        "with its own span, because a note routinely points elsewhere")
 }
 
 @test
@@ -62,7 +62,7 @@ fun a_diagnostic_with_no_notes_carries_an_empty_array(): void {
     // `[]`, not null.
     val d = error_at(no_span(), String.from("plain"))
     assert_eq(d.render_json_diag(fresh_source_map()).as_str().contains("\"secondary\":[]"), true,
-              "always an array")
+        "always an array")
 }
 
 @test

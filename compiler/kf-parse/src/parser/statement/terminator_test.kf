@@ -2,7 +2,6 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_parse.parser.parser_for
 
-
 fun terminator_diags(src: str): uint64 {
     var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())

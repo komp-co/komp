@@ -322,7 +322,7 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var vs = List.new<VariantInfo>()
-    vs.push(VariantInfo { name: String.from("Error"),   payloads: List.new<Type>() })
+    vs.push(VariantInfo { name: String.from("Error"), payloads: List.new<Type>() })
     vs.push(VariantInfo { name: String.from("Warning"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("Severity"), variants: vs, owner_crate: crate_id_poison() }) }
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -342,7 +342,7 @@ pub fun mk_ctx(): TypeCtx {
     var vs = List.new<VariantInfo>()
     var ok_payloads = List.new<Type>()
     ok_payloads.push(int32_ty(no_span()))
-    vs.push(VariantInfo { name: String.from("Ok"),  payloads: ok_payloads })
+    vs.push(VariantInfo { name: String.from("Ok"), payloads: ok_payloads })
     vs.push(VariantInfo { name: String.from("Err"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("Result"), variants: vs, owner_crate: crate_id_poison() }) }
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }

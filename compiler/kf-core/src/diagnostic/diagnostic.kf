@@ -8,7 +8,7 @@ import kf_core.span.*
 /// A span and message. The primary label points at the offending source;
 /// secondary labels add context.
 pub struct Label {
-    pub val span:    Span
+    pub val span: Span
     pub val message: String
 }
 
@@ -30,10 +30,10 @@ pub enum Applicability {
 /// A repair: exactly what to replace, and with what. The span is the exact
 /// extent to overwrite; `no_span()` means no fix.
 pub struct Fix {
-    pub val span:        Span
+    pub val span: Span
     pub val replacement: String
     /// The quick-fix menu entry.
-    pub val title:       String
+    pub val title: String
     /// Whether `komp fix` may write it unasked; editors offer every fix.
     pub val applicability: Applicability
 }
@@ -56,23 +56,23 @@ pub fun Fix.fix_has_repair(): bool {
 /// A structured diagnostic. The renderer and IDE tooling read the same data.
 @derive(Clone)
 pub struct Diagnostic {
-    pub var severity:  Severity
-    pub val primary:   Label
+    pub var severity: Severity
+    pub val primary: Label
     pub var secondary: List<Label>
     /// `no_fix()` unless a pass knows the repair.
-    pub var fix:       Fix
+    pub var fix: Fix
     /// The lint that produced this, or "" for an ordinary diagnostic. Errors
     /// are never optional, so they have no name.
-    pub var code:      String
+    pub var code: String
 }
 
 pub fun new_diagnostic(severity: Severity, primary: Label): Diagnostic {
     return Diagnostic {
-        severity:  severity,
-        primary:   primary,
+        severity: severity,
+        primary: primary,
         secondary: List.new<Label>(),
-        fix:       no_fix(),
-        code:      ""
+        fix: no_fix(),
+        code: ""
     }
 }
 

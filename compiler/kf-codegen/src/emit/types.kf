@@ -127,30 +127,30 @@ pub fun TypeRef.tyref_mangle(): String {
 pub fun Type.c_type_of_type(): String {
     val tk = self.kind
     when (tk) {
-        Int8     => return String.from("int8_t")
-        Int16    => return String.from("int16_t")
-        Int32    => return String.from("int32_t")
-        Int64    => return String.from("int64_t")
-        UInt8    => return String.from("uint8_t")
-        UInt16   => return String.from("uint16_t")
-        UInt32   => return String.from("uint32_t")
-        UInt64   => return String.from("uint64_t")
-        Float32  => return String.from("float")
-        Float64  => return String.from("double")
-        Bool     => return String.from("bool")
-        Char     => return String.from("uint32_t")
-        StrTy    => return String.from("const char*")
-        Void     => return String.from("void")
-        Never    => return String.from("void")
+        Int8 => return String.from("int8_t")
+        Int16 => return String.from("int16_t")
+        Int32 => return String.from("int32_t")
+        Int64 => return String.from("int64_t")
+        UInt8 => return String.from("uint8_t")
+        UInt16 => return String.from("uint16_t")
+        UInt32 => return String.from("uint32_t")
+        UInt64 => return String.from("uint64_t")
+        Float32 => return String.from("float")
+        Float64 => return String.from("double")
+        Bool => return String.from("bool")
+        Char => return String.from("uint32_t")
+        StrTy => return String.from("const char*")
+        Void => return String.from("void")
+        Never => return String.from("void")
         // A mangled `Ptr<T>` also arrives as Struct; see
         // mangled_pointer_pointee.
-        Struct(n)  => return c_type_name(String.from(type_identity_display(n).as_str()))
-        EnumTy(n)  => return String.from(type_identity_display(n).as_str())
+        Struct(n) => return c_type_name(String.from(type_identity_display(n).as_str()))
+        EnumTy(n) => return String.from(type_identity_display(n).as_str())
         TraitTy(n) => return String.from(type_identity_display(n).as_str())
         DynTraitTy(_) => return String.from("/* dyn trait */ void")
         Generic(n) => return n.as_string()
-        PtrTo(p)   => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
-        BoxOf(p)   => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
+        PtrTo(p) => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
+        BoxOf(p) => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
         RefTo(_m, p) => {
             val inner = unsafe { *p }
             when (inner.kind) {
@@ -161,7 +161,7 @@ pub fun Type.c_type_of_type(): String {
         FnTy(_s) => return String.from("void*")
         // Emitted like poison so cc rejects it; Mono resolves projections.
         Projection(_, _) => return String.from("/* projection */ void")
-        Poison   => return String.from("void")
+        Poison => return String.from("void")
     }
 }
 
@@ -309,7 +309,7 @@ pub fun Type.type_is_unit_valued(): bool {
     val tk = self.kind
     when (tk) {
         Poison => return false
-        _      => { }
+        _ => { }
     }
     return self.c_type_of_type().as_str().equals("void")
 }

@@ -9,7 +9,6 @@ import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 
-
 /// From the loop's span, so nested loops do not collide.
 pub fun foreach_tag(span: Span): String {
     val fid_str = "${span.file_id}"

@@ -28,7 +28,7 @@ fun sibling_binding(trait_name: str, chosen: Type, written: str): AssocBindingIn
 
 pub struct ProjOutcome {
     pub val mangled: String
-    pub val diags:   uint64
+    pub val diags: uint64
     pub val message: String
 }
 

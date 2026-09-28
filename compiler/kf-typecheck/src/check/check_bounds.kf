@@ -16,7 +16,7 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
             if ty.is_poison() { return true }
             when (ty.kind) {
                 RefTo(v, _) => return v
-                PtrTo(_)    => return true
+                PtrTo(_) => return true
                 _ => {}
             }
             return ctx.lookup_is_var(name.as_str())
@@ -28,9 +28,9 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
                 RefTo(v, _) => return v
                 // Raw pointer and Box derefs are permissive: they back unsafe
                 // in-place mutation. A computed pointer is too.
-                PtrTo(_)    => return true
-                BoxOf(_)    => return true
-                _           => return true
+                PtrTo(_) => return true
+                BoxOf(_) => return true
+                _ => return true
             }
         }
         FieldAccess(bp, fname) => {
@@ -41,15 +41,15 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
             if bty.is_poison() { return true }
             when (bty.kind) {
                 RefTo(v, _) => return v
-                PtrTo(_)    => return true
-                BoxOf(_)    => return true
+                PtrTo(_) => return true
+                BoxOf(_) => return true
                 _ => {}
             }
             return place_is_mutable(unsafe { *bp }, ctx)
         }
         MethodCall(_, _, _) => return self.ty.result_is_mutable_place()
-        Call(_, _)          => return self.ty.result_is_mutable_place()
-        DynCoerce(_, _)     => return self.ty.result_is_mutable_place()
+        Call(_, _) => return self.ty.result_is_mutable_place()
+        DynCoerce(_, _) => return self.ty.result_is_mutable_place()
         _ => return false
     }
 }
@@ -62,8 +62,8 @@ fun Type.field_is_var(name: Sym, ctx: &var TypeCtx): bool {
     var t = self
     when (t.kind) {
         RefTo(_, inner) => t = unsafe { *inner }
-        PtrTo(inner)    => t = unsafe { *inner }
-        BoxOf(inner)    => t = unsafe { *inner }
+        PtrTo(inner) => t = unsafe { *inner }
+        BoxOf(inner) => t = unsafe { *inner }
         _ => {}
     }
     if t.is_poison() { return true }
@@ -114,7 +114,7 @@ pub fun Expr.immutable_val_field(ctx: &var TypeCtx): String {
 fun Type.result_is_mutable_place(): bool {
     return when (self.kind) {
         RefTo(v, _) => v
-        PtrTo(_)    => true
+        PtrTo(_) => true
         _ => false
     }
 }
@@ -123,8 +123,8 @@ fun Type.result_is_mutable_place(): bool {
 fun Expr.place_root_name(): String {
     val k = self.kind
     return when (k) {
-        Variable(name)     => name.as_string()
-        Deref(ip)          => place_root_name(unsafe { *ip })
+        Variable(name) => name.as_string()
+        Deref(ip) => place_root_name(unsafe { *ip })
         FieldAccess(bp, _) => place_root_name(unsafe { *bp })
         _ => ""
     }
@@ -166,8 +166,8 @@ fun Type.method_is_mutating(method_name: String, arity: uint64, ctx: &var TypeCt
     val m = method_name.as_str()
     when (self.kind) {
         // Named against the pointee.
-        PtrTo(p)    => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
-        BoxOf(p)    => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
+        PtrTo(p) => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
+        BoxOf(p) => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
         RefTo(_, p) => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
         Struct(n) => {
             // By its declared name: a field's type carries the canonical identity.
@@ -208,19 +208,19 @@ pub fun Type.ty_base_name(): String {
     return when (self.kind) {
         Struct(n) => mangle_base_name(n.as_string())
         EnumTy(n) => mangle_base_name(n.as_string())
-        StrTy     => String.from("str")
-        Int8      => String.from("int8")
-        Int16     => String.from("int16")
-        Int32     => String.from("int32")
-        Int64     => String.from("int64")
-        UInt8     => String.from("uint8")
-        UInt16    => String.from("uint16")
-        UInt32    => String.from("uint32")
-        UInt64    => String.from("uint64")
-        Float32   => String.from("float32")
-        Float64   => String.from("float64")
-        Bool      => String.from("bool")
-        Char      => String.from("char")
+        StrTy => String.from("str")
+        Int8 => String.from("int8")
+        Int16 => String.from("int16")
+        Int32 => String.from("int32")
+        Int64 => String.from("int64")
+        UInt8 => String.from("uint8")
+        UInt16 => String.from("uint16")
+        UInt32 => String.from("uint32")
+        UInt64 => String.from("uint64")
+        Float32 => String.from("float32")
+        Float64 => String.from("float64")
+        Bool => String.from("bool")
+        Char => String.from("char")
         _ => ""
     }
 }
@@ -317,4 +317,3 @@ pub fun Type.bound_type_implements(trait_name: str, sigs: Ptr<SigTable>): bool {
 
 // "No trait method found".
 pub fun ARITY_NOT_FOUND(): uint64 { return 999999 }
-

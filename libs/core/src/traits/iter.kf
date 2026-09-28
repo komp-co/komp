@@ -17,7 +17,7 @@ pub trait Iterable<T> {
 /// CONSTRAINT: `T` is explicit: a type parameter reachable only through a
 /// bound is not substituted at the use site.
 pub struct Chain<A, B, T> {
-    pub var first:  A
+    pub var first: A
     pub var second: B
     /// A latch: `first` is asked at most once past its end.
     pub var on_first: bool
@@ -28,7 +28,7 @@ impl Iterator<T> for Chain<A: Iterator<T>, B: Iterator<T>, T> {
         if self.on_first {
             when (self.first.next()) {
                 Some(x) => { return Option.Some(x) }
-                None    => { self.on_first = false }
+                None => { self.on_first = false }
             }
         }
         return self.second.next()

@@ -25,7 +25,6 @@ pub mutating fun MoveCtx.declare_borrowed(name: Sym): void {
     if !self.contains_borrowed(name) { self.borrowed.push(name) }
 }
 
-
 pub fun move_check_args_borrow(args: &var List<Expr>, ctx: &var MoveCtx): void {
     while i in 0..args.size() {
         args.at_mut(i).move_check_expr_borrow(ctx)
@@ -172,7 +171,7 @@ pub fun Expr.is_borrow_source(ctx: &var MoveCtx): bool {
     // An `if` is a view if either branch is.
     return when (self.kind) {
         IfExpr(_c, t_ptr, e_ptr) => is_borrow_source(unsafe { &*t_ptr }, ctx)
-                                    || is_borrow_source(unsafe { &*e_ptr }, ctx)
+            || is_borrow_source(unsafe { &*e_ptr }, ctx)
         _ => false
     }
 }

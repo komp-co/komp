@@ -38,7 +38,6 @@ pub fun render_signature_json(path: str, offset: uint32, crate: &TypedCrate): St
     return out.finish()
 }
 
-
 /// Innermost: in `outer(inner(|))` the help is for `inner`.
 fun Module.innermost_call_at(file_id: uint32, offset: uint32): CoveringSpan {
     val covering = self.covering_spans(file_id, offset)
@@ -62,8 +61,8 @@ fun Span.call_width(): uint32 {
 
 /// `found: false` for an undeclared callee.
 pub struct SignatureText {
-    pub var found:      bool
-    pub var label:      String
+    pub var found: bool
+    pub var label: String
     pub var parameters: String
 }
 

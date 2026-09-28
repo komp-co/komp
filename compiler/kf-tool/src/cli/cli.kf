@@ -185,9 +185,9 @@ pub fun run_cli(): int32 {
                 if arg == "--diagnostic-format=json" {
                     as_json = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
-                    ci = ci + 1                      // skip the lint name
+                    ci = ci + 1 // skip the lint name
                 } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
-                    ci = ci + 1                      // read by manifest_root / package_flag
+                    ci = ci + 1 // read by manifest_root / package_flag
                 } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
                     // read by wants_workspace / apply_cli_lint_flags / fetched_for
                 } else {
@@ -216,9 +216,9 @@ pub fun run_cli(): int32 {
                 } else if arg == "--diagnostic-format=json" {
                     as_json = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
-                    li = li + 1                      // read by the lint config
+                    li = li + 1 // read by the lint config
                 } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
-                    li = li + 1                      // read by manifest_root / package_flag
+                    li = li + 1 // read by manifest_root / package_flag
                 } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
                     // read by wants_workspace / apply_cli_lint_flags / fetched_for
                 } else if starts_with_dash(arg) || project.as_str() != "" {
@@ -276,9 +276,9 @@ pub fun run_cli(): int32 {
                     if bi >= nargs { return usage_error("build") }
                     output = String.from(cli_arg_get(bi))
                 } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
-                    bi = bi + 1                      // read by manifest_root / package_flag
+                    bi = bi + 1 // read by manifest_root / package_flag
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
-                    bi = bi + 1                      // skip the lint name
+                    bi = bi + 1 // skip the lint name
                 } else if arg == "--workspace" || arg == "--deny-warnings" || is_fetch_flag(arg) {
                     // read by wants_workspace / apply_cli_lint_flags / fetched_for
                 } else if starts_with_dash(arg) {
@@ -345,7 +345,6 @@ pub fun run_cli(): int32 {
         "self" => return self_command(nargs)
         _ => { }
     }
-
 
     if !is_directory(a0) {
         runtime_println("error: no command `${a0}`, no installed komp-${a0}, and no project directory by that name")

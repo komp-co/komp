@@ -62,7 +62,7 @@ fun uninstalling_removes_the_program_and_its_record(): void {
     val _done = install_package("komp_nine", "", index.as_str(), test_cache().as_str(), home.as_str())
     val error = uninstall_package("komp_nine", home.as_str())
     assert_eq(error.is_empty() && !exists("${home}/bin/komp-nine".as_str()) &&
-        installed_packages(home.as_str()).is_empty(), true, "nothing left")
+            installed_packages(home.as_str()).is_empty(), true, "nothing left")
 }
 
 @test

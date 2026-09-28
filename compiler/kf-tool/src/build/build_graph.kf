@@ -71,8 +71,8 @@ struct DependencySources {
 }
 
 fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, crates: &var List<BuildCrate>,
-                cycle: &var String, error: &var String, in_progress: &var List<String>,
-                done: &var List<String>): void {
+    cycle: &var String, error: &var String, in_progress: &var List<String>,
+    done: &var List<String>): void {
     if error.as_str() != "" { return }
     if cycle.cycle_found() { return }
     if path_list_has(done, root.as_str()) { return }

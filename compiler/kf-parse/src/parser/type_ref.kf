@@ -29,7 +29,7 @@ impl Parser {
                 // `C.Iter`, `Self.Item`: a `.` in type position is a
                 // projection. Chains fold left.
                 while is_op(self.peek(), Operator.Dot) {
-                    unsafe { self.advance() }              // consume `.`
+                    unsafe { self.advance() } // consume `.`
                     val member = self.peek()
                     when (member.kind) {
                         Identifier(mname) => {
@@ -70,10 +70,10 @@ impl Parser {
                 // `&T` / `&var T`; any other operator is an error.
                 when (op) {
                     Amp => {
-                        unsafe { self.advance() }          // consume `&`
+                        unsafe { self.advance() } // consume `&`
                         var mutable: bool = false
                         if is_keyword(self.peek(), Keyword.Var) {
-                            unsafe { self.advance() }       // consume `var`
+                            unsafe { self.advance() } // consume `var`
                             mutable = true
                         }
                         val inner_ptr = self.parse_type_ref_ptr()

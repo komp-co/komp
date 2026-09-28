@@ -37,8 +37,8 @@ pub mutating fun Expr.mono_expr(): void {
 /// at the top level; the body itself still names `self` by the template's name.
 pub fun mono_expr_in(e: &var Expr, owner: str): void {
     when (e.kind) {
-        LitInt(_)  => return
-        LitStr(_)  => return
+        LitInt(_) => return
+        LitStr(_) => return
         LitFloat(_) => return
         LitChar(_) => return
         LitBool(_) => return

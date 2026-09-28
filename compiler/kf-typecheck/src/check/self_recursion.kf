@@ -61,7 +61,6 @@ fun emit_self_recursive_operator(op: str, method_name: str, instead: str, span: 
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 
-
 /// `${self}` lowers to `<lang string>.of(&(...))`, reaching `display` through
 /// the trait object, which the method-call check cannot see.
 fun reject_self_recursive_render(recv: &Expr, method_name: &String, args: &List<Expr>, span: Span, ctx: &var TypeCtx): bool {

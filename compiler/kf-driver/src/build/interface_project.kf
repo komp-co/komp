@@ -99,7 +99,7 @@ pub struct CrateCompileResult {
 /// The loaded interfaces stand in for the dependencies; the crate's own
 /// `.kfi` is emitted between TypeCheck and Mono, as on the source path.
 pub fun CompileUnit.compile_crate_against_interfaces(artifacts: str, is_bin_root: bool,
-                                                     errp: Ptr<ErrCount>): CrateCompileResult {
+    errp: Ptr<ErrCount>): CrateCompileResult {
     return self.compile_crate_mode(artifacts, is_bin_root, false, errp)
 }
 
@@ -110,7 +110,7 @@ pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errp: 
 }
 
 fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool,
-                                   errp: Ptr<ErrCount>): CrateCompileResult {
+    errp: Ptr<ErrCount>): CrateCompileResult {
     val smap = fresh_source_map()
     val diagnostics = fresh_diag_list()
     var modules = List.new<Module>()

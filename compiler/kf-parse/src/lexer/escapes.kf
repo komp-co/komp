@@ -22,17 +22,17 @@ fun no_escape(): Escape {
 
 /// The scalar a named escape denotes, or -1.
 pub fun named_escape(b: uint8): int64 {
-    if b == 97  { return 7 }           // \a  bell
-    if b == 98  { return 8 }           // \b  backspace
-    if b == 102 { return 12 }          // \f  form feed
-    if b == 110 { return 10 }          // \n  newline
-    if b == 114 { return 13 }          // \r  carriage return
-    if b == 116 { return 9 }           // \t  tab
-    if b == 118 { return 11 }          // \v  vertical tab
-    if b == 92  { return 92 }          // \\
-    if b == 39  { return 39 }          // \'
-    if b == 34  { return 34 }          // \"
-    if b == 36  { return 36 }          // \$ — a literal `${`
+    if b == 97 { return 7 } // \a  bell
+    if b == 98 { return 8 } // \b  backspace
+    if b == 102 { return 12 } // \f  form feed
+    if b == 110 { return 10 } // \n  newline
+    if b == 114 { return 13 } // \r  carriage return
+    if b == 116 { return 9 } // \t  tab
+    if b == 118 { return 11 } // \v  vertical tab
+    if b == 92 { return 92 } // \\
+    if b == 39 { return 39 } // \'
+    if b == 34 { return 34 } // \"
+    if b == 36 { return 36 } // \$ — a literal `${`
     return 0 - 1
 }
 
@@ -44,9 +44,9 @@ fun escape_octal_digit(b: uint8): int64 {
 }
 
 fun escape_hex_digit(b: uint8): int64 {
-    if b >= 48 && b <= 57  { return (b - 48) as int64 }
+    if b >= 48 && b <= 57 { return (b - 48) as int64 }
     if b >= 97 && b <= 102 { return (b - 97 + 10) as int64 }
-    if b >= 65 && b <= 70  { return (b - 65 + 10) as int64 }
+    if b >= 65 && b <= 70 { return (b - 65 + 10) as int64 }
     return 0 - 1
 }
 

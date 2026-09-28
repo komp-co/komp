@@ -3,7 +3,6 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 
-
 fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

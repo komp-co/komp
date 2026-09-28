@@ -11,7 +11,6 @@ import alloc.list.*
 
 import kf_core.ast.*
 
-
 // One scope's (original -> renamed) pairs; a non-shadowing binding maps to
 // itself.
 pub struct RnScope {
@@ -182,7 +181,7 @@ fun rename_stmt_list(stmts: &List<Stmt>, ctx: &var RnCtx): void {
 fun rename_stmt(sp: Ptr<Stmt>, ctx: &var RnCtx): void {
     when (unsafe { sp.kind }) {
         LetVal(nm, ty, init) => {
-            rename_expr_ptr(init.view(), ctx)          // init reads the OUTER scope
+            rename_expr_ptr(init.view(), ctx) // init reads the OUTER scope
             val nn = ctx.rn_bind(nm)
             if nn.id != nm.id { unsafe { sp.kind = StmtKind.LetVal(nn, ty.view().adopt(), init.view().adopt()) } }
         }
@@ -193,7 +192,7 @@ fun rename_stmt(sp: Ptr<Stmt>, ctx: &var RnCtx): void {
         }
         Assign(nm, expr_box) => {
             rename_expr_ptr(expr_box, ctx)
-            val nn = ctx.rn_lookup(nm)          // existing binding, not a new one
+            val nn = ctx.rn_lookup(nm) // existing binding, not a new one
             if nn.id != nm.id { unsafe { sp.kind = StmtKind.Assign(nn, expr_box) } }
         }
         AssignTo(place_box, expr_box) => {

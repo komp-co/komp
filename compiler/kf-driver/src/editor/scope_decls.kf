@@ -92,7 +92,7 @@ fun name_has_owner_prefix(name: str, owner: str): bool {
         if name.byte_at(i) != owner.byte_at(i) { return false }
         i = i + 1
     }
-    return name.byte_at(on) == 95        // `_`
+    return name.byte_at(on) == 95 // `_`
 }
 
 /// `(a: int32, b: int32): int32`

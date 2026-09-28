@@ -2,7 +2,6 @@
 // index, push the entry's branch there, and open or find its pull request.
 // Every step that fails says why and leaves the rest to a person.
 
-
 /// `url` is the pull request, or `problem` says why there is none.
 pub struct PullRequest {
     pub val url: String

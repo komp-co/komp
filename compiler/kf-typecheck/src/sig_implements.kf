@@ -11,8 +11,8 @@ import kf_typecheck.traits.trait_args_satisfy
 import kf_typecheck.check.mangle_base_name
 
 impl SigTable {
-/// Returned rather than a bool, so a duplicate can name what it conflicts
-/// with.
+    /// Returned rather than a bool, so a duplicate can name what it conflicts
+    /// with.
     pub fun find_trait_impl(receiver_identity: Sym, type_name: str, trait_name: str, trait_args: str): TraitImplInfo? {
         val has_identity = receiver_identity.as_str().byte_len() > 0
         while ti in &self.trait_impls {
@@ -35,8 +35,8 @@ impl SigTable {
         self.bounds.push(b)
     }
 
-/// Both are base names. `trait_args` has the caller's bindings substituted;
-/// the impl's own parameters act as placeholders.
+    /// Both are base names. `trait_args` has the caller's bindings substituted;
+    /// the impl's own parameters act as placeholders.
     pub fun type_implements(type_base: str, trait_name: str, trait_args: str): bool {
         while ti in &self.trait_impls {
             if ti.type_name.as_str().equals(type_base) {

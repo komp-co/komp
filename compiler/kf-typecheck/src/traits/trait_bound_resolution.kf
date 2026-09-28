@@ -262,21 +262,22 @@ pub fun trait_method_for_projection(owner_param: String, member: str, method_nam
 /// `owner_args` makes `type It: Iterator<T>` read `Iterator<int32>`.
 fun projection_method_in(owner_trait: str, owner_args: &List<String>, member: str, method_name: String, recv_ty: Type, ctx: &var TypeCtx): ProjectionMethod {
     when (unsafe { (*ctx.sigs).find_trait(owner_trait) }) {
-      Some(tinfo) => {
-        val assoc_i = trait_assoc_index(tinfo, member)
-        if assoc_i >= 0 {
-            val assoc = *tinfo.assoc_types.at(assoc_i as uint64)
-            while req in &assoc.bounds {
-                val args = req.assoc_bound_args_at_use_site(owner_trait, owner_args, ctx)
-                val found = trait_method_in(req.trait_name.as_str(), method_name.clone(), &args, recv_ty.clone(), ctx)
-                if found.arity != ARITY_NOT_FOUND() {
-                    val suffix = dispatch_suffix(req.trait_name.clone(), &args, ctx)
-                    return ProjectionMethod { req: found, trait_suffix: suffix }
+        Some(tinfo) => {
+            val assoc_i = trait_assoc_index(tinfo, member)
+            if assoc_i >= 0 {
+                val assoc = *tinfo.assoc_types.at(assoc_i as uint64)
+                while req in &assoc.bounds {
+                    val args = req.assoc_bound_args_at_use_site(owner_trait, owner_args, ctx)
+                    val found = trait_method_in(req.trait_name.as_str(), method_name.clone(), &args,
+                        recv_ty.clone(), ctx)
+                    if found.arity != ARITY_NOT_FOUND() {
+                        val suffix = dispatch_suffix(req.trait_name.clone(), &args, ctx)
+                        return ProjectionMethod { req: found, trait_suffix: suffix }
+                    }
                 }
             }
         }
-      }
-      None => { }
+        None => { }
     }
     return ProjectionMethod { req: not_found_req(), trait_suffix: "" }
 }

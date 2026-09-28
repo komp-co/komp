@@ -6,7 +6,6 @@ import kf_typecheck.types.runtime_prelude_declares
 import kf_core.span.no_span
 import kf_core.ast.subst.clone_type_ref
 
-
 /// The trait fields are optional filters: an empty `trait_name` means any
 /// trait, as an unqualified projection asks; a name narrows to one
 /// instantiation. `trait_args` is compared only with a trait name, or it would
@@ -279,7 +278,6 @@ impl SigTable {
         }
         return intern("")
     }
-
 
     pub fun find_trait(name: str): TraitInfo? {
         while t in &self.traits {

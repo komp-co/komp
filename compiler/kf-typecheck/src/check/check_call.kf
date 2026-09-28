@@ -8,7 +8,6 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.borrow.coerce_call_arg
 
-
 /// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
 /// the callee name. Only reached with `Expr.is_intrinsic` set.
 fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
@@ -82,8 +81,8 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     val rt = runtime_intrinsic_ret(name, span, ctx.string_name())
     val rt_poison = rt.is_poison()
     if !rt_poison {
-    // `read_file(path: str)` is often given a String; coerced here since the
-    // sig-table path is skipped.
+        // `read_file(path: str)` is often given a String; coerced here since the
+        // sig-table path is skipped.
         when name.as_str() {
             "read_file" => expect_arg(args, 0, str_ty(span), ctx)
             "kf_file_hash" => expect_arg(args, 0, str_ty(span), ctx)
@@ -139,8 +138,8 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     while g0 < gnames.size() {
         val gname = *gnames.at(g0)
         var bound = poison_ty()
-    // An explicit type argument wins, and must substitute before
-    // coerce_call_arg so the argument is auto-borrowed.
+        // An explicit type argument wins, and must substitute before
+        // coerce_call_arg so the argument is auto-borrowed.
         if g0 < type_args.size() {
             bound = (*type_args.at(g0)).resolve_type_ref(ctx)
         }
@@ -259,8 +258,8 @@ fun check_variant_construction(enum_name: String, type_args: &var List<TypeRef>,
         val mangled = mangle_type_name(enum_name.as_str(), &use_args, ctx)
         concrete_name = String.from(mangled.as_str())
         instantiate_generic_layout(enum_name.clone(), &use_args, concrete_name.clone(), ctx)
-                    // Inferred args are written back as for a generic call;
-                    // Mono materializes only from explicit ones.
+        // Inferred args are written back as for a generic call;
+        // Mono materializes only from explicit ones.
         if inferred {
             while use_arg in &use_args {
                 type_args.push(use_arg)

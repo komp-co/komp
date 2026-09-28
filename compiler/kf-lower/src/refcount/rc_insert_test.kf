@@ -260,7 +260,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     // val y = <fresh>; val x = y -> only x is released.
     var ctx = rc_ctx_for_test("main")
     val _i = ctx.push_frame(false)
-    ctx.add_heap_local(String.from("y"))     // simulate `val y = String.from(...)`
+    ctx.add_heap_local(String.from("y")) // simulate `val y = String.from(...)`
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = mk_string_var_expr(String.from("y")) }
     var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))

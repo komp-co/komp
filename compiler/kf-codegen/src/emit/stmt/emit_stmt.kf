@@ -9,7 +9,6 @@ import kf_core.ast.*
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 
-
 pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()
     while i in 0..stmts.size() {
@@ -322,8 +321,8 @@ fun member_access(through_ref: bool): String {
 // The nominal name, or ""; callers decide enum versus struct.
 pub fun enum_name_of_type(t: Type): String {
     return when (t.kind) {
-        Struct(n)  => type_identity_display(n)
-        EnumTy(n)  => type_identity_display(n)
+        Struct(n) => type_identity_display(n)
+        EnumTy(n) => type_identity_display(n)
         _ => ""
     }
 }
@@ -528,7 +527,7 @@ fun emit_expr_stmt(ep: Ptr<Expr>, indent: uint64): String {
 fun emit_box_release(rel: String, name: String, indent: uint64): String {
     val rs = rel.as_str()
     val n = rs.byte_len()
-    val innerdrop = rs.substring(7, n)  // after "__BOX__"
+    val innerdrop = rs.substring(7, n) // after "__BOX__"
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     val has_inner = innerdrop.as_str().byte_len() > 0

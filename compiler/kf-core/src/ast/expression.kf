@@ -11,16 +11,16 @@ pub struct Expr {
     /// synthesized. `span` covers the whole call.
     pub var name_span: Span
     pub var kind: ExprKind
-    pub var decl:           DeclId?
-    pub var ty:             Type
+    pub var decl: DeclId?
+    pub var ty: Type
     // Set by Mono on calls; empty otherwise.
     pub var mangled_callee: Sym
     // Implicit conversion TypeCheck records and Codegen applies; see the
     // coerce_* constants below.
-    pub var coerce:         uint8
+    pub var coerce: uint8
     // Use-site type arguments: `id<int32>(x)`, `Pair<int32,int32>{...}`.
     // Empty when none were written or inferred.
-    pub var type_args:      List<TypeRef>
+    pub var type_args: List<TypeRef>
     /// The author wrote `type_args`, as opposed to inference filling them in.
     /// A written annotation must not be overridden by expected-type
     /// re-binding.
@@ -52,12 +52,12 @@ pub struct Expr {
     pub var derefs_at_call: bool
 }
 
-pub fun coerce_none(): uint8     { return 0 }
-pub fun coerce_to_cstr(): uint8  { return 2 }
-pub fun coerce_addr_of(): uint8  { return 3 }
+pub fun coerce_none(): uint8 { return 0 }
+pub fun coerce_to_cstr(): uint8 { return 2 }
+pub fun coerce_addr_of(): uint8 { return 3 }
 // The source wrote `&`/`&var` here. TypeCheck-internal: an un-annotated
 // `val b = &xs` gets a `&T` type instead of moving. check_expr clears it.
-pub fun coerce_written_amp(): uint8     { return 4 }
+pub fun coerce_written_amp(): uint8 { return 4 }
 pub fun coerce_written_amp_var(): uint8 { return 5 }
 // Marked by the move checker for a deep copy; codegen emits `<T>_clone(...)`.
 pub fun coerce_clone(): uint8 { return 6 }
@@ -185,8 +185,8 @@ pub fun expr_poison(span: Span): Expr {
 /// A `field: value` initializer; `value` is boxed to break the type cycle.
 @derive(Clone)
 pub struct FieldInit {
-    pub val span:  Span
-    pub val name:  Sym
+    pub val span: Span
+    pub val name: Sym
     pub val value: Box<Expr>
 }
 

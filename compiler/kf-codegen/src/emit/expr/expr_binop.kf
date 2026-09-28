@@ -236,9 +236,9 @@ fun emit_bitwise_binop(l: Expr, op: BinOp, r: Expr): String {
 fun emit_compare_binop(l: Expr, op: BinOp, r: Expr): String {
     var cop = ""
     when (op) {
-        Lt   => { cop = String.from("<") }
+        Lt => { cop = String.from("<") }
         LtEq => { cop = String.from("<=") }
-        Gt   => { cop = String.from(">") }
+        Gt => { cop = String.from(">") }
         GtEq => { cop = String.from(">=") }
         _ => return ""
     }

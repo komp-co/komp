@@ -51,7 +51,6 @@ pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &Typ
     return out.finish()
 }
 
-
 /// Why this rename must not happen, or "". The reader's own input is checked
 /// before the program.
 fun why_not(offset: uint32, new_name: str, crate: &TypedCrate): String {

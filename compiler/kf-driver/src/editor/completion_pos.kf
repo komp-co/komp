@@ -16,9 +16,9 @@ pub enum CompletionPos {
     ExprPos
 }
 
-pub fun pos_is_item(p: CompletionPos): bool { return when (p) { ItemPos => true  _ => false } }
-pub fun pos_is_type(p: CompletionPos): bool { return when (p) { TypePos => true  _ => false } }
-pub fun pos_is_expr(p: CompletionPos): bool { return when (p) { ExprPos => true  _ => false } }
+pub fun pos_is_item(p: CompletionPos): bool { return when (p) { ItemPos => true _ => false } }
+pub fun pos_is_type(p: CompletionPos): bool { return when (p) { TypePos => true _ => false } }
+pub fun pos_is_expr(p: CompletionPos): bool { return when (p) { ExprPos => true _ => false } }
 
 /// A `:` before the name being typed is an annotation (let, parameter, field,
 /// return); `<` is a generic list; otherwise brace depth decides.
@@ -133,33 +133,33 @@ pub fun keyword_items(pos: CompletionPos): List<ScopeItem> {
 
 fun keyword_fits(k: Keyword, pos: CompletionPos): bool {
     return when (k) {
-        Fun      => pos_is_item(pos)
-        Pub      => pos_is_item(pos)
-        Struct   => pos_is_item(pos)
-        Enum     => pos_is_item(pos)
-        Trait    => pos_is_item(pos)
-        Impl     => pos_is_item(pos)
-        Import   => pos_is_item(pos)
-        Extern   => pos_is_item(pos)
-        Static   => pos_is_item(pos)
+        Fun => pos_is_item(pos)
+        Pub => pos_is_item(pos)
+        Struct => pos_is_item(pos)
+        Enum => pos_is_item(pos)
+        Trait => pos_is_item(pos)
+        Impl => pos_is_item(pos)
+        Import => pos_is_item(pos)
+        Extern => pos_is_item(pos)
+        Static => pos_is_item(pos)
         Mutating => pos_is_item(pos)
-        TypeKw   => pos_is_item(pos)
-        Val      => pos_is_expr(pos)
-        Var      => pos_is_expr(pos)
-        Return   => pos_is_expr(pos)
-        If       => pos_is_expr(pos)
-        Else     => pos_is_expr(pos)
-        While    => pos_is_expr(pos)
-        When     => pos_is_expr(pos)
-        For      => pos_is_expr(pos)
-        In       => pos_is_expr(pos)
-        Break    => pos_is_expr(pos)
+        TypeKw => pos_is_item(pos)
+        Val => pos_is_expr(pos)
+        Var => pos_is_expr(pos)
+        Return => pos_is_expr(pos)
+        If => pos_is_expr(pos)
+        Else => pos_is_expr(pos)
+        While => pos_is_expr(pos)
+        When => pos_is_expr(pos)
+        For => pos_is_expr(pos)
+        In => pos_is_expr(pos)
+        Break => pos_is_expr(pos)
         Continue => pos_is_expr(pos)
-        True     => pos_is_expr(pos)
-        False    => pos_is_expr(pos)
-        Unsafe   => pos_is_expr(pos)
-        As       => pos_is_expr(pos)
-        Dyn      => pos_is_type(pos)
+        True => pos_is_expr(pos)
+        False => pos_is_expr(pos)
+        Unsafe => pos_is_expr(pos)
+        As => pos_is_expr(pos)
+        Dyn => pos_is_type(pos)
     }
 }
 

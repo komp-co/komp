@@ -21,7 +21,6 @@ import kf_core.ast.subst.clone_type_ref
 import kf_typecheck.check.decl.register_type_identity
 import kf_typecheck.check.decl.register_sigs
 
-
 /// A lambda that fails to check becomes `Poison`, as one that checks becomes
 /// its struct literal: no later pass meets a `Lambda` node.
 pub mutating fun Expr.check_lambda(ctx: &var TypeCtx): Type {

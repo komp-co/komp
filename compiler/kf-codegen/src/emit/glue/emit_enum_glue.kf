@@ -8,7 +8,6 @@ import kf_codegen.concat_all
 import kf_codegen.concat
 import kf_codegen.emit.*
 
-
 pub fun Module.emit_enum_tags(): String {
     var parts = List.new<String>()
     val decls = self.decls

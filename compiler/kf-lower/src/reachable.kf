@@ -15,7 +15,6 @@ import alloc.list.*
 
 import kf_core.ast.*
 
-
 /// Indexed by Sym id, which the interner hands out densely.
 pub struct Reached {
     var seen: List<bool>
@@ -263,9 +262,9 @@ fun Module.module_has_main(): bool {
 
 /// Every definition with a body, flattened: free functions and methods.
 pub struct DefTable {
-    var names:  List<Sym>
+    var names: List<Sym>
     var owners: List<uint64>
-    var slots:  List<uint64>
+    var slots: List<uint64>
     var nested: List<bool>
 }
 

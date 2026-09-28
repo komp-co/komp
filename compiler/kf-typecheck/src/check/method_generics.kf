@@ -138,8 +138,8 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
 pub fun String.static_recv_arity(ctx: &var TypeCtx): uint64 {
     val base = mangle_base_name(self.clone())
     when (unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) }) {
-      Some(gi) => { return gi.type_params.size() }
-      None => { return 0 }
+        Some(gi) => { return gi.type_params.size() }
+        None => { return 0 }
     }
 }
 

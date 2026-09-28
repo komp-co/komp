@@ -6,13 +6,13 @@ import kf_parse.parser.*
 
 impl Parser {
     mutating fun parse_trait(span: Span, is_pub: bool): TopDecl {
-        unsafe { self.advance() }                       // consume `trait`
+        unsafe { self.advance() } // consume `trait`
         // Read before the name is interned; a Sym has no position.
         val name_at = self.peek().span
         val name = self.expect_name("trait")
         unsafe { self.advance() }
-        val tps = self.parse_type_params()                  // optional <...> on the trait
-        val supers = self.parse_supertraits()               // optional `: A, B`
+        val tps = self.parse_type_params() // optional <...> on the trait
+        val supers = self.parse_supertraits() // optional `: A, B`
         val methods = self.parse_brace_methods()
         var td = new_top_decl(span, name, TopDeclKind.TraitDecl(methods, is_pub, supers))
         td.name_span = name_at
@@ -27,12 +27,12 @@ impl Parser {
         if !is_op(self.peek(), Operator.Colon) {
             return supers
         }
-        unsafe { self.advance() }                       // consume `:`
+        unsafe { self.advance() } // consume `:`
         while true {
             val sref = self.parse_type_ref_ptr()
             supers.push(unsafe { *sref })
             if is_op(self.peek(), Operator.Plus) {
-                unsafe { self.advance() }               // consume `+`, next supertrait
+                unsafe { self.advance() } // consume `+`, next supertrait
             } else if is_op(self.peek(), Operator.Comma) {
                 // The old `,` spelling: one error per list, consumed.
                 val at = self.peek().span
@@ -52,7 +52,7 @@ impl Parser {
         if !is_op(self.peek(), Operator.Lt) {
             return params
         }
-        unsafe { self.advance() }                     // consume `<`
+        unsafe { self.advance() } // consume `<`
         // Newlines are whitespace inside `<...>`.
         while true {
             self.skip_newlines()
@@ -62,14 +62,14 @@ impl Parser {
             var tp = new_type_param(name_span, name)
             self.skip_newlines()
             if is_op(self.peek(), Operator.Colon) {
-                unsafe { self.advance() }             // consume `:`
+                unsafe { self.advance() } // consume `:`
                 while true {
                     self.skip_newlines()
                     val bref = self.parse_type_ref_ptr()
                     tp.bounds.push(unsafe { *bref })
                     self.skip_newlines()
                     if is_op(self.peek(), Operator.Plus) {
-                        unsafe { self.advance() }     // consume `+`, next bound
+                        unsafe { self.advance() } // consume `+`, next bound
                     } else {
                         break
                     }
@@ -90,7 +90,7 @@ impl Parser {
 
     /// `fun name(params): ret { body }`.
     mutating fun parse_fun(span: Span, is_pub: bool, is_mutating: bool, is_static: bool): TopDecl {
-        unsafe { self.advance() }                     // consume `fun`
+        unsafe { self.advance() } // consume `fun`
         // `<...>` before the name declares the receiver's parameters.
         val receiver_generics = self.parse_type_params()
         if self.starts_extension() {
@@ -112,8 +112,8 @@ impl Parser {
         // consumed to stay in sync.
         if has_name || !is_op(self.peek(), Operator.LParen) { unsafe { self.advance() } }
 
-        var tps = receiver_generics                    // empty, unless the line above reported them
-        val own = self.parse_type_params()                 // optional <T, ...>
+        var tps = receiver_generics // empty, unless the line above reported them
+        val own = self.parse_type_params() // optional <T, ...>
         while item in &own {
             tps.push(item)
         }
@@ -197,12 +197,12 @@ impl Parser {
     /// `struct Name { val field1: Type, var field2: Type }`, consuming
     /// `struct`.
     mutating fun parse_struct(span: Span, is_pub: bool): TopDecl {
-        unsafe { self.advance() }                     // consume `struct`
+        unsafe { self.advance() } // consume `struct`
         val name_at = self.peek().span
         val name = self.expect_name("struct")
         unsafe { self.advance() }
 
-        val tps = self.parse_type_params()                 // optional <T, ...>
+        val tps = self.parse_type_params() // optional <T, ...>
 
         var fields = List.new<Field>()
 
@@ -236,12 +236,12 @@ impl Parser {
 
     /// `enum Name { Variant, Variant(Type, Type) }`, consuming `enum`.
     mutating fun parse_enum(span: Span, is_pub: bool): TopDecl {
-        unsafe { self.advance() }                     // consume `enum`
+        unsafe { self.advance() } // consume `enum`
         val name_at = self.peek().span
         val name = self.expect_name("enum")
         unsafe { self.advance() }
 
-        val tps = self.parse_type_params()                 // optional <T, ...>
+        val tps = self.parse_type_params() // optional <T, ...>
 
         var variants = List.new<Variant>()
 

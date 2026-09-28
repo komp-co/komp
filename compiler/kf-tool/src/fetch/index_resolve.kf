@@ -31,7 +31,7 @@ pub fun resolve_from_index(dep: &Dependency, cache: str, refreshed: &var List<St
 /// A commit of a git repository, or a tarball with its checksum, fetched as
 /// if a manifest had named it.
 pub fun fetch_exact_source(name: str, git: &String, rev: &String, tarball: &String, checksum: &String,
-                           cache: str): Fetched {
+    cache: str): Fetched {
     val source = Dependency {
         name: String.from(name), version: "", index: "", index_url: "", path: "", git: git.clone(), rev: rev.clone(),
         tag: "", branch: "", tarball: tarball.clone(), checksum: checksum.clone()

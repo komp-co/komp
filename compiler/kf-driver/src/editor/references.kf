@@ -36,7 +36,6 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     return out.finish()
 }
 
-
 pub fun Span.span_object(smap: Ptr<SourceMap>): String {
     var o = JsonWriter.object()
     o.field_string("file", path_for_file_id(smap, self.file_id).as_str())

@@ -11,7 +11,7 @@ import kf_typecheck.types.can_coerce
 
 pub struct LocalBinding {
     pub val name: String
-    pub var ty:   Type
+    pub var ty: Type
     // Mutability through a reference comes from its type, not this.
     pub val is_var: bool
     /// An unannotated binding's literal initializer, which its first use may
@@ -22,53 +22,53 @@ pub struct LocalBinding {
 }
 
 pub struct TypeCtx {
-    pub var locals:       List<LocalBinding>
-    pub var return_ty:    Type
+    pub var locals: List<LocalBinding>
+    pub var return_ty: Type
     /// The impl's target, which `Self` means.
-    pub var self_ty:      Type
-    pub var generics:     List<String>
-    pub var diags:        Ptr<List<Diagnostic>>
+    pub var self_ty: Type
+    pub var generics: List<String>
+    pub var diags: Ptr<List<Diagnostic>>
     /// None during the pre-passes, which run before a table exists.
-    pub var table:        Ptr<DeclTable>?
-    pub var sigs:         Ptr<SigTable>
+    pub var table: Ptr<DeclTable>?
+    pub var sigs: Ptr<SigTable>
     // The key the enclosing function's bounds are registered under; "" outside
     // a body.
-    pub var fn_owner:     String
-    pub var owner_crate:  CrateId
+    pub var fn_owner: String
+    pub var owner_crate: CrateId
     pub var owner_module: Sym
     /// The file whose imports gate lookups; several files share a directory.
-    pub var owner_file:   uint32
+    pub var owner_file: uint32
     /// Owns dynamic layouts requested here; null for lookup-only contexts.
     pub var metadata_owner: Ptr<TopDecl>
     /// Parameter names, `self` included: a returned borrow may read out of
     /// these, not out of the body's own bindings.
-    pub var params:       List<String>
+    pub var params: List<String>
     /// The trait and method this body implements, "" otherwise; see
     /// check/self_recursion.kf.
-    pub var impl_trait:   String
+    pub var impl_trait: String
     /// The trait's arguments, so `impl_trait` names one instantiation:
     /// `Self.Out` inside `impl Index<Range<uint64>> for Bag` is unambiguous.
     pub var impl_trait_args: String
-    pub var impl_method:  String
+    pub var impl_method: String
     /// Suppresses `emit`, for lookups that only read a type ref from another
     /// scope.
-    pub var quiet:        bool
+    pub var quiet: bool
     /// >0 while checking a call argument, where borrowed captures are allowed.
-    pub var in_call_arg:  uint64
+    pub var in_call_arg: uint64
     /// A lambda initializing a local, which owns its captures.
     pub var in_local_lambda_binding: uint64
     /// Every `null` walked, and those an Option slot claimed. Judged at the end
     /// of the body, since the slot arrives after the node.
-    pub var nulls_seen:  List<Span>
+    pub var nulls_seen: List<Span>
     pub var nulls_typed: List<Span>
     /// Integer literals too wide for `int32`, their default, and those a slot,
     /// a cast or a negation sized. Judged at the end of the body, like `null`.
-    pub var wide_literals_seen:  List<Span>
+    pub var wide_literals_seen: List<Span>
     pub var wide_literals_sized: List<Span>
     /// Static calls on a generic type with no type arguments yet, and those a
     /// slot later completed.
-    pub var open_calls:  List<OpenGenericCall>
-    pub var open_typed:  List<Span>
+    pub var open_calls: List<OpenGenericCall>
+    pub var open_typed: List<Span>
     /// Where each empty `[]` is, once named: its open call is the literal.
     pub var list_literals: List<Span>
     /// Leading arguments of the next call already typed (an extension's
@@ -81,31 +81,31 @@ pub struct TypeCtx {
 
 pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
     return TypeCtx {
-        locals:    List.new<LocalBinding>(),
+        locals: List.new<LocalBinding>(),
         return_ty: return_ty,
-        self_ty:    poison_ty(),
-        generics:  List.new<String>(),
-        diags:     diags,
-        table:     table,
-        sigs:      sigs,
-        fn_owner:  "",
+        self_ty: poison_ty(),
+        generics: List.new<String>(),
+        diags: diags,
+        table: table,
+        sigs: sigs,
+        fn_owner: "",
         owner_crate: crate_id_poison(),
         owner_module: intern(""),
-        owner_file:   0,
+        owner_file: 0,
         metadata_owner: unsafe { 0 as Ptr<TopDecl> },
-        params:    List.new<String>(),
-        impl_trait:  "",
+        params: List.new<String>(),
+        impl_trait: "",
         impl_trait_args: "",
         impl_method: "",
-        quiet:     false,
+        quiet: false,
         in_call_arg: 0,
         in_local_lambda_binding: 0,
-        nulls_seen:  List.new<Span>(),
+        nulls_seen: List.new<Span>(),
         nulls_typed: List.new<Span>(),
-        wide_literals_seen:  List.new<Span>(),
+        wide_literals_seen: List.new<Span>(),
         wide_literals_sized: List.new<Span>(),
-        open_calls:  List.new<OpenGenericCall>(),
-        open_typed:  List.new<Span>(),
+        open_calls: List.new<OpenGenericCall>(),
+        open_typed: List.new<Span>(),
         list_literals: List.new<Span>(),
         pretyped_args: 0,
         qualified_callee: String.from("")

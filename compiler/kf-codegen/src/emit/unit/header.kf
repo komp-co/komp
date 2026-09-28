@@ -271,5 +271,3 @@ fun Type.collect_type_instance(out: &var List<String>): void {
         _ => { }
     }
 }
-
-

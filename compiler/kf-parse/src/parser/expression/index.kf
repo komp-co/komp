@@ -14,7 +14,7 @@ impl Parser {
     /// a subscript.
     mutating fun parse_index(recv: Expr): Expr {
         val open_span = self.peek().span
-        unsafe { self.advance() }                     // consume `[`
+        unsafe { self.advance() } // consume `[`
         // Inside `]`, a `{` opens a struct literal.
         val saved = self.no_struct_lit
         self.no_struct_lit = false

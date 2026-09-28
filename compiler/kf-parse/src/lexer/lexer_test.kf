@@ -8,14 +8,14 @@ import core.assert.assert
     when (unsafe { toks.at(0).kind }) {
         Identifier(s) => assert_eq(s.as_str(), "add", "identifier text")
         KeywordTok(_) => fail("expected Identifier, got KeywordTok")
-        Op(_)         => fail("expected Identifier, got Op")
+        Op(_) => fail("expected Identifier, got Op")
         IntLiteral(_) => fail("expected Identifier, got IntLiteral")
         StringLiteral(_) => fail("expected Identifier, got StringLiteral")
         FloatLiteral(_) => fail("expected Identifier, got FloatLiteral")
         CharLiteral(_) => fail("expected Identifier, got CharLiteral")
-        Newline       => fail("expected Identifier, got Newline")
-        Eof           => fail("expected Identifier, got Eof")
-        LexError(_)   => fail("expected Identifier, got LexError")
+        Newline => fail("expected Identifier, got Newline")
+        Eof => fail("expected Identifier, got Eof")
+        LexError(_) => fail("expected Identifier, got LexError")
     }
 }
 
@@ -39,11 +39,11 @@ import core.assert.assert
         FloatLiteral(_) => fail("expected StringLiteral, got FloatLiteral")
         CharLiteral(_) => fail("expected StringLiteral, got CharLiteral")
         KeywordTok(_) => fail("expected StringLiteral, got KeywordTok")
-        Op(_)         => fail("expected StringLiteral, got Op")
+        Op(_) => fail("expected StringLiteral, got Op")
         IntLiteral(_) => fail("expected StringLiteral, got IntLiteral")
-        Newline       => fail("expected StringLiteral, got Newline")
-        Eof           => fail("expected StringLiteral, got Eof")
-        LexError(_)   => fail("expected StringLiteral, got LexError")
+        Newline => fail("expected StringLiteral, got Newline")
+        Eof => fail("expected StringLiteral, got Eof")
+        LexError(_) => fail("expected StringLiteral, got LexError")
     }
 }
 
@@ -52,14 +52,14 @@ import core.assert.assert
     when (unsafe { toks.at(0).kind }) {
         KeywordTok(kw) => assert_eq(is_fun_keyword(kw), true, "first token is Fun")
         Identifier(_) => fail("expected KeywordTok, got Identifier")
-        Op(_)         => fail("expected KeywordTok, got Op")
+        Op(_) => fail("expected KeywordTok, got Op")
         IntLiteral(_) => fail("expected KeywordTok, got IntLiteral")
         StringLiteral(_) => fail("expected KeywordTok, got StringLiteral")
         FloatLiteral(_) => fail("expected KeywordTok, got FloatLiteral")
         CharLiteral(_) => fail("expected KeywordTok, got CharLiteral")
-        Newline       => fail("expected KeywordTok, got Newline")
-        Eof           => fail("expected KeywordTok, got Eof")
-        LexError(_)   => fail("expected KeywordTok, got LexError")
+        Newline => fail("expected KeywordTok, got Newline")
+        Eof => fail("expected KeywordTok, got Eof")
+        LexError(_) => fail("expected KeywordTok, got LexError")
     }
 }
 
@@ -75,9 +75,9 @@ import core.assert.assert
         StringLiteral(_) => fail("expected Op, got StringLiteral")
         FloatLiteral(_) => fail("expected Op, got FloatLiteral")
         CharLiteral(_) => fail("expected Op, got CharLiteral")
-        Newline       => fail("expected Op, got Newline")
-        Eof           => fail("expected Op, got Eof")
-        LexError(_)   => fail("expected Op, got LexError")
+        Newline => fail("expected Op, got Newline")
+        Eof => fail("expected Op, got Eof")
+        LexError(_) => fail("expected Op, got LexError")
     }
 }
 
@@ -93,9 +93,9 @@ import core.assert.assert
         StringLiteral(_) => fail("expected Op, got StringLiteral")
         FloatLiteral(_) => fail("expected Op, got FloatLiteral")
         CharLiteral(_) => fail("expected Op, got CharLiteral")
-        Newline       => fail("expected Op, got Newline")
-        Eof           => fail("expected Op, got Eof")
-        LexError(_)   => fail("expected Op, got LexError")
+        Newline => fail("expected Op, got Newline")
+        Eof => fail("expected Op, got Eof")
+        LexError(_) => fail("expected Op, got LexError")
     }
 }
 
@@ -110,9 +110,9 @@ import core.assert.assert
         StringLiteral(_) => fail("expected Op, got StringLiteral")
         FloatLiteral(_) => fail("expected Op, got FloatLiteral")
         CharLiteral(_) => fail("expected Op, got CharLiteral")
-        Newline       => fail("expected Op, got Newline")
-        Eof           => fail("expected Op, got Eof")
-        LexError(_)   => fail("expected Op, got LexError")
+        Newline => fail("expected Op, got Newline")
+        Eof => fail("expected Op, got Eof")
+        LexError(_) => fail("expected Op, got LexError")
     }
 }
 
@@ -294,11 +294,11 @@ fun begins_with_two_slashes(s: str): bool {
         FloatLiteral(_) => fail("expected StringLiteral, got FloatLiteral")
         CharLiteral(_) => fail("expected StringLiteral, got CharLiteral")
         KeywordTok(_) => fail("expected StringLiteral, got KeywordTok")
-        Op(_)         => fail("expected StringLiteral, got Op")
+        Op(_) => fail("expected StringLiteral, got Op")
         IntLiteral(_) => fail("expected StringLiteral, got IntLiteral")
-        Newline       => fail("expected StringLiteral, got Newline")
-        Eof           => fail("expected StringLiteral, got Eof")
-        LexError(_)   => fail("expected StringLiteral, got LexError")
+        Newline => fail("expected StringLiteral, got Newline")
+        Eof => fail("expected StringLiteral, got Eof")
+        LexError(_) => fail("expected StringLiteral, got LexError")
     }
 }
 
@@ -311,11 +311,11 @@ fun begins_with_two_slashes(s: str): bool {
         FloatLiteral(_) => fail("expected StringLiteral, got FloatLiteral")
         CharLiteral(_) => fail("expected StringLiteral, got CharLiteral")
         KeywordTok(_) => fail("expected StringLiteral, got KeywordTok")
-        Op(_)         => fail("expected StringLiteral, got Op")
+        Op(_) => fail("expected StringLiteral, got Op")
         IntLiteral(_) => fail("expected StringLiteral, got IntLiteral")
-        Newline       => fail("expected StringLiteral, got Newline")
-        Eof           => fail("expected StringLiteral, got Eof")
-        LexError(_)   => fail("expected StringLiteral, got LexError")
+        Newline => fail("expected StringLiteral, got Newline")
+        Eof => fail("expected StringLiteral, got Eof")
+        LexError(_) => fail("expected StringLiteral, got LexError")
     }
 }
 
@@ -328,11 +328,11 @@ fun begins_with_two_slashes(s: str): bool {
         FloatLiteral(_) => fail("expected StringLiteral, got FloatLiteral")
         CharLiteral(_) => fail("expected StringLiteral, got CharLiteral")
         KeywordTok(_) => fail("expected StringLiteral, got KeywordTok")
-        Op(_)         => fail("expected StringLiteral, got Op")
+        Op(_) => fail("expected StringLiteral, got Op")
         IntLiteral(_) => fail("expected StringLiteral, got IntLiteral")
-        Newline       => fail("expected StringLiteral, got Newline")
-        Eof           => fail("expected StringLiteral, got Eof")
-        LexError(_)   => fail("expected StringLiteral, got LexError")
+        Newline => fail("expected StringLiteral, got Newline")
+        Eof => fail("expected StringLiteral, got Eof")
+        LexError(_) => fail("expected StringLiteral, got LexError")
     }
 }
 
@@ -345,10 +345,10 @@ fun begins_with_two_slashes(s: str): bool {
         CharLiteral(_) => fail("expected LexError, got CharLiteral")
         Identifier(_) => fail("expected LexError, got Identifier")
         KeywordTok(_) => fail("expected LexError, got KeywordTok")
-        Op(_)         => fail("expected LexError, got Op")
+        Op(_) => fail("expected LexError, got Op")
         IntLiteral(_) => fail("expected LexError, got IntLiteral")
-        Newline       => fail("expected LexError, got Newline")
-        Eof           => fail("expected LexError, got Eof")
+        Newline => fail("expected LexError, got Newline")
+        Eof => fail("expected LexError, got Eof")
     }
 }
 
@@ -363,11 +363,11 @@ fun begins_with_two_slashes(s: str): bool {
         FloatLiteral(_) => fail("expected StringLiteral, got FloatLiteral")
         CharLiteral(_) => fail("expected StringLiteral, got CharLiteral")
         KeywordTok(_) => fail("expected StringLiteral, got KeywordTok")
-        Op(_)         => fail("expected StringLiteral, got Op")
+        Op(_) => fail("expected StringLiteral, got Op")
         IntLiteral(_) => fail("expected StringLiteral, got IntLiteral")
-        Newline       => fail("expected StringLiteral, got Newline")
-        Eof           => fail("expected StringLiteral, got Eof")
-        LexError(_)   => fail("expected StringLiteral, got LexError")
+        Newline => fail("expected StringLiteral, got Newline")
+        Eof => fail("expected StringLiteral, got Eof")
+        LexError(_) => fail("expected StringLiteral, got LexError")
     }
 }
 

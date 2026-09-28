@@ -91,7 +91,7 @@ pub fun module_path_for(file_path: str, src_root: str, crate_name: String): List
     var seg_start: uint64 = i
     while i <= end {
         val at_end: bool = i == end
-        val is_sep: bool = !at_end && file_path.byte_at(i) == 47  // '/'
+        val is_sep: bool = !at_end && file_path.byte_at(i) == 47 // '/'
         if at_end || is_sep {
             val seg_len: uint64 = i - seg_start
             if seg_len > 0 {

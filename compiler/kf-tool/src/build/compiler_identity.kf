@@ -6,9 +6,9 @@ import std.fs.TempDir
 import std.process.*
 
 pub struct CompilerIdentity {
-    pub val abi:     String
+    pub val abi: String
     pub val runtime: String
-    pub val target:  String
+    pub val target: String
     /// A rebuilt compiler rebuilds every crate, whatever its ABI says.
     pub val binary_hash: String
 }

@@ -9,18 +9,18 @@ import kf_core.ast.*
 /// `lookup` and holds only the FIRST id each name got. `insert` mints a fresh
 /// id even for a name already present.
 pub struct DeclTable {
-    pub var names:    List<String>
+    pub var names: List<String>
     pub var decl_ids: List<DeclId>
-    pub var index:    HashMap<String, DeclId>
-    pub var next_id:  uint32
+    pub var index: HashMap<String, DeclId>
+    pub var next_id: uint32
 }
 
 pub fun new_decl_table(): DeclTable {
     return DeclTable {
-        names:    List.new<String>(),
+        names: List.new<String>(),
         decl_ids: List.new<DeclId>(),
-        index:    HashMap.new<String, DeclId>(),
-        next_id:  1
+        index: HashMap.new<String, DeclId>(),
+        next_id: 1
     }
 }
 

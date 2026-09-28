@@ -103,7 +103,7 @@ impl Parser {
                     return es
                 }
             }
-            self.pos = save_pos                        // not a generic use-site
+            self.pos = save_pos // not a generic use-site
         }
         if is_op(self.peek(), Operator.LParen) {
             return self.parse_call_args(name, span)
@@ -119,12 +119,12 @@ impl Parser {
 
     /// `alloc<T1, ...>(args)`: type args folded into `alloc__T1__...`.
     mutating fun parse_generic_ctor_call(name: Sym, span: Span): Expr {
-        unsafe { self.advance() }                     // consume `<`
+        unsafe { self.advance() } // consume `<`
         var mangled = name.as_string()
         var type_args = List.new<TypeRef>()
         while true {
             if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() }              // consume `>`
+                unsafe { self.advance() } // consume `>`
                 break
             }
             val arg_ptr = self.parse_type_ref_ptr()
@@ -149,7 +149,7 @@ impl Parser {
     /// A speculative `<T, ...>` list. False (and the caller rewinds) unless it
     /// is well-formed and closed by `>`.
     pub mutating fun try_parse_type_args(out: &var List<TypeRef>): bool {
-        unsafe { self.advance() }                      // consume `<`
+        unsafe { self.advance() } // consume `<`
         // Errors are suppressed: on failure `<` is re-read as a comparison.
         val was_speculative: bool = self.speculative
         self.speculative = true
@@ -159,7 +159,7 @@ impl Parser {
             // must follow the callee: a `<` opening a line is a comparison.
             self.skip_newlines()
             if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() }              // consume `>` (empty/trailing)
+                unsafe { self.advance() } // consume `>` (empty/trailing)
                 break
             }
             val arg_ptr = self.parse_type_ref_ptr()
@@ -175,10 +175,10 @@ impl Parser {
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }
             } else if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() }      // consume `>`
+                unsafe { self.advance() } // consume `>`
                 break
             } else {
-                ok = false                     // not a type-arg list
+                ok = false // not a type-arg list
                 break
             }
         }
@@ -205,7 +205,7 @@ impl Parser {
     /// `(a, b, ...)` for calls and method calls. Newlines inside are
     /// whitespace.
     mutating fun parse_arg_list(): List<Expr> {
-        unsafe { self.advance() }                     // consume `(`
+        unsafe { self.advance() } // consume `(`
         // Inside `)`, a `{` opens a struct literal.
         val saved = self.no_struct_lit
         self.no_struct_lit = false
@@ -235,7 +235,7 @@ impl Parser {
     /// `Name { field: value, field }`; `{` is next. A field with no `:` is
     /// shorthand for `field: field`.
     mutating fun parse_struct_lit(name: Sym, span: Span): Expr {
-        unsafe { self.advance() }                     // consume `{`
+        unsafe { self.advance() } // consume `{`
         var fields = List.new<FieldInit>()
         while true {
             self.skip_newlines()
@@ -244,10 +244,10 @@ impl Parser {
             }
             val name_span = self.peek().span
             val fname: String = self.expect_name("field")
-            unsafe { self.advance() }                // field name
+            unsafe { self.advance() } // field name
             val value_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
             if is_op(self.peek(), Operator.Colon) {
-                unsafe { self.advance() }            // consume `:`
+                unsafe { self.advance() } // consume `:`
                 unsafe { *value_ptr = self.parse_expr() }
             } else {
                 // `Point { x, y }` is `Point { x: x, y: y }`.
@@ -289,12 +289,12 @@ impl Parser {
         while true {
             if self.peek_is_chain_continuation() { self.skip_newlines() }
             if is_op(self.peek(), Operator.Dot) {
-                unsafe { self.advance() }    // consume `.`
+                unsafe { self.advance() } // consume `.`
                 current = self.parse_member_access(take<Expr>(current))
             } else if is_op(self.peek(), Operator.SafeCall) {
                 // `a?.b`: the member, or `None`. `a?.b?.c` nests, and Lower
                 // hoists the innermost first.
-                unsafe { self.advance() }    // consume `?.`
+                unsafe { self.advance() } // consume `?.`
                 current = self.build_safe_call(take<Expr>(current))
             } else if is_op(self.peek(), Operator.Question) {
                 // Postfix `?`: the payload, or return the residual. The `when`
@@ -302,7 +302,7 @@ impl Parser {
                 // subject is parked and a binder handed back; `g(a()?, b()?)`
                 // parks two, in order.
                 val q_span = self.peek().span
-                unsafe { self.advance() }    // consume `?`
+                unsafe { self.advance() } // consume `?`
                 val cur_span = current.span
                 val binder = "__try_${self.try_ctr}"
                 self.try_ctr = self.try_ctr + 1
@@ -311,7 +311,7 @@ impl Parser {
             } else if is_op(self.peek(), Operator.BangBang) {
                 // `a!!` is `a.unwrap()`; typecheck checks the method exists.
                 val bang_span = self.peek().span
-                unsafe { self.advance() }    // consume `!!`
+                unsafe { self.advance() } // consume `!!`
                 val cur_span = current.span
                 val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *cur_ptr = take<Expr>(current) }
@@ -320,7 +320,7 @@ impl Parser {
                 current = self.parse_index(take<Expr>(current))
             } else if is_keyword(self.peek(), Keyword.As) {
                 val as_span = self.peek().span
-                unsafe { self.advance() }    // consume `as`
+                unsafe { self.advance() } // consume `as`
                 val ty_ptr: Ptr<TypeRef> = self.parse_type_ref_ptr()
                 val cur_span = current.span
                 val full_span: Span = cur_span.merge(as_span)

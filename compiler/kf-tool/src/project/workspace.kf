@@ -8,7 +8,6 @@ import kf_shared.resolve_path
 import kf_shared.normalized_path
 import std.fs.exists
 
-
 pub fun manifest_missing(root: str): bool {
     val path = join_path(root, "kf.toml")
     return !exists(path.as_str())

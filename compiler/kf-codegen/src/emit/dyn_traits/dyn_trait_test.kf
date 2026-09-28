@@ -5,7 +5,6 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.ast.dyn_meta.*
 
-
 fun dyn_text_find(text: str, needle: str): uint64 {
     val text_len = text.byte_len()
     val needle_len = needle.byte_len()

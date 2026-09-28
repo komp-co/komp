@@ -13,9 +13,6 @@ import kf_shared.binary_path
 import kf_shared.ensure_dir
 import std.fs.exists
 
-
-
-
 /// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.
 /// `extra_cflags` is caller-trusted. Returns an exit code; failures name
 /// their phase.
@@ -124,7 +121,7 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
 // A process per crate also bounds memory: the compiler frees little, and a
 // chain compiled in one process costs the whole chain.
 fun BuildCrate.rebuild_crate(project: str, tdir: str, extra_cflags: str, expected: &ArtifactManifest,
-                               is_bin_root: bool): String {
+    is_bin_root: bool): String {
     // CONSTRAINT: unpublished before rewriting. The new `.h` is written before
     // the compile that can fail, and a stale manifest would pair it with the
     // old archive.

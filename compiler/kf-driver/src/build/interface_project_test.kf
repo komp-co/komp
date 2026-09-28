@@ -4,7 +4,6 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.span.no_span
 
-
 @test
 fun appended_modules_outlive_the_loaded_interface_list(): void {
     var path = List.new<String>()

@@ -48,7 +48,6 @@ impl Linkage {
     }
 }
 
-
 impl CrateId {
     // CONSTRAINT: in kf-core so Codegen and the interface writer share one
     // spelling without a dependency cycle.
@@ -87,7 +86,6 @@ fun crate_symbol_ident_byte(b: uint8): bool {
     if b >= 97 && b <= 122 { return true }
     return b == 95
 }
-
 
 /// Types whose C identity the runtime fixes: never crate-qualified or carried
 /// as hidden support. Containers are lang items; ask `is_container_type_name`.

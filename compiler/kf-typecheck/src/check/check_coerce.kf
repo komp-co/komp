@@ -126,7 +126,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     // `List__String` elements dispatch through String; `List__str` elements
     // are `StrTy`.
     if is_lang_name(s, string_name) { return string_name.lang_struct_ty(span) }
-    if s.equals("str")    { return str_ty(span) }
+    if s.equals("str") { return str_ty(span) }
     return Type { kind: TypeKind.Struct(intern(frag.as_str())), provenance: Provenance.Inferred(span) }
 }
 
@@ -164,8 +164,8 @@ fun coerce_code_for(from: Type, is_lit: bool, to: Type, string_name: Sym): uint8
         return coerce_none()
     }
     if to_tag == TAG_PTR() || to_tag == TAG_REF() {
-    // Borrow by default: a value in a pointer or reference slot takes its
-    // address. `&T`, `&var T` and `Ptr<T>` all resolve to PtrTo.
+        // Borrow by default: a value in a pointer or reference slot takes its
+        // address. `&T`, `&var T` and `Ptr<T>` all resolve to PtrTo.
         val pointee = deref_target(to)
         if from.type_eq(pointee) { return coerce_addr_of() }
         return coerce_none()
@@ -194,8 +194,8 @@ pub fun Type.shared_borrow_of_string(string_name: Sym): bool {
 
 pub fun deref_target(t: Type): Type {
     return when (t.kind) {
-        PtrTo(p)    => unsafe { *p }
-        BoxOf(p)    => unsafe { *p }
+        PtrTo(p) => unsafe { *p }
+        BoxOf(p) => unsafe { *p }
         RefTo(_, p) => unsafe { *p }
         _ => t
     }

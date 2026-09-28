@@ -23,7 +23,7 @@ pub fun Module.unused_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
     while i < n {
         val target = unsafe { sp.imported_targets.get(i) }
         val file = unsafe { sp.caller_files.get(i) }
-    // An unresolved import already has its own error.
+        // An unresolved import already has its own error.
         if target.id != 0 && contains_file(&own, file) && !import_was_used(sp, file, target) {
             val imp = *self.imports.at(i)
             if import_is_written(&imp) && !duplicate_span(&out, imp.span) {
@@ -64,7 +64,7 @@ fun Import.unused_import_warning(): Diagnostic {
     msg.append("`: nothing in this file names anything it declares")
     val d = lint_at("unused_import", self.span, msg)
     return with_fix_applic(d, delete_line_span(self.span), "",
-                           String.from("remove this import"), Applicability.MaybeIncorrect)
+        String.from("remove this import"), Applicability.MaybeIncorrect)
 }
 
 /// Includes the newline, so no blank line is left.

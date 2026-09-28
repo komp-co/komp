@@ -5,7 +5,6 @@ import core.assert.assert_eq
 import kf_integration.harness.check_project
 import std.fs.scratch_root
 
-
 extern "C" fun system(cmd: str): int32
 
 /// A dependency crate exporting `alpha` and `beta`, and an app crate whose

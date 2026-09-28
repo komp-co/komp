@@ -4,7 +4,6 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 import kf_core.ast.*
 
-
 fun test_ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }

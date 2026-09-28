@@ -320,7 +320,6 @@ fun impl_method_count(td: TopDecl): uint64 {
     }
 }
 
-
 @test fun parse_fun_records_source_extent(): void {
     val src = "fun id<T>(x: T): T { return x }"
     var p = parser_for(src)

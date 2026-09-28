@@ -83,7 +83,7 @@ pub fun crate_source_fingerprint(crate_root: str, compiler: &CompilerIdentity): 
 /// `interface_hash` stays empty; the recorded one is verified against the
 /// `.kfi` bytes.
 pub fun BuildCrate.expected_artifact_manifest(profile: str, built_names: &List<String>, built_hashes: &List<String>,
-                                              is_bin_root: bool, compiler: &CompilerIdentity): ArtifactManifest {
+    is_bin_root: bool, compiler: &CompilerIdentity): ArtifactManifest {
     val manifest_path = String.from(self.root.as_str()) + String.from("/kf.toml")
     val mf = parse_manifest(read_file(manifest_path.as_str()).as_str())
     val source_fp = crate_source_fingerprint(self.root.as_str(), compiler)

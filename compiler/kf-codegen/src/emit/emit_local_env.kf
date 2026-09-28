@@ -33,13 +33,13 @@ pub struct LocalEnv {
 pub fun new_local_env(): LocalEnv {
     val ns = List.new<String>()
     val rs = List.new<String>()
-    return LocalEnv { 
-        names: ns, 
-        rel_fns: rs, 
-        loop_labels: List.new<String>(), 
-        label_counter: 0, 
-        ret_ctype: "", 
-        arm_payloads: no_arm_payloads() 
+    return LocalEnv {
+        names: ns,
+        rel_fns: rs,
+        loop_labels: List.new<String>(),
+        label_counter: 0,
+        ret_ctype: "",
+        arm_payloads: no_arm_payloads()
     }
 }
 

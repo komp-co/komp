@@ -6,7 +6,6 @@ pub enum Option<T> {
     None
 }
 
-
 impl Option<T> {
     pub fun is_some(): bool {
         return when (self) {

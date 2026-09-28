@@ -65,33 +65,33 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             val selected = qualified_trait_method_callee(qualified_trait.clone(), method_name.clone(), args, ctx)
             if !handled && !selected.as_str().equals("") {
                 when (unsafe { (*ctx.sigs).find_signature(selected.as_str()) }) {
-                  Some(sig) => {
-                    var valid = sig.params.size() == args.size()
-                    while qi in 0..args.size() {
-                        val arg = args.at(qi)
-                        val expected = *sig.params.at(qi)
-                        if qi == 0 {
-                            if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) { valid = false }
-                        } else {
-                            val outcome = coerce_call_arg(args, qi, expected.clone(), ctx)
-                            if !outcome.valid {
-                                valid = false
-                            } else if !outcome.coerced && !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
-                                valid = false
+                    Some(sig) => {
+                        var valid = sig.params.size() == args.size()
+                        while qi in 0..args.size() {
+                            val arg = args.at(qi)
+                            val expected = *sig.params.at(qi)
+                            if qi == 0 {
+                                if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) { valid = false }
+                            } else {
+                                val outcome = coerce_call_arg(args, qi, expected.clone(), ctx)
+                                if !outcome.valid {
+                                    valid = false
+                                } else if !outcome.coerced && !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
+                                    valid = false
+                                }
                             }
                         }
+                        if valid {
+                            val receiver_arg = args.at_mut(0)
+                            receiver_arg.coerce = coerce_addr_of()
+                            e.ty = sig.ret
+                            note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
+                            e.mangled_callee = intern(selected.as_str())
+                            e.is_static_call = true
+                            handled = true
+                        }
                     }
-                    if valid {
-                        val receiver_arg = args.at_mut(0)
-                        receiver_arg.coerce = coerce_addr_of()
-                        e.ty = sig.ret
-                        note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
-                        e.mangled_callee = intern(selected.as_str())
-                        e.is_static_call = true
-                        handled = true
-                    }
-                  }
-                  None => { }
+                    None => { }
                 }
             }
             if !handled {
@@ -111,14 +111,14 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 if e.type_args.size() > 0 {
                     val arity_base = mangle_base_name(rname.clone())
                     when (unsafe { (*ctx.sigs).find_generic_info(arity_base.as_str(), ctx.owner_crate) }) {
-                      Some(ginfo) => {
-                        if e.type_args.size() < ginfo.type_params.size() {
-                            emit_type_arg_arity(arity_base.clone(), ginfo.type_params.size(), e.type_args.size(), e.span, ctx)
-                            e.ty = poison_ty()
-                            return
+                        Some(ginfo) => {
+                            if e.type_args.size() < ginfo.type_params.size() {
+                                emit_type_arg_arity(arity_base.clone(), ginfo.type_params.size(), e.type_args.size(), e.span, ctx)
+                                e.ty = poison_ty()
+                                return
+                            }
                         }
-                      }
-                      None => { }
+                        None => { }
                     }
                 }
                 val tmpl = rname + String.from("_") + method_name

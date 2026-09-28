@@ -1,7 +1,6 @@
 // Arithmetic needing no C library. The libm functions are in
 // core.math_hosted.
 
-
 /// The lesser of two values, for anything `Compare`.
 @prelude
 pub fun min<T: Compare>(a: T, b: T): T {

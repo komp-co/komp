@@ -8,7 +8,6 @@ import kf_shared.walk_kf_files
 import kf_tool.build.build_project_separate_in
 import kf_integration.integration.run
 
-
 /// core.string has no `contains`.
 fun case_str_contains(haystack: str, needle: str): bool {
     val n: uint64 = haystack.byte_len()

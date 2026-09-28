@@ -3,7 +3,6 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-
 @test
 fun expected_identifier_name_survives_temporary_token_drop(): void {
     var parser = parser_for("stable_name")

@@ -145,14 +145,14 @@ fun expand_one_derive(expander: DeriveExpander, td: &TopDecl, trait_sym: Sym): T
             Equal => synth_equal_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
             Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
             Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
-                                    td.module_path, trait_sym)
+                td.module_path, trait_sym)
             Hash => synth_hash_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
         }
         EnumDecl(variants, _p) => when (expander) {
             Equal => synth_enum_equal_impl(td.name.as_string(), &variants, td.span, td.crate, td.module_path, trait_sym)
             Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
             Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
-                                    td.module_path, trait_sym)
+                td.module_path, trait_sym)
             _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)
         }
         _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)

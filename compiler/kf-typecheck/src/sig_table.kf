@@ -8,9 +8,9 @@ import kf_core.ast.*
 
 @derive(Clone)
 pub struct FnSignature {
-    pub val name:    String
-    pub val params:  List<Type>
-    pub val ret:     Type
+    pub val name: String
+    pub val params: List<Type>
+    pub val ret: Type
     // Declared generic names, empty for non-generic functions; an explicit
     // type argument for a parameter only in the return type binds through
     // these.
@@ -32,38 +32,38 @@ pub struct FnSignature {
 
 pub struct StructFieldInfo {
     pub val name: String
-    pub val ty:   Type
+    pub val ty: Type
     pub val is_var: bool
 }
 
 @derive(Clone)
 pub struct StructLayout {
-    pub val name:          String
-    pub val fields:        List<StructFieldInfo>
+    pub val name: String
+    pub val fields: List<StructFieldInfo>
     pub val is_refcounted: bool
     /// The declaring crate, which a lookup from that crate prefers.
-    pub val owner_crate:   CrateId
+    pub val owner_crate: CrateId
 }
 
 pub struct VariantInfo {
-    pub val name:     String
+    pub val name: String
     pub val payloads: List<Type>
 }
 
 @derive(Clone)
 pub struct EnumLayout {
-    pub val name:     String
+    pub val name: String
     pub val variants: List<VariantInfo>
-    pub val owner_crate: CrateId  // as in StructLayout
+    pub val owner_crate: CrateId // as in StructLayout
 }
 
 /// A generic struct or enum template and its parameter names, which
 /// on-demand instantiation substitutes.
 @derive(Clone)
 pub struct GenericInfo {
-    pub val name:        String
+    pub val name: String
     pub val type_params: List<String>
-    pub val owner_crate: CrateId  // as in StructLayout
+    pub val owner_crate: CrateId // as in StructLayout
 }
 
 /// A materialized instance under its mangled name, with its template and
@@ -71,23 +71,23 @@ pub struct GenericInfo {
 @derive(Clone)
 pub struct GenericInst {
     pub val mangled: String
-    pub val base:    String
-    pub val args:    List<TypeRef>
+    pub val base: String
+    pub val args: List<TypeRef>
 }
 
 /// A required trait method: name, user arity (no self), and whether the trait
 /// gives a default.
 pub struct TraitMethodReq {
-    pub val name:        String
-    pub val span:        Span
-    pub val arity:       uint64
+    pub val name: String
+    pub val span: Span
+    pub val arity: uint64
     pub val has_default: bool
     pub val has_method_generics: bool
     pub val is_static: bool
     // Declared types with the trait's generics in scope, no `self`: a bounded
     // `T`'s trait method types from these.
-    pub val params:      List<Type>
-    pub val ret:         Type
+    pub val params: List<Type>
+    pub val ret: Type
     pub val is_mutating: bool
 }
 
@@ -104,8 +104,8 @@ pub struct AssocBoundReq {
 /// A trait's `type Item` or `type Item: Bound`: what every impl owes.
 @derive(Clone)
 pub struct TraitAssocReq {
-    pub val name:   String
-    pub val span:   Span
+    pub val name: String
+    pub val span: Span
     pub val bounds: List<AssocBoundReq>
 }
 
@@ -119,10 +119,10 @@ pub struct SuperTraitReq {
 
 @derive(Clone)
 pub struct TraitInfo {
-    pub val name:    String
+    pub val name: String
     pub val identity: Sym
     /// The declaring module, so a bound counts as a use of its import.
-    pub val module:  Sym
+    pub val module: Sym
     pub val span: Span
     /// The trait's own type parameters, which a use site substitutes.
     pub val type_params: List<String>
@@ -138,7 +138,7 @@ pub struct TraitInfo {
 /// and the trait's head name.
 @derive(Clone)
 pub struct TraitImplInfo {
-    pub val type_name:  String
+    pub val type_name: String
     /// Empty for primitive and synthetic facts.
     pub val receiver_identity: Sym
     pub val trait_name: String
@@ -156,13 +156,13 @@ pub struct TraitImplInfo {
 /// name so a projection resolves from the owner. `chosen` is resolved in the
 /// impl's own scope.
 pub struct AssocBindingInfo {
-    pub val type_name:  String
+    pub val type_name: String
     pub val trait_name: String
     /// The trait's arguments: `Index<uint64>` and `Index<Range>` each bind their
     /// own `Out`.
     pub val trait_args: String
     pub val assoc_name: String
-    pub val chosen:     Type
+    pub val chosen: Type
     /// As written, for substituting the projection away in TypeRefs.
     pub val chosen_tref: TypeRef
 }
@@ -176,56 +176,56 @@ pub struct MethodLink {
 /// A declared bound `T: Trait` on an owner (function, mangled method, struct
 /// or enum). `T: A + B` is two rows.
 pub struct BoundInfo {
-    pub val owner:      String
-    pub val param:      String
+    pub val owner: String
+    pub val param: String
     pub val trait_name: String
     // `T: From<int32>` is "int32"; `T: Equal` is "".
     pub val trait_args: String
     /// Positional, in the owner's scope, paired with the trait's `type_params`.
-    pub val arg_names:  List<String>
+    pub val arg_names: List<String>
     /// Where written, for reporting a bound naming no trait.
-    pub val span:       Span
+    pub val span: Span
 }
 
 pub struct SigTable {
-    pub var sigs:          List<FnSignature>
+    pub var sigs: List<FnSignature>
     /// Positions in `sigs` by name. `sigs` is append-only and lookups want the
     /// first match; the index keeps both true while making the hot lookup fast.
-    pub var sig_index:     HashMap<String, uint64>
-    pub var structs:       List<StructLayout>
-    pub var enums:         List<EnumLayout>
+    pub var sig_index: HashMap<String, uint64>
+    pub var structs: List<StructLayout>
+    pub var enums: List<EnumLayout>
     pub var generic_infos: List<GenericInfo>
-    pub var traits:        List<TraitInfo>
-    pub var trait_impls:   List<TraitImplInfo>
+    pub var traits: List<TraitInfo>
+    pub var trait_impls: List<TraitImplInfo>
     pub var impl_param_bounds: List<ImplParamBounds>
     pub var assoc_bindings: List<AssocBindingInfo>
-    pub var method_links:  List<MethodLink>
-    pub var bounds:        List<BoundInfo>
+    pub var method_links: List<MethodLink>
+    pub var bounds: List<BoundInfo>
     pub var type_identities: List<TypeIdentity>
-    pub var insts:         List<GenericInst>
+    pub var insts: List<GenericInst>
     /// Per-file imports as parallel lists: file, target module, and the one
     /// name admitted (poison for a whole module). Empty means no filtering.
-    pub var caller_files:      List<uint32>
-    pub var imported_targets:  List<Sym>
+    pub var caller_files: List<uint32>
+    pub var imported_targets: List<Sym>
     /// Poison for a wildcard.
-    pub var imported_names:    List<Sym>
+    pub var imported_names: List<Sym>
     /// Whether find_imported_signature filters by the import map.
-    pub var gate_visibility:   bool
+    pub var gate_visibility: bool
     /// Declarations minted inside a body (lambdas), carried back to the module.
-    pub var synth_decls:   List<TopDecl>
+    pub var synth_decls: List<TopDecl>
     /// Lambda types bound to locals; invokable, not yet transferable.
     pub var stored_lambda_types: List<Sym>
     /// Per file, the byte after its last import, parallel to `import_files`;
     /// absent files insert at 0.
     pub var import_files: List<uint32>
-    pub var import_ends:  List<uint32>
+    pub var import_ends: List<uint32>
     /// Which (file, module, name) triples names resolved through, for the
     /// unused- and wildcard-import lints. A poison name is a method or type,
     /// which no import line can spell. Recorded at resolution rather than
     /// re-derived.
-    pub var used_files:   List<uint32>
+    pub var used_files: List<uint32>
     pub var used_modules: List<Sym>
-    pub var used_names:   List<Sym>
+    pub var used_names: List<Sym>
     /// `@no_mangle` types, whose impls share one C namespace.
     pub var no_mangle_types: List<String>
     /// The `@lang("string")` type, or the empty name.
@@ -235,7 +235,7 @@ pub struct SigTable {
     /// The `@lang("list")` type, or the empty name.
     pub var lang_list: Sym
     /// `@lang(...)` traits as parallel (key, name) lists.
-    pub var lang_trait_keys:  List<String>
+    pub var lang_trait_keys: List<String>
     pub var lang_trait_names: List<Sym>
     /// Extensions as parallel lists: called name, registered signature name,
     /// and the parameter a trait receiver became (or empty).
@@ -244,47 +244,47 @@ pub struct SigTable {
     pub var ext_trait_params: List<Sym>
     /// Calls on untyped receivers, reported only if the check finds nothing
     /// else.
-    pub var untyped_recv_spans:   List<Span>
+    pub var untyped_recv_spans: List<Span>
     pub var untyped_recv_methods: List<Sym>
 }
 
 pub fun new_sig_table(): SigTable {
     return SigTable {
-        sigs:          List.new<FnSignature>(),
-        sig_index:     HashMap.new<String, uint64>(),
-        structs:       List.new<StructLayout>(),
-        enums:         List.new<EnumLayout>(),
+        sigs: List.new<FnSignature>(),
+        sig_index: HashMap.new<String, uint64>(),
+        structs: List.new<StructLayout>(),
+        enums: List.new<EnumLayout>(),
         generic_infos: List.new<GenericInfo>(),
-        traits:        List.new<TraitInfo>(),
-        trait_impls:   List.new<TraitImplInfo>(),
+        traits: List.new<TraitInfo>(),
+        trait_impls: List.new<TraitImplInfo>(),
         impl_param_bounds: List.new<ImplParamBounds>(),
         assoc_bindings: List.new<AssocBindingInfo>(),
-        method_links:  List.new<MethodLink>(),
-        bounds:        List.new<BoundInfo>(),
+        method_links: List.new<MethodLink>(),
+        bounds: List.new<BoundInfo>(),
         type_identities: List.new<TypeIdentity>(),
-        insts:         List.new<GenericInst>(),
-        caller_files:     List.new<uint32>(),
+        insts: List.new<GenericInst>(),
+        caller_files: List.new<uint32>(),
         imported_targets: List.new<Sym>(),
-        imported_names:   List.new<Sym>(),
-        gate_visibility:  false,
-        synth_decls:   List.new<TopDecl>(),
+        imported_names: List.new<Sym>(),
+        gate_visibility: false,
+        synth_decls: List.new<TopDecl>(),
         stored_lambda_types: List.new<Sym>(),
         // Declaration order: a struct literal lowers positionally.
-        import_files:     List.new<uint32>(),
-        import_ends:      List.new<uint32>(),
-        used_files:       List.new<uint32>(),
-        used_modules:     List.new<Sym>(),
-        used_names:       List.new<Sym>(),
-        no_mangle_types:  List.new<String>(),
-        lang_string:      intern(""),
-        lang_option:      intern(""),
-        lang_list:        intern(""),
-        lang_trait_keys:  List.new<String>(),
+        import_files: List.new<uint32>(),
+        import_ends: List.new<uint32>(),
+        used_files: List.new<uint32>(),
+        used_modules: List.new<Sym>(),
+        used_names: List.new<Sym>(),
+        no_mangle_types: List.new<String>(),
+        lang_string: intern(""),
+        lang_option: intern(""),
+        lang_list: intern(""),
+        lang_trait_keys: List.new<String>(),
         lang_trait_names: List.new<Sym>(),
-        ext_names:        List.new<Sym>(),
-        ext_links:        List.new<Sym>(),
+        ext_names: List.new<Sym>(),
+        ext_links: List.new<Sym>(),
         ext_trait_params: List.new<Sym>(),
-        untyped_recv_spans:   List.new<Span>(),
+        untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>()
     }
 }

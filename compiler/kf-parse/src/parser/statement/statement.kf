@@ -78,7 +78,7 @@ impl Parser {
 
     /// `unsafe { STMT }`, transparent in the AST.
     mutating fun parse_unsafe_block_stmt(span: Span): Stmt {
-        unsafe { self.advance() }                     // consume `unsafe`
+        unsafe { self.advance() } // consume `unsafe`
         val _ob = self.expect_op(Operator.LBrace, "after `unsafe`")
         self.skip_newlines()
         val inner = self.parse_stmt()
@@ -94,7 +94,7 @@ impl Parser {
 
     /// `break` / `continue`. Like `return`, they skip the scope-end releases.
     mutating fun parse_break_continue(span: Span, is_continue: bool): Stmt {
-        unsafe { self.advance() }                     // consume break/continue
+        unsafe { self.advance() } // consume break/continue
         if is_continue {
             return new_stmt(span, StmtKind.Continue)
         }
@@ -115,7 +115,7 @@ impl Parser {
         val span = self.peek().span
         val lhs = self.parse_expr()
         if is_op(self.peek(), Operator.Eq) {
-            unsafe { self.advance() }                 // consume `=`
+            unsafe { self.advance() } // consume `=`
             val rhs = self.parse_expr()
             val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
             unsafe { *rhs_ptr = rhs }

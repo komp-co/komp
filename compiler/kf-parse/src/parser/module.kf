@@ -67,7 +67,7 @@ impl Parser {
     /// `import a.b.c` or `import a.b.*`, consuming `import`.
     pub mutating fun parse_import(): Import {
         val start_span = self.peek().span
-        unsafe { self.advance() }              // consume `import`
+        unsafe { self.advance() } // consume `import`
 
         var path = List.new<String>()
         var wildcard: bool = false
@@ -125,8 +125,8 @@ impl Parser {
         val end_pos: uint32 = self.peek().span.start
         val span = Span {
             file_id: start_span.file_id,
-            start:   start_span.start,
-            end:     end_pos
+            start: start_span.start,
+            end: end_pos
         }
         return new_import(span, path, wildcard)
     }

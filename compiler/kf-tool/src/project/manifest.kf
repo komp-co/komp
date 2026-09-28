@@ -18,7 +18,7 @@ pub struct Manifest {
     pub val deps: List<Dependency>
     /// `[lint]` rows verbatim, in file order; validated against the registry
     /// elsewhere.
-    pub val lint_names:  List<String>
+    pub val lint_names: List<String>
     pub val lint_levels: List<String>
     /// Leaves out every crate's `hosted_c_sources`. Read from the root
     /// manifest only.
@@ -28,8 +28,8 @@ pub struct Manifest {
 
 /// `dep_error` is the first malformed dependency's, or "".
 pub fun new_manifest_with_lints(name: String, version: String, kind: String, deps: List<Dependency>,
-                                lint_names: List<String>, lint_levels: List<String>, freestanding: bool,
-                                dep_error: String): Manifest {
+    lint_names: List<String>, lint_levels: List<String>, freestanding: bool,
+    dep_error: String): Manifest {
     val error = if name.as_str() == "" {
         String.from("manifest has no crate name (expected name in [project] or [package])")
     } else {

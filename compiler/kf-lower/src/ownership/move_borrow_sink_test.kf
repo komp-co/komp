@@ -24,9 +24,9 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     val wp: Ptr<WarnState> = unsafe { alloc<WarnState>() }
     // No module: each test asserts one warning at a time.
     unsafe { *wp = WarnState {
-            warned: List.new<Span>(), reached: new_reached(),
-            prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
-        } }
+        warned: List.new<Span>(), reached: new_reached(),
+        prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
+    } }
     // Normally filled from core's `impl Drop for String`.
     var names = List.new<String>()
     names.push(String.from("String"))

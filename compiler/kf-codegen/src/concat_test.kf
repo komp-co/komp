@@ -3,7 +3,6 @@ import alloc.list.*
 
 import kf_codegen.*
 
-
 @test fun concat_basic(): void {
     val a = String.from("foo")
     val b = String.from("bar")

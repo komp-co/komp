@@ -1,7 +1,6 @@
 import core.assert.assert_eq
 import core.assert.assert
 
-
 @test
 fun absolute_path_passes_through(): void {
     assert_eq(absolutize("/a/b").as_str(), "/a/b", "absolute input is unchanged")

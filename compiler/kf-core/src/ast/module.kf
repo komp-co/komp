@@ -4,9 +4,9 @@ import kf_core.span.*
 
 /// `import foo.bar.*` or `import foo.bar.Baz`.
 pub struct Import {
-    pub val span:     Span
-    pub val path:     List<String>   // ["foo", "bar"] for both forms
-    pub val wildcard: bool         // true for `.*`, false otherwise
+    pub val span: Span
+    pub val path: List<String> // ["foo", "bar"] for both forms
+    pub val wildcard: bool // true for `.*`, false otherwise
 }
 
 pub fun new_import(span: Span, path: List<String>, wildcard: bool): Import {
@@ -24,24 +24,24 @@ pub fun Import.import_is_written(): bool {
 /// One source file's AST. Sibling files in a directory share scope.
 @derive(Clone)
 pub struct Module {
-    pub var crate:   CrateId
-    pub val path:    List<String>     // module path, ["kf_core", "ast"]
-    pub var decls:   List<TopDecl>
+    pub var crate: CrateId
+    pub val path: List<String> // module path, ["kf_core", "ast"]
+    pub var decls: List<TopDecl>
     pub var imports: List<Import>
 }
 
 pub fun new_module(path: List<String>): Module {
     return Module {
-        crate:   crate_id_poison(),
-        path:    path,
-        decls:   List.new<TopDecl>(),
+        crate: crate_id_poison(),
+        path: path,
+        decls: List.new<TopDecl>(),
         imports: List.new<Import>()
     }
 }
 
 /// A crate: the input to every pass.
 pub struct Crate {
-    pub val name:    String        // from kf.toml [project] name
+    pub val name: String // from kf.toml [project] name
     pub var modules: List<Module>
 }
 

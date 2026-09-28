@@ -177,12 +177,12 @@ fun Pattern.report_shadowing_pattern(ctx: &var TypeCtx): void {
             val text = name.as_string()
             // A leading `_` marks a deliberate binding.
             if !text.as_str().starts_with("_") {
-            if ctx.is_declared(text.as_str()) {
-                var msg = String.from("`")
-                msg.append(text.as_str())
-                msg.append("` is already a binding here, and a bare name in a pattern BINDS rather than compares — this arm matches everything. Compare with a guard or an `if`, or rename the pattern to bind a new value")
-                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, msg)))
-            }
+                if ctx.is_declared(text.as_str()) {
+                    var msg = String.from("`")
+                    msg.append(text.as_str())
+                    msg.append("` is already a binding here, and a bare name in a pattern BINDS rather than compares — this arm matches everything. Compare with a guard or an `if`, or rename the pattern to bind a new value")
+                    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, msg)))
+                }
             }
         }
         _ => { }

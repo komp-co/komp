@@ -4,7 +4,7 @@ import kf_core.span.*
 /// opposed to the syntactic `TypeRef`. Poison propagates silently through
 /// every operation, so one root cause reports one error.
 pub struct Type {
-    pub val kind:       TypeKind
+    pub val kind: TypeKind
     pub val provenance: Provenance
 }
 
@@ -36,10 +36,10 @@ pub enum TypeKind {
     DynTraitTy(Ptr<DynTraitType>)
     // A type parameter inside a generic body.
     Generic(Sym)
-    PtrTo(Ptr<Type>)          // Ptr<T>
-    BoxOf(Ptr<Type>)          // Box<T> — owning, auto-deref, C `T*`
-    RefTo(bool, Ptr<Type>)    // &var T (true) or &T (false)
-    FnTy(Ptr<FnSig>)          // owns a heap FnSig
+    PtrTo(Ptr<Type>) // Ptr<T>
+    BoxOf(Ptr<Type>) // Box<T> — owning, auto-deref, C `T*`
+    RefTo(bool, Ptr<Type>) // &var T (true) or &T (false)
+    FnTy(Ptr<FnSig>) // owns a heap FnSig
     /// `C.Out` whose owner is not yet concrete. An inferred type (`c.make()`
     /// through a `C: Producer` bound) has no TypeRef to substitute; Mono
     /// resolves it once the owner is pinned, and nothing after Mono sees one.
@@ -60,13 +60,13 @@ pub enum Provenance {
 /// value-typed.
 pub struct FnSig {
     pub val params: Ptr<TypeList>
-    pub val ret:    Ptr<Type>
+    pub val ret: Ptr<Type>
 }
 
 pub struct TypeList {
     pub var data: Ptr<Type>
-    pub var len:  uint64
-    pub var cap:  uint64
+    pub var len: uint64
+    pub var cap: uint64
 }
 
 pub fun new_type_vec(): TypeList {

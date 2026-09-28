@@ -1,7 +1,6 @@
 // Materializes generic instances, then writes `mangled_callee` onto every
 // Call and MethodCall. Emits no diagnostics.
 
-
 import kf_core.ast.*
 import kf_mono.materialize.materialize_generics
 import kf_mono.collect.mono_stmt_list_in

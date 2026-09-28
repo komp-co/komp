@@ -81,24 +81,24 @@ pub mutating fun Module.materialize_generics(): void {
                     val tmpl = *self.decls.at(ti)
                     if tmpl.generics.size() > 0 {
                         if tmpl.answers_to(inst.base.as_str()) {
-                          if tmpl.template_accepts_args(&inst.args, proj_sigs, copy_name) {
-                            var newdecl = clone_subst_decl(tmpl, inst.args, mangled_name.clone())
-                            if !is_poison_decl(newdecl) {
-                                // CONSTRAINT: in a separate build every TU that
-                                // uses an instance emits its own copy, so it is
-                                // stamped GenericTemplate to pass the header's
-                                // crate filter.
-                                if !self.crate.is_poison() {
-                                    newdecl.linkage = Linkage.GenericTemplate
+                            if tmpl.template_accepts_args(&inst.args, proj_sigs, copy_name) {
+                                var newdecl = clone_subst_decl(tmpl, inst.args, mangled_name.clone())
+                                if !is_poison_decl(newdecl) {
+                                    // CONSTRAINT: in a separate build every TU that
+                                    // uses an instance emits its own copy, so it is
+                                    // stamped GenericTemplate to pass the header's
+                                    // crate filter.
+                                    if !self.crate.is_poison() {
+                                        newdecl.linkage = Linkage.GenericTemplate
+                                    }
+                                    // Scanned before the push consumes it, and its
+                                    // projections resolved first, since an unresolved
+                                    // one would be minted into an instance name.
+                                    subst_projections_in_decl(&var newdecl, proj_sigs)
+                                    newdecl.collect_insts_in_decl(&gps, &marities, &var work)
+                                    self.decls.push(newdecl)
                                 }
-                                // Scanned before the push consumes it, and its
-                                // projections resolved first, since an unresolved
-                                // one would be minted into an instance name.
-                                subst_projections_in_decl(&var newdecl, proj_sigs)
-                                newdecl.collect_insts_in_decl(&gps, &marities, &var work)
-                                self.decls.push(newdecl)
                             }
-                          }
                         }
                     }
                     ti = ti + 1

@@ -9,7 +9,6 @@ import kf_core.diagnostic.new_diagnostic
 import kf_core.span.Span
 import kf_typecheck.types.display_type
 
-
 /// The subject must implement `Iterable`, or it reaches cc as an undeclared
 /// call. Expanded here, not in Lower, because the synthesized `iter()` and
 /// `next()` calls must be resolved and typed.

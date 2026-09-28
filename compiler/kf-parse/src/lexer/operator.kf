@@ -98,16 +98,16 @@ pub fun op_str(o: Operator): str {
 /// variants.
 pub fun operator_at(i: uint64): Operator? {
     return when (i) {
-        0  => Operator.Plus
-        1  => Operator.Minus
-        2  => Operator.Star
-        3  => Operator.Slash
-        4  => Operator.Eq
-        5  => Operator.EqEq
-        6  => Operator.BangEq
-        7  => Operator.Lt
-        8  => Operator.Gt
-        9  => Operator.LtEq
+        0 => Operator.Plus
+        1 => Operator.Minus
+        2 => Operator.Star
+        3 => Operator.Slash
+        4 => Operator.Eq
+        5 => Operator.EqEq
+        6 => Operator.BangEq
+        7 => Operator.Lt
+        8 => Operator.Gt
+        9 => Operator.LtEq
         10 => Operator.GtEq
         11 => Operator.LParen
         12 => Operator.RParen
@@ -135,7 +135,7 @@ pub fun operator_at(i: uint64): Operator? {
         34 => Operator.At
         35 => Operator.BangBang
         36 => Operator.SafeCall
-        _  => null
+        _ => null
     }
 }
 

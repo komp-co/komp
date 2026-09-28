@@ -17,8 +17,6 @@ fun span_is_in_a_dependency(span: Span, ctx: &var MoveCtx): bool {
     return !path.as_str().starts_with(root)
 }
 
-
-
 /// Per-function move-check state, in parallel lists.
 pub struct MoveCtx {
     pub var owned: List<Sym>
@@ -66,7 +64,6 @@ pub fun new_move_ctx(diags: Ptr<List<Diagnostic>>, move_only_names: List<String>
     return MoveCtx { owned: List.new<Sym>(), moved: List.new<MovedEntry>(), diags: diags, move_only_names: move_only_names, borrowed: List.new<Sym>(), ptable: ptable, mob_count: mob_count, self_owner: "", cur_fn: cur_fn, smap: smap, warn: warn, consumed_here: List.new<Sym>() }
 }
 
-
 pub fun clone_str_list(src: &List<String>): List<String> {
     var out = List.new<String>()
     while item in &src {
@@ -80,11 +77,11 @@ pub fun clone_str_list(src: &List<String>): List<String> {
 // by-value move-sink. Computed once, holding only primitives. The receiver is
 // never in `args`, so argument `i` is parameter `i`.
 pub struct ParamEntry {
-    pub val name:  String
-    pub val sinks: List<bool>     // sinks.get(i) == param i is a borrow-sink
+    pub val name: String
+    pub val sinks: List<bool> // sinks.get(i) == param i is a borrow-sink
     // Param `i` is `&var T`. The written `&` is gone by Lower, so the
     // declaration is the only record.
-    pub val muts:  List<bool>
+    pub val muts: List<bool>
     // Param `i` is a borrow in kf-core's sense (includes `str`, excludes
     // `Ptr`), unlike `sinks`, which asks whether ownership transfers.
     pub val lends: List<bool>
@@ -103,7 +100,7 @@ pub fun Module.build_param_table(): List<ParamEntry> {
 fun param_sinks_of(params: &List<Param>): List<bool> {
     var ps = List.new<bool>()
     while p in &params {
-        ps.push(tref_is_borrow_sink(p.ty))   // Param.ty is Box<TypeRef> == Ptr<TypeRef>
+        ps.push(tref_is_borrow_sink(p.ty)) // Param.ty is Box<TypeRef> == Ptr<TypeRef>
     }
     return ps
 }

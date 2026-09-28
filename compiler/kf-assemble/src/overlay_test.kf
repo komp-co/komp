@@ -13,7 +13,7 @@ fun an_overlay_answers_for_the_file_it_names(): void {
     prepare_overlay_fixture()
     val ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "fun f(): int32 { return 2 }\n")
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "fun f(): int32 { return 2 }\n",
-              "the buffer is the authority on its own text")
+        "the buffer is the authority on its own text")
 }
 
 @test
@@ -21,7 +21,7 @@ fun a_file_the_overlay_does_not_name_is_read_from_disk(): void {
     prepare_overlay_fixture()
     val ov = overlay_for(scratch_path("kf_overlay/elsewhere.kf"), "fun g(): int32 { return 3 }\n")
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "fun f(): int32 { return 1 }\n",
-              "one file is staged; the rest of the crate is still on disk")
+        "one file is staged; the rest of the crate is still on disk")
 }
 
 @test
@@ -29,7 +29,7 @@ fun no_overlay_reads_every_file_from_disk(): void {
     prepare_overlay_fixture()
     val ov = no_overlay()
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "fun f(): int32 { return 1 }\n",
-              "a batch compile has no buffer behind it")
+        "a batch compile has no buffer behind it")
 }
 
 @test
@@ -38,7 +38,7 @@ fun an_overlay_may_stage_an_empty_buffer(): void {
     prepare_overlay_fixture()
     val ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "")
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "",
-              "an emptied buffer reads empty, not as what disk still holds")
+        "an emptied buffer reads empty, not as what disk still holds")
 }
 
 @test
@@ -63,5 +63,5 @@ fun an_unstaged_file_is_read_from_disk_again(): void {
     var ov = overlay_for(scratch_path("kf_overlay/on_disk.kf"), "edited")
     ov.unstage(scratch_path("kf_overlay/on_disk.kf"))
     assert_eq(ov.overlay_read(scratch_path("kf_overlay/on_disk.kf")).as_str(), "fun f(): int32 { return 1 }\n",
-              "closing the buffer drops its text")
+        "closing the buffer drops its text")
 }

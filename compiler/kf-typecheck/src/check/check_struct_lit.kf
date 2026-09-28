@@ -8,7 +8,6 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.display_type
 
-
 // `Pair<int32,int32> { ... }`: the concrete layout is instantiated, fields
 // checked against it, and the mangled name stored on mangled_callee.
 mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, ctx: &var TypeCtx): Type {

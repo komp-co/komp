@@ -28,14 +28,14 @@ pub fun Module.validate_imports(smap: Ptr<SourceMap>): List<Diagnostic> {
 /// admits every name). Typecheck gates visibility per importing file from
 /// them.
 pub fun validate_imports_per_module(m: &Module,
-                                    caller_files: Ptr<List<uint32>>,
-                                    imported_targets: Ptr<List<Sym>>,
-                                    imported_names: Ptr<List<Sym>>,
-                                    smap: Ptr<SourceMap>): List<Diagnostic> {
+    caller_files: Ptr<List<uint32>>,
+    imported_targets: Ptr<List<Sym>>,
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>): List<Diagnostic> {
     var diags = List.new<Diagnostic>()
 
     var module_paths = List.new<Sym>()
-    var decl_names   = List.new<Sym>()
+    var decl_names = List.new<Sym>()
     var i = 0
     while i < m.decls.size() {
         val d = *m.decls.at(i)
@@ -198,11 +198,11 @@ fun contains_sym(list: &List<Sym>, target: Sym): bool {
 }
 
 fun record_import(callers: Ptr<List<uint32>>,
-                  targets: Ptr<List<Sym>>,
-                  names: Ptr<List<Sym>>,
-                  source: uint32,
-                  imported: Sym,
-                  admitted: Sym): void {
+    targets: Ptr<List<Sym>>,
+    names: Ptr<List<Sym>>,
+    source: uint32,
+    imported: Sym,
+    admitted: Sym): void {
     unsafe { callers.push(source) }
     unsafe { targets.push(imported) }
     unsafe { names.push(admitted) }

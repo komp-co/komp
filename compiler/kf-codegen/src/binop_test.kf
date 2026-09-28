@@ -16,7 +16,6 @@ fun str_var_ptr(name: str): Ptr<Expr> {
     return expr_ptr(e)
 }
 
-
 fun prim_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
     var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: k, provenance: Provenance.Inferred(no_span()) }
@@ -49,9 +48,9 @@ fun emit_prim_binop(k: TypeKind, op: BinOp): String {
 // false. Ordered float comparisons keep going through `Compare`.
 @test fun an_ordered_float_comparison_keeps_its_trait_call(): void {
     assert_eq(emit_prim_binop(TypeKind.Float64, BinOp.Lt).as_str(),
-              "(float64_compare__Compare(&(__a), __b) < 0)", "<")
+        "(float64_compare__Compare(&(__a), __b) < 0)", "<")
     assert_eq(emit_prim_binop(TypeKind.Float64, BinOp.GtEq).as_str(),
-              "(float64_compare__Compare(&(__a), __b) >= 0)", ">=")
+        "(float64_compare__Compare(&(__a), __b) >= 0)", ">=")
     assert_eq(emit_prim_binop(TypeKind.Float64, BinOp.Eq).as_str(), "(__a == __b)", "==")
     assert_eq(emit_prim_binop(TypeKind.Float64, BinOp.Add).as_str(), "((double)(__a + __b))", "+")
 }

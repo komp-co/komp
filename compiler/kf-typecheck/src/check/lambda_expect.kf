@@ -187,7 +187,7 @@ pub fun expect_lambda_args(
 /// CONSTRAINT: before the arguments are checked, which turns each lambda
 /// into its closure and loses the written parameter types.
 pub fun report_annotated_lambda_args(receiver_ty: Type, method_name: String, args: &List<Expr>, span: Span,
-                                     ctx: &var TypeCtx): void {
+    ctx: &var TypeCtx): void {
     val site = method_lambda_site(receiver_ty, method_name, span, ctx) ?: return
     report_annotated_against(site.bound_owner.clone(), &site.sig, &site.binding, 1, args, span, ctx)
 }

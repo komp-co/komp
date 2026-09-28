@@ -7,7 +7,6 @@ import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 
-
 fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, ctx: &var TypeCtx): Type {
     if receiver_ty.is_poison() { return poison_ty() }
     val recv_ty = autoderef_ty(receiver_ty)

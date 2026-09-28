@@ -3,18 +3,16 @@
 
 import alloc.list.*
 
-
-
 /// End-exclusive byte offsets; a zero-width range is an insertion.
 pub struct PendingFix {
-    pub val start:       uint32
-    pub val end:         uint32
+    pub val start: uint32
+    pub val end: uint32
     pub val replacement: String
-    pub val title:       String
+    pub val title: String
 }
 
 pub struct FixOutcome {
-    pub val text:    String
+    pub val text: String
     pub val applied: uint64
     /// Overlapping repairs left for a later pass.
     pub val skipped: uint64

@@ -102,7 +102,6 @@ fun is_extern_kind(td: TopDecl): bool {
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
-
 // `&T` / `&var T` in a parameter type.
 @test fun parse_reference_param_type(): void {
     var p = parser_for("fun f(out: &var String, n: uint32): void { }")
@@ -349,4 +348,3 @@ fun is_extern_kind(td: TopDecl): bool {
         _ => assert_eq(false, true, "expected Function")
     }
 }
-

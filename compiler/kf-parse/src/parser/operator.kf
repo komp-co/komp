@@ -8,7 +8,7 @@ import kf_parse.lexer.*
 
 /// Precedence and AST op; higher binds tighter.
 pub struct BinOpInfo {
-    pub val op:   BinOp
+    pub val op: BinOp
     pub val prec: int32
 }
 

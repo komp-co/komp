@@ -21,9 +21,9 @@ pub fun days_from_civil(year: int64, month: int64, day: int64): int64 {
 }
 
 pub struct Date {
-    pub val year:  int64
+    pub val year: int64
     pub val month: int64
-    pub val day:   int64
+    pub val day: int64
 }
 
 /// The date `days` after 1970-01-01.
@@ -141,11 +141,11 @@ impl Display for Date {
 }
 
 pub struct DateTime {
-    pub val date:   Date
-    pub val hour:   int64
+    pub val date: Date
+    pub val hour: int64
     pub val minute: int64
     pub val second: int64
-    pub val nano:   int64
+    pub val nano: int64
 }
 
 impl DateTime {

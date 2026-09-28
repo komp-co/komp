@@ -51,7 +51,7 @@ fun trait_method_for_generic(gname: String, method_name: String, ctx: &var TypeC
                 // The trait's parameters take the bound's arguments:
                 // `next(): T?` on `I: Iterator<int32>` reads `next(): int32?`.
                 val direct = trait_method_in(b.trait_name.as_str(), method_name.clone(),
-                                             &b.arg_names, self_t.clone(), ctx)
+                    &b.arg_names, self_t.clone(), ctx)
                 if direct.arity != ARITY_NOT_FOUND() { return direct }
                 // Supertrait arguments come back in the bound's vocabulary, so
                 // the same substitution applies.

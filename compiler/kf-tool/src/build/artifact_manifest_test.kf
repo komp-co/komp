@@ -4,7 +4,6 @@ import core.assert.assert_eq
 import alloc.list.*
 import std.fs.scratch_path
 
-
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 

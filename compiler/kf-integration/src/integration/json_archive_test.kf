@@ -137,4 +137,3 @@ fun real_json_writer_glue_is_owned_by_the_json_archive(): void {
     val duplicate = consumer.as_str().contains("void json__JsonWriter__glue_drop(json__JsonWriter v) {")
     assert_eq(prototype && definition && !duplicate, true, "real json ownership glue lives in its archive")
 }
-

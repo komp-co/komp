@@ -25,7 +25,7 @@ mutating fun Expr.check_consumed_arg(callee: String, idx: uint64, ctx: &var Move
         }
         return
     }
-    if pl.is_borrow_sink { return }    // Ptr/& param: a borrow, not a consume
+    if pl.is_borrow_sink { return } // Ptr/& param: a borrow, not a consume
     self.mark_auto_clone(callee, idx, ctx)
 }
 
@@ -168,7 +168,6 @@ pub mutating fun Expr.consume_var_node(name: Sym, ctx: &var MoveCtx): void {
         ctx.mark_moved(name, self.span, unsafe { self as Ptr<Expr> })
     }
 }
-
 
 // Runs after the borrow walk of the same args: `foo(x, x.len())` reads x
 // before the callee runs. Arg `i` is declared param `i`.

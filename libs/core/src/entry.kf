@@ -2,6 +2,6 @@
 
 /// Named halves, `e.key` and `e.value`; komp has no tuples.
 pub struct Entry<K, V> {
-    pub val key:   K
+    pub val key: K
     pub val value: V
 }

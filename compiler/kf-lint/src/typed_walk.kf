@@ -137,7 +137,6 @@ fun str.trim_end_matches_zero(): String {
     return self.substring(0, end)
 }
 
-
 /// A struct's or enum's name, or "".
 fun Type.named(): String {
     return when (self.kind) {

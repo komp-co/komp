@@ -8,7 +8,6 @@ import kf_core.ast.*
 import json.reader.*
 import kf_interface.*
 
-
 pub struct InterfaceLoad {
     pub val ok: bool
     pub val error: String

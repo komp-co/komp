@@ -146,7 +146,7 @@ fun lock_scope_roots(crate_root: str, lock_dir: str): List<String> {
 
 /// A row chosen earlier in this run, then the lock's, else a fresh fetch.
 fun resolve_remote(dep: &Dependency, old: &List<LockEntry>, rows: &List<LockEntry>, policy: &FetchPolicy,
-                   cache: str, refreshed: &var List<String>): Fetched {
+    cache: str, refreshed: &var List<String>): Fetched {
     var chosen = rows.find_satisfying(dep)
     if chosen.is_none() && !policy.update { chosen = old.find_satisfying(dep) }
     when (chosen) {

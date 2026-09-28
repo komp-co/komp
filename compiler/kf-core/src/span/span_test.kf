@@ -102,7 +102,6 @@ fun check_loc(loc: Location, expected_line: uint32, expected_col: uint32): void 
     assert_eq(loc.col, expected_col, "col")
 }
 
-
 fun three_line_map(): SourceMap {
     var sm = new_source_map()
     // "one\ntwo\nthree\n" — lines start at 0, 4, 8; the file is 14 bytes.

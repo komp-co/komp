@@ -4,7 +4,6 @@
 // error, so one type's residual is not accepted where another's belongs.
 // `FromResidual` is separate so one type can absorb several residual shapes.
 
-
 /// The type with no values: a `Branch` over `Never` is always the other arm.
 ///
 /// CONSTRAINT: derives `Clone` vacuously; `?` on a `Result` goes through

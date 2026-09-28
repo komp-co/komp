@@ -83,7 +83,7 @@ pub fun Module.emit_fn_forwards(): String {
                         parts.push(emit_fn_forward(td))
                     }
                 }
-        // A source-local extern still needs its prototype here.
+                // A source-local extern still needs its prototype here.
                 Extern(_, _, _, _) => {
                     // Unless kf_runtime.h declares it: a second prototype may
                     // conflict with the header's C type.
@@ -127,7 +127,6 @@ pub fun Module.emit_fn_bodies(payloads: &ArmPayloads): String {
     }
     return concat_all(parts)
 }
-
 
 pub fun empty_main(): String {
     return String.from("int main(int argc, char** argv) {\n    (void)argc; (void)argv;\n    return 0;\n}\n")

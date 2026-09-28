@@ -21,17 +21,17 @@ import kf_shared.absolutize
 
 /// `ok` is false for a file with no crate above it.
 pub struct TypedCrate {
-    pub var ok:      bool
+    pub var ok: bool
     pub var file_id: uint32
-    pub var module:  Module
+    pub var module: Module
     /// A view of `typing`'s table, which owns it.
-    pub var sigs:    Ptr<SigTable>
-    pub var typing:  TypedModule
-    pub var source:  String
+    pub var sigs: Ptr<SigTable>
+    pub var typing: TypedModule
+    pub var source: String
     /// The queried crate's source root; files under it are its own.
-    pub var root:    String
+    pub var root: String
     /// For answers spanning several files.
-    pub var smap:    Box<SourceMap>
+    pub var smap: Box<SourceMap>
 }
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
@@ -94,7 +94,6 @@ pub mutating fun TypedCrate.focus(file_path: str): bool {
     self.source = text
     return self.ok
 }
-
 
 /// As its author wrote it.
 pub fun Type.written_type(sigs: Ptr<SigTable>): String {

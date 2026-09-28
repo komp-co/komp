@@ -7,18 +7,18 @@ import alloc.list.*
 import kf_core.ast.*
 
 pub struct VariantPayloads {
-    var owners:   List<String>
+    var owners: List<String>
     var variants: List<String>
-    var indices:  List<uint64>
-    var tynames:  List<String>
+    var indices: List<uint64>
+    var tynames: List<String>
 }
 
 pub fun no_variant_payloads(): VariantPayloads {
     return VariantPayloads {
-        owners:   List.new<String>(),
+        owners: List.new<String>(),
         variants: List.new<String>(),
-        indices:  List.new<uint64>(),
-        tynames:  List.new<String>()
+        indices: List.new<uint64>(),
+        tynames: List.new<String>()
     }
 }
 

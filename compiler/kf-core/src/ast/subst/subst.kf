@@ -122,8 +122,8 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
             if r.found { return r.ty }
             return unsafe { *self }
         }
-        Struct(n)  => return subst_named_type(n.as_string(), self, names, repls, true)
-        EnumTy(n)  => return subst_named_type(n.as_string(), self, names, repls, false)
+        Struct(n) => return subst_named_type(n.as_string(), self, names, repls, true)
+        EnumTy(n) => return subst_named_type(n.as_string(), self, names, repls, false)
         DynTraitTy(object) => {
             var args = new_type_vec()
             val source_args = unsafe { object.args }
@@ -176,7 +176,7 @@ fun subst_named_type(n: String, orig: &Type, names: &var List<String>, repls: &v
     return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: orig.provenance }
 }
 
-struct ReplLookup { pub val found: bool  pub val ty: Type }
+struct ReplLookup { pub val found: bool pub val ty: Type }
 
 fun lookup_repl_type(n: String, names: &var List<String>, repls: &var List<TypeRef>): ReplLookup {
     while i in 0..names.size() {

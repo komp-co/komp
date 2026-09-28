@@ -19,8 +19,8 @@ pub enum AnnotationTarget {
 }
 
 pub struct AnnotationInfo {
-    pub val name:       String
-    pub val target:     AnnotationTarget
+    pub val name: String
+    pub val target: AnnotationTarget
     /// True for `@name(...)`, false for a bare `@name`.
     pub val takes_args: bool
 }
@@ -29,48 +29,48 @@ pub struct AnnotationInfo {
 pub fun annotation_registry(): List<AnnotationInfo> {
     var out = List.new<AnnotationInfo>()
     out.push(AnnotationInfo {
-        name:       String.from("test"),
-        target:     AnnotationTarget.Function,
+        name: String.from("test"),
+        target: AnnotationTarget.Function,
         takes_args: false
     })
     out.push(AnnotationInfo {
-        name:       String.from("test_disabled"),
-        target:     AnnotationTarget.Function,
+        name: String.from("test_disabled"),
+        target: AnnotationTarget.Function,
         takes_args: false
     })
     out.push(AnnotationInfo {
-        name:       String.from("allow"),
-        target:     AnnotationTarget.Any,
+        name: String.from("allow"),
+        target: AnnotationTarget.Any,
         takes_args: true
     })
     out.push(AnnotationInfo {
-        name:       String.from("derive"),
-        target:     AnnotationTarget.StructOrEnum,
+        name: String.from("derive"),
+        target: AnnotationTarget.StructOrEnum,
         takes_args: true
     })
     out.push(AnnotationInfo {
-        name:       String.from("no_mangle"),
-        target:     AnnotationTarget.StructOrEnum,
+        name: String.from("no_mangle"),
+        target: AnnotationTarget.StructOrEnum,
         takes_args: false
     })
     out.push(AnnotationInfo {
-        name:       String.from("lang"),
-        target:     AnnotationTarget.StructEnumOrTrait,
+        name: String.from("lang"),
+        target: AnnotationTarget.StructEnumOrTrait,
         takes_args: true
     })
     out.push(AnnotationInfo {
-        name:       String.from("prelude"),
-        target:     AnnotationTarget.Function,
+        name: String.from("prelude"),
+        target: AnnotationTarget.Function,
         takes_args: false
     })
     out.push(AnnotationInfo {
-        name:       String.from("receiver_params"),
-        target:     AnnotationTarget.Extension,
+        name: String.from("receiver_params"),
+        target: AnnotationTarget.Extension,
         takes_args: true
     })
     out.push(AnnotationInfo {
-        name:       String.from("receiver_trait"),
-        target:     AnnotationTarget.Extension,
+        name: String.from("receiver_trait"),
+        target: AnnotationTarget.Extension,
         takes_args: true
     })
     return out
@@ -94,7 +94,7 @@ pub fun annotation_kind(annotation: str): String {
     val n = annotation.byte_len()
     var i = 0
     while i < n {
-        if annotation.byte_at(i) == 40 { return annotation.substring(0, i) }   // `(`
+        if annotation.byte_at(i) == 40 { return annotation.substring(0, i) } // `(`
         i = i + 1
     }
     return String.from(annotation)
@@ -112,13 +112,13 @@ pub fun annotation_args(annotation: str, name: str): List<String> {
         if annotation.byte_at(j) != name.byte_at(j) { return out }
         j = j + 1
     }
-    if annotation.byte_at(name_n) != 40 { return out }   // `(`
-    if annotation.byte_at(n - 1) != 41 { return out }    // `)`
+    if annotation.byte_at(name_n) != 40 { return out } // `(`
+    if annotation.byte_at(n - 1) != 41 { return out } // `)`
     var start = name_n + 1
     var i = start
     while i < n {
         val b = annotation.byte_at(i)
-        if b == 44 || b == 41 {                            // `,` or `)`
+        if b == 44 || b == 41 { // `,` or `)`
             var s = start
             while s < i && annotation.byte_at(s) == 32 { s = s + 1 }
             var e = i

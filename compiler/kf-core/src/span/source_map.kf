@@ -2,7 +2,6 @@ import alloc.list.*
 import alloc.text_edit.*
 import core.text.*
 
-
 /// Where one file's lines sit inside the shared `line_starts` buffer.
 pub struct FileLines {
     pub val first: uint64
@@ -22,7 +21,7 @@ pub struct SourceMap {
     /// would free a shared buffer) and not `List<List<uint32>>` (mono emits
     /// the outer typedef without the inner).
     var line_starts: List<uint32>
-    var file_lines:  List<FileLines>
+    var file_lines: List<FileLines>
 }
 
 /// No directory, no `.kf` suffix: `"libs/core/src/string.kf"` is `"string"`.

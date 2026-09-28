@@ -117,8 +117,8 @@ impl Iterable<T> for List<T> {
 // A forward cursor over a List's buffer, not owning: valid only while the
 // List is alive and unmodified.
 pub struct ListIter<T> {
-    var data:  Ptr<T>
-    var len:   uint64
+    var data: Ptr<T>
+    var len: uint64
     var index: uint64
 }
 

@@ -10,7 +10,6 @@ import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
 import kf_tool.build.default_unity_output
 
-
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 

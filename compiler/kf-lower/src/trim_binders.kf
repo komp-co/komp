@@ -9,12 +9,11 @@ import alloc.list.*
 
 import kf_core.ast.*
 
-
 /// Payloads per `<enum>.<variant>` as emitted.
 pub struct VariantArity {
-    var owners:   List<String>
+    var owners: List<String>
     var variants: List<String>
-    var counts:   List<uint64>
+    var counts: List<uint64>
 }
 
 pub fun no_variant_arity(): VariantArity {
@@ -65,10 +64,10 @@ pub fun VariantArity.variant_arity_for(owner: str, variant: str, absent: uint64)
 /// Mirrors codegen's `when_subject_enum_name`, `Struct` arm included.
 pub fun Type.switch_subject_enum(): String {
     return when (self.kind) {
-        Struct(name)  => type_identity_display(name)
-        EnumTy(name)  => type_identity_display(name)
+        Struct(name) => type_identity_display(name)
+        EnumTy(name) => type_identity_display(name)
         RefTo(_mutable, pointee) => switch_subject_enum(unsafe { &*pointee })
-        PtrTo(pointee)           => switch_subject_enum(unsafe { &*pointee })
+        PtrTo(pointee) => switch_subject_enum(unsafe { &*pointee })
         _ => ""
     }
 }

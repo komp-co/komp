@@ -2,6 +2,6 @@
 @derive(Clone)
 pub struct Location {
     pub val file_path: String
-    pub val line:      uint32
-    pub val col:       uint32
+    pub val line: uint32
+    pub val col: uint32
 }

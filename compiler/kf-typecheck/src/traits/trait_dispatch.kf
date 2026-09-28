@@ -21,30 +21,30 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                 }
                 val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
                 when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
-                  Some(sig) => {
-                    if sig.is_static && sig.params.size() == args.size() {
-                        // Substituted; see `static_call_params`.
-                        val sparams = sig.static_call_params(type_args, ctx)
-                        var fits = true
-                        while j in 0..args.size() {
-                            val arg = *args.at(j)
-                            val expected = *sparams.at(j)
-                            if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
-                                // A re-bindable generic call is applicable (see
-                                // the instance path), and so is an argument
-                                // unsizing to a `&dyn Trait` parameter.
-                                if !arg.ty.could_dyn_coerce(&expected, ctx) {
-                                    if arg.rebound_call_bindings(&expected, ctx).size() == 0 { fits = false }
+                    Some(sig) => {
+                        if sig.is_static && sig.params.size() == args.size() {
+                            // Substituted; see `static_call_params`.
+                            val sparams = sig.static_call_params(type_args, ctx)
+                            var fits = true
+                            while j in 0..args.size() {
+                                val arg = *args.at(j)
+                                val expected = *sparams.at(j)
+                                if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
+                                    // A re-bindable generic call is applicable (see
+                                    // the instance path), and so is an argument
+                                    // unsizing to a `&dyn Trait` parameter.
+                                    if !arg.ty.could_dyn_coerce(&expected, ctx) {
+                                        if arg.rebound_call_bindings(&expected, ctx).size() == 0 { fits = false }
+                                    }
                                 }
                             }
-                        }
-                        if fits {
-                            if !found.as_str().equals("") { return "" }
-                            found = candidate
+                            if fits {
+                                if !found.as_str().equals("") { return "" }
+                                found = candidate
+                            }
                         }
                     }
-                  }
-                  None => { }
+                    None => { }
                 }
             }
         }
@@ -101,16 +101,16 @@ fun trait_dispatch_suffix(trait_name: str, trait_args: str, method_name: str, ct
         return ""
     }
     when (unsafe { (*ctx.sigs).find_trait(trait_name) }) {
-      Some(trait_info) => {
-        if trait_has_method(trait_info, method_name) {
-            var suffix = String.from(trait_name)
-            if !trait_args.equals("") {
-                suffix = suffix + String.from("__") + String.from(trait_args)
+        Some(trait_info) => {
+            if trait_has_method(trait_info, method_name) {
+                var suffix = String.from(trait_name)
+                if !trait_args.equals("") {
+                    suffix = suffix + String.from("__") + String.from(trait_args)
+                }
+                return suffix
             }
-            return suffix
         }
-      }
-      None => { }
+        None => { }
     }
     return ""
 }
@@ -119,7 +119,7 @@ fun trait_dispatch_suffix(trait_name: str, trait_args: str, method_name: str, ct
 /// receiver: the symbol `List__int32_iter__Iterable__int32`, declared as
 /// `List_iter__Iterable__T`. Empty when nothing was selected.
 pub struct TraitCallee {
-    pub val symbol:   String
+    pub val symbol: String
     pub val sig_name: String
 }
 
@@ -192,33 +192,33 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                     sig_opt = unsafe { (*ctx.sigs).find_signature(sig_name.as_str()) }
                 }
                 when (sig_opt) {
-                  Some(sig) => {
-                    note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
-                    if !sig.is_static && sig.params.size() == args.size() + 1 {
-                        var fits = true
-                        while j in 0..args.size() {
-                            val arg = *args.at(j)
-                            val expected = subst_recv(*sig.params.at(j + 1), &binding)
-                            if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
-                                // An argument that could become this parameter
-                                // counts as applicable: `b[0..2]` arrives typed
-                                // `Range<int32>`, and rejecting the
-                                // `Index<Range<uint64>>` impl here would remove
-                                // the call before the expectation that fixes the
-                                // argument exists. Unsizing to `&dyn Trait` is the
-                                // same question.
-                                if !arg.ty.could_dyn_coerce(&expected, ctx) {
-                                    if arg.rebound_call_bindings(&expected, ctx).size() == 0 { fits = false }
+                    Some(sig) => {
+                        note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
+                        if !sig.is_static && sig.params.size() == args.size() + 1 {
+                            var fits = true
+                            while j in 0..args.size() {
+                                val arg = *args.at(j)
+                                val expected = subst_recv(*sig.params.at(j + 1), &binding)
+                                if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
+                                    // An argument that could become this parameter
+                                    // counts as applicable: `b[0..2]` arrives typed
+                                    // `Range<int32>`, and rejecting the
+                                    // `Index<Range<uint64>>` impl here would remove
+                                    // the call before the expectation that fixes the
+                                    // argument exists. Unsizing to `&dyn Trait` is the
+                                    // same question.
+                                    if !arg.ty.could_dyn_coerce(&expected, ctx) {
+                                        if arg.rebound_call_bindings(&expected, ctx).size() == 0 { fits = false }
+                                    }
                                 }
                             }
-                        }
-                        if fits {
-                            if !found.symbol.as_str().equals("") { return no_trait_callee() }
-                            found = TraitCallee { symbol: candidate, sig_name: sig_name }
+                            if fits {
+                                if !found.symbol.as_str().equals("") { return no_trait_callee() }
+                                found = TraitCallee { symbol: candidate, sig_name: sig_name }
+                            }
                         }
                     }
-                  }
-                  None => { }
+                    None => { }
                 }
             }
         }
@@ -247,19 +247,19 @@ pub fun TypeKind.trait_impl_owner_name(): String {
         Struct(name) => type_identity_display(name)
         // Enums are impl targets too.
         EnumTy(name) => type_identity_display(name)
-        StrTy   => String.from("str")
-        Int8    => String.from("int8")
-        Int16   => String.from("int16")
-        Int32   => String.from("int32")
-        Int64   => String.from("int64")
-        UInt8   => String.from("uint8")
-        UInt16  => String.from("uint16")
-        UInt32  => String.from("uint32")
-        UInt64  => String.from("uint64")
+        StrTy => String.from("str")
+        Int8 => String.from("int8")
+        Int16 => String.from("int16")
+        Int32 => String.from("int32")
+        Int64 => String.from("int64")
+        UInt8 => String.from("uint8")
+        UInt16 => String.from("uint16")
+        UInt32 => String.from("uint32")
+        UInt64 => String.from("uint64")
         Float32 => String.from("float32")
         Float64 => String.from("float64")
-        Bool    => String.from("bool")
-        Char    => String.from("char")
+        Bool => String.from("bool")
+        Char => String.from("char")
         _ => ""
     }
 }
@@ -286,13 +286,13 @@ pub fun qualified_trait_method_callee(trait_name: String, method_name: String, a
                         }
                         val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
                         when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
-                          Some(sig) => {
-                            if !sig.is_static && sig.params.size() == args.size() {
-                                if !found.as_str().equals("") { return "" }
-                                found = candidate
+                            Some(sig) => {
+                                if !sig.is_static && sig.params.size() == args.size() {
+                                    if !found.as_str().equals("") { return "" }
+                                    found = candidate
+                                }
                             }
-                          }
-                          None => { }
+                            None => { }
                         }
                     }
                 }
@@ -320,21 +320,21 @@ pub fun instance_trait_method_is_ambiguous(receiver_ty: Type, method_name: Strin
                         if !trait_impl.trait_args.as_str().equals("") { suffix = suffix + String.from("__") + trait_impl.trait_args.clone() }
                         val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
                         when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
-                          Some(sig) => {
-                            if !sig.is_static && sig.params.size() == args.size() + 1 {
-                                var fits = true
-                                while j in 0..args.size() {
-                                    val arg = *args.at(j)
-                                    val expected = *sig.params.at(j + 1)
-                                    // The same applicability rule as selection,
-                                    // so two applicable impls are seen as
-                                    // ambiguous.
-                                    if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) && !arg.ty.could_dyn_coerce(&expected, ctx) { fits = false }
+                            Some(sig) => {
+                                if !sig.is_static && sig.params.size() == args.size() + 1 {
+                                    var fits = true
+                                    while j in 0..args.size() {
+                                        val arg = *args.at(j)
+                                        val expected = *sig.params.at(j + 1)
+                                        // The same applicability rule as selection,
+                                        // so two applicable impls are seen as
+                                        // ambiguous.
+                                        if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) && !arg.ty.could_dyn_coerce(&expected, ctx) { fits = false }
+                                    }
+                                    if fits { matches = matches + 1 }
                                 }
-                                if fits { matches = matches + 1 }
                             }
-                          }
-                          None => { }
+                            None => { }
                         }
                     }
                 }

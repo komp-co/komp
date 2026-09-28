@@ -8,7 +8,7 @@ import kf_typecheck.*
 import kf_core.span.no_span
 
 pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
-                        table: Ptr<DeclTable>?): void {
+    table: Ptr<DeclTable>?): void {
     if td.reject_reserved_type_name(diags) { return }
     if td.rejects_lang_type_name(unsafe { (*sig_ptr).lang_string }, diags) { return }
     // An imported declaration's fields may name hidden types, so they are
@@ -97,7 +97,7 @@ fun TopDecl.trait_identity_of(): Sym {
 }
 
 pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
-                            table: Ptr<DeclTable>?): void {
+    table: Ptr<DeclTable>?): void {
     when (td.kind) {
         TraitDecl(methods, _is_pub, declared_supers) => {
             // A rejected duplicate got no entry; the one here is the first

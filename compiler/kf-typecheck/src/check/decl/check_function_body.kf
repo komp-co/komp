@@ -206,9 +206,9 @@ fun check_method_body(struct_name: String, generics: List<String>, impl_trait: S
                         emit_clone_ret_err(diags, td.span, struct_name.clone())
                     }
                 }
-            // `drop` is keyed on the name after Mono, so an ordinary method
-            // called `drop` would become the destructor. Allowed only in the
-            // destructor's shape, `fun drop(): void`.
+                // `drop` is keyed on the name after Mono, so an ordinary method
+                // called `drop` would become the destructor. Allowed only in the
+                // destructor's shape, `fun drop(): void`.
                 if td.name.as_str() == "drop" {
                     if !type_ref_is_void(unsafe { &*ret_ptr }) || params.size() > 0 {
                         emit_drop_shape_err(diags, td.span, struct_name.clone())

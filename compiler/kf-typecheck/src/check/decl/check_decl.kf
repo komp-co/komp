@@ -13,11 +13,11 @@ import kf_typecheck.check.borrow.reject_unsayable_origin
 /// Returns the signature table too: rendering a checked type needs it. The
 /// caller owns it; what the check hands out are views of it.
 pub fun check_decl_module(m: &var Module,
-                          table: &var DeclTable,
-                          diags: Ptr<List<Diagnostic>>,
-                          caller_files: Ptr<List<uint32>>,
-                          imported_targets: Ptr<List<Sym>>,
-                          imported_names: Ptr<List<Sym>>): Box<SigTable> {
+    table: &var DeclTable,
+    diags: Ptr<List<Diagnostic>>,
+    caller_files: Ptr<List<uint32>>,
+    imported_targets: Ptr<List<Sym>>,
+    imported_names: Ptr<List<Sym>>): Box<SigTable> {
     var sigs = new_sig_table()
     // Per-file import lists first; a null pointer leaves them empty.
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
@@ -250,7 +250,7 @@ pub fun TopDecl.reject_reserved_type_name(diags: Ptr<List<Diagnostic>>): bool {
 }
 
 pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
-                      table: Ptr<DeclTable>?): void {
+    table: Ptr<DeclTable>?): void {
     when (td.kind) {
         Function(params, ret_ptr, _body, is_pub, _unsafe, _mutating, _static) => {
             // Test runners are a separate module calling @test functions by
@@ -295,30 +295,30 @@ fun register_omitted_defaults(struct_name: String, methods: &List<TopDecl>, suff
     if trait_name.as_str().equals("") { return }
     val self_ty = Type { kind: TypeKind.Struct(intern(struct_name.as_str())), provenance: Provenance.Inferred(no_span()) }
     when (unsafe { (*sig_ptr).find_trait(trait_name.as_str()) }) {
-      Some(info) => {
-        while req in &info.methods {
-            if req.has_default && !impl_writes_method(methods, req.name.as_str()) {
-                var mangled = struct_name.clone()
-                mangled.append("_")
-                mangled.append(req.name.as_str())
-                if !suffix.as_str().equals("") {
-                    mangled.append("__")
-                    mangled.append(suffix.as_str())
-                }
-                if unsafe { (*sig_ptr).find_signature(mangled.as_str()).is_none() } {
-                    var ptys = List.new<Type>()
-                    if !req.is_static { ptys.push(self_ty.clone()) }
-                    while pi in 0..req.params.size() {
-                        ptys.push(subst_generic(req.params.at(pi), String.from("Self"), self_ty.clone()))
+        Some(info) => {
+            while req in &info.methods {
+                if req.has_default && !impl_writes_method(methods, req.name.as_str()) {
+                    var mangled = struct_name.clone()
+                    mangled.append("_")
+                    mangled.append(req.name.as_str())
+                    if !suffix.as_str().equals("") {
+                        mangled.append("__")
+                        mangled.append(suffix.as_str())
                     }
-                    val ret_ty = req.ret.subst_generic(String.from("Self"), self_ty.clone())
-                    val borrows = infer_borrow_origin(&ptys, &ret_ty, !req.is_static)
-                    unsafe { sig_ptr.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: List.new<String>(), is_static: req.is_static, is_mutating: req.is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: false }) }
+                    if unsafe { (*sig_ptr).find_signature(mangled.as_str()).is_none() } {
+                        var ptys = List.new<Type>()
+                        if !req.is_static { ptys.push(self_ty.clone()) }
+                        while pi in 0..req.params.size() {
+                            ptys.push(subst_generic(req.params.at(pi), String.from("Self"), self_ty.clone()))
+                        }
+                        val ret_ty = req.ret.subst_generic(String.from("Self"), self_ty.clone())
+                        val borrows = infer_borrow_origin(&ptys, &ret_ty, !req.is_static)
+                        unsafe { sig_ptr.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: List.new<String>(), is_static: req.is_static, is_mutating: req.is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: false }) }
+                    }
                 }
             }
         }
-      }
-      None => { }
+        None => { }
     }
 }
 

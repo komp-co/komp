@@ -13,7 +13,7 @@ pub enum LintLevel {
 /// `Warn` for anything unrecognized; callers validate the spelling first.
 pub fun lint_level_named(s: str): LintLevel {
     if s.equals("allow") { return LintLevel.Allow }
-    if s.equals("deny")  { return LintLevel.Deny }
+    if s.equals("deny") { return LintLevel.Deny }
     return LintLevel.Warn
 }
 
@@ -31,22 +31,22 @@ pub fun is_lint_level_name(s: str): bool {
 
 pub struct LintInfo {
     /// snake_case, naming what is wrong.
-    pub val name:        String
+    pub val name: String
     /// One of `lint_groups()`; `-W <group>` and lint.toml's `[groups]` set
     /// every lint in it.
-    pub val group:       String
+    pub val group: String
     /// The level with no configuration.
-    pub val default:     LintLevel
+    pub val default: LintLevel
     /// One line, in the diagnostic's own voice.
     pub val description: String
     /// What lint.toml may tune, beside the level.
-    pub var options:     List<LintOptionInfo>
+    pub var options: List<LintOptionInfo>
 }
 
 /// A number a lint reads, such as the most parameters a function may take.
 pub struct LintOptionInfo {
-    pub val key:         String
-    pub val default:     int64
+    pub val key: String
+    pub val default: int64
     pub val description: String
 }
 
@@ -157,18 +157,18 @@ pub fun lint_registry(): List<LintInfo> {
         "an enum variant not named in UpperCamelCase"))
     out.push(lint_info("too_many_parameters", "complexity", LintLevel.Warn,
         "a function taking more parameters than `max`, `self` aside")
-        .with_option("max", 7, "the most parameters a function may take"))
+            .with_option("max", 7, "the most parameters a function may take"))
     out.push(lint_info("identity_op", "complexity", LintLevel.Warn,
         "an operation that leaves its value as it is, as `x + 0` or `x * 1`"))
     out.push(lint_info("too_many_fields", "complexity", LintLevel.Allow,
         "a struct holding more fields than `max`")
-        .with_option("max", 12, "the most fields a struct may hold"))
+            .with_option("max", 12, "the most fields a struct may hold"))
     out.push(lint_info("long_function", "complexity", LintLevel.Allow,
         "a function spanning more lines than `max_lines`")
-        .with_option("max_lines", 100, "the most lines a function may span"))
+            .with_option("max_lines", 100, "the most lines a function may span"))
     out.push(lint_info("deep_nesting", "complexity", LintLevel.Allow,
         "blocks nested deeper than `max_depth` inside one function")
-        .with_option("max_depth", 5, "the most blocks that may enclose a statement"))
+            .with_option("max_depth", 5, "the most blocks that may enclose a statement"))
     out.push(lint_info("redundant_else", "pedantic", LintLevel.Allow,
         "an `else` after a branch that ends in `return`, `break` or `continue`"))
     out.push(lint_info("missing_docs", "pedantic", LintLevel.Allow,
@@ -179,13 +179,13 @@ pub fun lint_registry(): List<LintInfo> {
         "an `Option` an expression statement drops"))
     out.push(lint_info("long_line", "restriction", LintLevel.Allow,
         "a line wider than `max_columns` characters")
-        .with_option("max_columns", 120, "the most characters a line may hold"))
+            .with_option("max_columns", 120, "the most characters a line may hold"))
     out.push(lint_info("long_file", "restriction", LintLevel.Allow,
         "a file longer than `max_lines` lines")
-        .with_option("max_lines", 400, "the most lines a file may hold"))
+            .with_option("max_lines", 400, "the most lines a file may hold"))
     out.push(lint_info("magic_number", "restriction", LintLevel.Allow,
         "a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside")
-        .with_option("max_plain", 2, "the largest number that may be written without a name"))
+            .with_option("max_plain", 2, "the largest number that may be written without a name"))
     out.push(lint_info("shadowed_variable", "restriction", LintLevel.Allow,
         "a local bound again under a name the function already binds"))
     out.push(lint_info("todo_comment", "restriction", LintLevel.Allow,
