@@ -385,10 +385,10 @@ test -s "$WORK/legacy.c" || {
 echo "  PASS  commands default to the current directory, and -h/-V answer anywhere"
 
 # `komp <tool>` hands its process to the tool, so an editor that stops the
-# tool leaves no komp behind: the tool's parent is komp's parent, and the exit
-# status is the tool's own.
+# tool leaves no komp behind: the tool's parent is komp's parent, the exit
+# status is the tool's own, and KOMP_BIN names a komp it can run.
 mkdir -p "$WORK/exec-home/bin"
-printf '#!/bin/sh\necho "$PPID $*"\nexit 3\n' > "$WORK/exec-home/bin/komp-probe"
+printf '#!/bin/sh\ntest -x "$KOMP_BIN" && echo "$PPID $*"\nexit 3\n' > "$WORK/exec-home/bin/komp-probe"
 chmod +x "$WORK/exec-home/bin/komp-probe"
 probe=$(KFLAT_HOME="$WORK/exec-home" sh -c 'echo "$$"; "$0" probe a "b c"; echo "status $?"' "$WORK/komp")
 expected=$(printf '%s\n%s a b c\nstatus 3' "${probe%%

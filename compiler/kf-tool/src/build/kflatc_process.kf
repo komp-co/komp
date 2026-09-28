@@ -15,8 +15,14 @@ extern "C" fun access(path: str, mode: int32): int32
 pub fun kflatc_path(): String {
     val chosen = env_var("KFLATC") ?: String.from("")
     if chosen.byte_len() > 0 { return chosen }
+    return beside_self("kflatc")
+}
+
+/// The program `name` in the directory this binary runs from, symlinks
+/// resolved.
+pub fun beside_self(name: str): String {
     val dir = unsafe { kf_self_dir() }
-    return "${dir}/kflatc"
+    return "${dir}/${name}"
 }
 
 /// Compiles the crate into `tdir` with kflatc and answers its exit status: 0

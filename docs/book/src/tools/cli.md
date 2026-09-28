@@ -281,7 +281,9 @@ the exact source of every program is known and
 with the arguments that follow it: the version the current project's `[tools]`
 pins, else the default. komp replaces itself with the program rather than
 waiting on it, so the program has komp's process, standard input and output,
-and exit status, and whoever stops it leaves no komp behind. Installing
+and exit status, and whoever stops it leaves no komp behind. Unless
+`KOMP_BIN` is already set, komp sets it to its own path, so a program that
+asks komp about the project asks the komp that started it. Installing
 `komp_fmt` is what makes `komp fmt` work, whether or not `~/.kflat/bin` is on
 `PATH`. A built-in command always wins over an installed one of the same name.
 

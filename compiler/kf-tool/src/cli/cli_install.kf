@@ -4,6 +4,7 @@
 // `komp-<command>`.
 
 import alloc.list.*
+import kf_tool.build.beside_self
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
 import json.writer.JsonWriter
@@ -161,11 +162,14 @@ pub fun run_tool_command(command: str, nargs: int32): int32? {
 }
 
 /// Replaces komp with `path`, given every argument after the command, so
-/// the program owns komp's process, stdio and signals. Comes back only when
-/// `path` could not be started.
+/// the program owns komp's process, stdio and signals. `KOMP_BIN` names this
+/// komp unless it is already set, so a program that asks komp about the
+/// project asks the one that started it. Comes back only when `path` could
+/// not be started.
 pub fun run_installed(path: str, nargs: int32): int32 {
     var command = Command.new(path)
     while i in 1..nargs { command.arg(cli_arg_get(i)) }
+    if env_var("KOMP_BIN") == null { command.env("KOMP_BIN", beside_self("komp").as_str()) }
     val failed = command.exec()
     runtime_println("error: cannot run ${path}: ${failed.message}")
     return 127
