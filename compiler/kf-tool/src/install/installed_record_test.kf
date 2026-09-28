@@ -1,0 +1,41 @@
+import core.assert.assert_eq
+import std.fs.scratch_path
+
+extern "C" fun system(cmd: str): int32
+
+fun home_with_record(name: str, requirement_line: str): String {
+    val home = scratch_path(name)
+    val _made = unsafe { system("rm -rf ${home} && mkdir -p ${home}".as_str()) }
+    val row = String.from("[[package]]\nname = \"komp_tool\"\nversion = \"0.3.1\"\n") +
+        "source = { git = \"file:///repo\", rev = \"abc\" }\nindex = \"file:///index\"\n${requirement_line}"
+    write_file("${home}/installed.toml".as_str(), "schema = 1\n\n${row}".as_str())
+    return String.from(home)
+}
+
+@test
+fun a_recorded_requirement_is_read_back(): void {
+    val home = home_with_record("kf_record_req", "requirement = \"0.3\"\n")
+    assert_eq(installed_tools(home.as_str())[0].requirement.as_str(), "0.3", "as installed with")
+}
+
+@test
+fun an_empty_requirement_allows_any_version(): void {
+    val home = home_with_record("kf_record_any", "requirement = \"\"\n")
+    assert_eq(installed_tools(home.as_str())[0].requirement.as_str(), "", "installed without @")
+}
+
+@test
+fun a_row_without_a_requirement_keeps_to_its_series(): void {
+    val home = home_with_record("kf_record_old", "")
+    assert_eq(installed_tools(home.as_str())[0].requirement.as_str(), "0.3.1", "its own version, read as a requirement")
+}
+
+@test
+fun a_written_record_reads_back_the_same(): void {
+    val home = home_with_record("kf_record_round", "requirement = \"0.3\"\n")
+    val tools = installed_tools(home.as_str())
+    val _written = write_installed(home.as_str(), &tools)
+    val again = installed_tools(home.as_str())
+    assert_eq("${again[0].entry.version} ${again[0].requirement} ${again[0].entry.index}".as_str(),
+        "0.3.1 0.3 file:///index", "version, requirement and index")
+}

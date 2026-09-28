@@ -1,6 +1,6 @@
 // Installing a binary package from an index: resolved like a dependency,
 // built from its source, and its binary copied into `bin/` under the install
-// home. `installed.toml` records each install, in `kf.lock`'s format.
+// home, where `installed.toml` records it.
 
 import alloc.list.*
 import kf_shared.binary_path
@@ -13,14 +13,11 @@ import kf_tool.build.target_dir
 import kf_tool.fetch.LockEntry
 import kf_tool.fetch.empty_lock_entry
 import kf_tool.fetch.fresh_staging
-import kf_tool.fetch.parse_lockfile
 import kf_tool.fetch.remove_tree
-import kf_tool.fetch.render_lockfile
 import kf_tool.fetch.resolve_from_index
 import kf_tool.project.Dependency
 import std.fs.exists
 import std.fs.remove_file
-import std.fs.write_text
 import std.process.Command
 import kf_tool.fetch.cached_root
 
@@ -65,29 +62,30 @@ pub fun install_package(name: str, requirement: str, index_url: str, cache: str,
     val copied = ensure_dir(bin.as_str()) && copy_file(built.as_str(), destination.as_str())
     remove_tree(staging.as_str())
     if !copied { return install_failed("cannot write ${destination}") }
-    var rows = installed_packages(home)
-    rows.remove_named(name)
-    rows.push(fetched.entry.clone())
-    if !write_installed(home, &rows) { return install_failed("cannot write ${installed_record(home)}") }
+    var tools = installed_tools(home)
+    tools.remove_named(name)
+    tools.push(InstalledTool { entry: fetched.entry.clone(), requirement: String.from(requirement) })
+    if !write_installed(home, &tools) { return install_failed("cannot write ${installed_record(home)}") }
     return Installed { entry: fetched.entry.clone(), binary: destination, error: "" }
 }
 
 /// Removes `name`'s binary and its row; "" on success, else why not.
 pub fun uninstall_package(name: str, home: str): String {
-    var rows = installed_packages(home)
-    if !rows.has_named(name) { return "`${name}` is not installed" }
+    var tools = installed_tools(home)
+    if tools.named(name) == null { return "`${name}` is not installed" }
     val binary = "${installed_bin_dir(home)}/${installed_binary_name(name)}"
     if exists(binary.as_str()) && remove_file(binary.as_str()).is_err() { return "cannot remove ${binary}" }
-    rows.remove_named(name)
-    if !write_installed(home, &rows) { return "cannot write ${installed_record(home)}" }
+    tools.remove_named(name)
+    if !write_installed(home, &tools) { return "cannot write ${installed_record(home)}" }
     return ""
 }
 
-/// Every installed package, by name.
+/// Every installed package's exact source.
 pub fun installed_packages(home: str): List<LockEntry> {
-    val record = installed_record(home)
-    if !exists(record.as_str()) { return List.new<LockEntry>() }
-    return parse_lockfile(read_file(record.as_str()).as_str())
+    var out = List.new<LockEntry>()
+    val tools = installed_tools(home)
+    while tool in &tools { out.push(tool.entry.clone()) }
+    return out
 }
 
 /// The package's source, copied into `staging` and built there, so the
@@ -112,29 +110,4 @@ fun copy_file(from: str, to: str): bool {
     copy.arg(from)
     copy.arg(to)
     return copy.status().success()
-}
-
-/// `kf.lock`'s format, under a header of its own.
-fun write_installed(home: str, rows: &List<LockEntry>): bool {
-    if !ensure_dir(home) { return false }
-    val rendered = render_lockfile(rows)
-    val body_start = rendered.index_of("\n") ?: 0
-    var text = String.from("# Written by komp install: every installed program and its exact source.")
-    text.append(rendered.substring(body_start, rendered.byte_len()).as_str())
-    return write_text(installed_record(home).as_str(), text.as_str()).is_ok()
-}
-
-fun List<LockEntry>.has_named(name: str): bool {
-    while row in &self {
-        if row.name.as_str() == name { return true }
-    }
-    return false
-}
-
-mutating fun List<LockEntry>.remove_named(name: str): void {
-    var kept = List.new<LockEntry>()
-    while row in &self {
-        if row.name.as_str() != name { kept.push(row.clone()) }
-    }
-    *self = kept
 }

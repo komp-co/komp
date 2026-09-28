@@ -12,7 +12,7 @@ pub fun command_usage(command: str): str {
         "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
         "lint" => "komp lint [--list] [--fix] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
-        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
         "uninstall" => "komp uninstall <name>"
         "self" => "komp self update [<version>]"
@@ -92,7 +92,12 @@ points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
 
-  -p, --package <c>   update the workspace holding this member"""
+With --installed, update programs installed with `komp install` instead:
+each to the highest version the requirement it was installed with allows,
+rebuilt only when that is newer. Names pick some; none means all.
+
+  -p, --package <c>   update the workspace holding this member
+  --installed         update installed programs, not a project"""
         "publish" => """Add this library's version to a package index by pull request.
 
 The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which

@@ -1,0 +1,61 @@
+// `komp update --installed`: each installed program resolved again against
+// the requirement and index it was installed with, and rebuilt only when that
+// finds a newer version.
+
+import alloc.list.*
+import kf_tool.fetch.resolve_from_index
+import kf_tool.project.Dependency
+import kf_tool.project.Version
+import kf_tool.project.parse_version
+
+/// What updating one program did: `from` and `to` the same when it was
+/// already the newest its requirement allows, or `error` saying why not.
+pub struct ToolUpdate {
+    pub val name: String
+    pub val from: String
+    pub val to: String
+    pub val error: String
+}
+
+/// Updates `names`, or every installed program when it is empty.
+pub fun update_installed(names: &List<String>, cache: str, home: str): List<ToolUpdate> {
+    var out = List.new<ToolUpdate>()
+    val tools = installed_tools(home)
+    while name in names {
+        if tools.named(name.as_str()) == null { out.push(tool_update_failed(name.as_str(), "is not installed")) }
+    }
+    while tool in &tools {
+        if names.is_empty() || names.contains(&tool.entry.name) { out.push(update_tool(tool, cache, home)) }
+    }
+    return out
+}
+
+fun update_tool(tool: &InstalledTool, cache: str, home: str): ToolUpdate {
+    val name = tool.entry.name.as_str()
+    if tool.entry.index.is_empty() { return tool_update_failed(name, "was not installed from an index") }
+    val dep = Dependency {
+        name: tool.entry.name.clone(), version: tool.requirement.clone(), index: "",
+        index_url: tool.entry.index.clone(), path: "", git: "", rev: "", tag: "", branch: "", tarball: "",
+        checksum: ""
+    }
+    var refreshed = List.new<String>()
+    val newest = resolve_from_index(&dep, cache, &refreshed)
+    if newest.error.byte_len() > 0 { return tool_update_failed(name, newest.error.as_str()) }
+    val from = tool.entry.version.clone()
+    if !is_newer(newest.entry.version.as_str(), from.as_str()) {
+        return ToolUpdate { name: String.from(name), from: from.clone(), to: from, error: "" }
+    }
+    val done = install_package(name, tool.requirement.as_str(), tool.entry.index.as_str(), cache, home)
+    if done.error.byte_len() > 0 { return tool_update_failed(name, done.error.as_str()) }
+    return ToolUpdate { name: String.from(name), from: from, to: done.entry.version.clone(), error: "" }
+}
+
+fun is_newer(candidate: str, installed: str): bool {
+    val zero = Version { major: 0, minor: 0, patch: 0 }
+    val have = parse_version(installed) ?: return true
+    return (parse_version(candidate) ?: zero).compare(&have) > 0
+}
+
+fun tool_update_failed(name: str, error: str): ToolUpdate {
+    return ToolUpdate { name: String.from(name), from: "", to: "", error: String.from(error) }
+}

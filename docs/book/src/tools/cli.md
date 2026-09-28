@@ -17,6 +17,7 @@ points, and then compiles and links the C with cc.
 | `komp lint <dir>` | Check and report lints, with a tally; see [Linting](lint.md) |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
 | `komp uninstall <name>` | Remove an installed program |
 | `komp <command>` | Run the installed `komp-<command>` |
@@ -146,6 +147,23 @@ new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).
 
+`komp update --installed` updates the programs [`komp install`](#komp-install)
+put in `~/.kflat/bin` instead. Each is resolved again against the requirement
+and index it was installed with, and rebuilt only when that finds a newer
+version. Names pick some; none means every one.
+
+```console
+$ komp install komp_hello@0.1
+installed `komp_hello` 0.1.0 as /home/me/.kflat/bin/komp-hello
+$ komp update --installed
+updated `komp_hello` 0.1.0 -> 0.1.1
+$ komp update --installed komp_hello
+`komp_hello` 0.1.1 is the newest its requirement allows
+```
+
+Here 0.2.0 is published too, but `0.1` does not allow it; `komp install
+komp_hello@0.2` moves to it, and records that requirement instead.
+
 ### komp metadata
 
 `komp metadata <project-dir>` prints the project's resolved crates as one JSON
@@ -223,9 +241,11 @@ A binary is named after its package with `_` spelled `-`. Installing a
 package again replaces it, at whatever version it now resolves to. Only a
 `kind = "bin"` package installs; a library is a dependency, and belongs in
 `[dependencies]`. Each install is recorded in `installed.toml` beside
-`bin/`, in `kf.lock`'s format, so the exact source of every program is
-known; `komp install` with no package lists it, and `komp uninstall` removes
-a program and its row.
+`bin/`, in `kf.lock`'s format with the requirement it was installed with
+added, so the exact source of every program is known and
+[`komp update --installed`](#komp-update) can resolve it again; `komp
+install` with no package lists it, and `komp uninstall` removes a program and
+its row.
 
 `komp <command>`, for a command komp does not have, runs an installed
 `komp-<command>` with the arguments that follow it and exits with its status.

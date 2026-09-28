@@ -340,6 +340,7 @@ pub fun run_cli(): int32 {
             return metadata_command(project_for(nargs, 1).as_str(), nargs)
         }
         "update" => {
+            if has_own_flag(nargs, "--installed") { return update_installed_command(nargs) }
             if positionals_from(nargs, 1) > 1 { return usage_error("update") }
             return update_project(project_for(nargs, 1).as_str(), nargs)
         }

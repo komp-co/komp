@@ -1,7 +1,9 @@
 // `komp install [<name>[@<requirement>]] [--index <url>]`,
-// `komp uninstall <name>`, `komp self update`, and `komp <command>` running
-// an installed `komp-<command>`.
+// `komp uninstall <name>`, `komp update --installed [<name>...]`,
+// `komp self update`, and `komp <command>` running an installed
+// `komp-<command>`.
 
+import alloc.list.*
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
 import kf_tool.install.self_update
@@ -10,6 +12,7 @@ import kf_tool.install.installed_bin_dir
 import kf_tool.install.installed_binary_name
 import kf_tool.install.installed_packages
 import kf_tool.install.uninstall_package
+import kf_tool.install.update_installed
 import kf_tool.project.default_index_url
 import kf_shared.cli_arg_get
 import kf_shared.kflat_version
@@ -68,6 +71,36 @@ pub fun uninstall_command(nargs: int32): int32 {
     }
     runtime_println("uninstalled `${name}`")
     return 0
+}
+
+/// `komp update --installed [<name>...]`: 1 when any program could not be
+/// updated.
+pub fun update_installed_command(nargs: int32): int32 {
+    var names = List.new<String>()
+    var i = 1
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if arg != "--installed" {
+            if starts_with_dash(arg) { return usage_error("update") }
+            names.push(String.from(arg))
+        }
+        i = i + 1
+    }
+    val home = install_home()
+    val updates = update_installed(&names, cache_root().as_str(), home.as_str())
+    if updates.is_empty() { runtime_println("nothing is installed") }
+    var failed = false
+    while update in &updates {
+        if update.error.byte_len() > 0 {
+            runtime_println("error: `${update.name}` ${update.error}")
+            failed = true
+        } else if update.from.as_str() == update.to.as_str() {
+            runtime_println("`${update.name}` ${update.from} is the newest its requirement allows")
+        } else {
+            runtime_println("updated `${update.name}` ${update.from} -> ${update.to}")
+        }
+    }
+    return if failed { 1 } else { 0 }
 }
 
 /// The installed `komp-<command>` that `komp <command>` runs, or "" when
