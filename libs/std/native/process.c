@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -175,6 +176,35 @@ int32_t kf_process_spawn(const char* program, const char* cwd) {
     kf_spawned_stdin = input[1];
     kf_spawned_stdout = output[0];
     return (int32_t)child;
+}
+
+/* Replaces this process with `program`, given the pushed arguments and
+ * environment and keeping its stdin, stdout and stderr; returns only when it
+ * could not, with the errno. */
+int32_t kf_process_exec(const char* program, const char* cwd, const char* stdout_path) {
+    char** values = (char**)malloc((kf_spawn_arg_count + 2) * sizeof(char*));
+    int code = ENOMEM;
+    if (values) {
+        values[0] = (char*)program;
+        for (uint64_t i = 0; i < kf_spawn_arg_count; i++) values[i + 1] = kf_spawn_args[i];
+        values[kf_spawn_arg_count + 1] = NULL;
+        int ready = 1;
+        for (uint64_t i = 0; ready && i < kf_spawn_env_count; i++) ready = putenv(strdup(kf_spawn_env[i])) == 0;
+        if (ready && cwd[0]) ready = chdir(cwd) == 0;
+        if (ready && stdout_path[0]) {
+            int fd = open(stdout_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+            ready = fd >= 0 && dup2(fd, STDOUT_FILENO) >= 0;
+            if (fd >= 0) close(fd);
+        }
+        if (ready) {
+            fflush(NULL);
+            execvp(program, values);
+        }
+        code = errno ? errno : ENOMEM;
+        free(values);
+    }
+    kf_process_spawn_reset();
+    return code;
 }
 
 /* The exit code once `pid` has exited, blocking until it does. */

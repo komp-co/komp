@@ -125,13 +125,19 @@ pub struct ToolCommand {
     pub val error: String
 }
 
+/// The package whose program `komp <command>` runs: `komp_` and the command,
+/// `-` read as `_`.
+pub fun tool_package(command: str): String {
+    return "komp_${command.replace("-", "_")}"
+}
+
 /// The `komp-<command>` that `komp <command>` runs: the version the current
 /// project's `[tools]` pins, installed on first use, else the default.
 pub fun installed_command(command: str): ToolCommand {
     val none = ToolCommand { path: "", error: "" }
     if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return none }
     val home = install_home()
-    val package = "komp_${command.replace("-", "_")}"
+    val package = tool_package(command)
     val pinned = project_tool_pin(".", package.as_str())
     if pinned != null {
         val pin = pinned ?: return none
@@ -154,15 +160,15 @@ pub fun run_tool_command(command: str, nargs: int32): int32? {
     return Option.Some(run_installed(tool.path.as_str(), nargs))
 }
 
-/// Runs `path` with every argument after the command; its exit status.
+/// Replaces komp with `path`, given every argument after the command, so
+/// the program owns komp's process, stdio and signals. Comes back only when
+/// `path` could not be started.
 pub fun run_installed(path: str, nargs: int32): int32 {
     var command = Command.new(path)
-    var i = 1
-    while i < nargs {
-        command.arg(cli_arg_get(i))
-        i = i + 1
-    }
-    return command.status().exit_code()
+    while i in 1..nargs { command.arg(cli_arg_get(i)) }
+    val failed = command.exec()
+    runtime_println("error: cannot run ${path}: ${failed.message}")
+    return 127
 }
 
 /// Each default, and every version in the store beside it.

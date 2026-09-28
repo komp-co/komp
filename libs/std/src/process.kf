@@ -31,6 +31,7 @@ extern "C" fun kf_process_wait(pid: int32): int32
 extern "C" fun kf_process_try_wait(pid: int32): int32
 extern "C" fun kf_process_kill(pid: int32): void
 extern "C" fun kf_process_status(program: str, args: &List<String>, working_dir: str, environment: &List<String>, stdout_path: str): int32
+extern "C" fun kf_process_exec(program: str, working_dir: str, stdout_path: str): int32
 
 impl Command {
     pub static fun new(program: str): Command {
@@ -57,6 +58,17 @@ impl Command {
 
     pub fun status(): ExitStatus {
         return ExitStatus { code: kf_process_status(self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment, self.stdout_path.as_str()) }
+    }
+
+    /// Replaces this process with the program, which keeps its stdin,
+    /// stdout and stderr: nothing after a successful call runs. Answers
+    /// only when the program could not be started.
+    pub fun exec(): IoError {
+        kf_process_spawn_reset()
+        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg.as_str()) }
+        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry.as_str()) }
+        val code = kf_process_exec(self.program.as_str(), self.working_dir.as_str(), self.stdout_path.as_str())
+        return IoError { path: self.program.clone(), code: code, message: kf_process_error_text(code) }
     }
 
     /// Starts the program with its stdin and stdout piped to this process

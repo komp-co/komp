@@ -157,6 +157,7 @@ fun main(): int32 {
 | `.env(key: str, value: str)` | `void` — `mutating`, sets it for the child |
 | `.stdout_to(path: Path)` | `void` — `mutating`, truncates and redirects |
 | `.status()` | `ExitStatus` |
+| `.exec()` | `IoError` — only when the program could not be started |
 | `.exit_code()` on `ExitStatus` | `int32` |
 | `.success()` on `ExitStatus` | `bool` |
 
@@ -167,6 +168,9 @@ is rejected by `komp check`: `cannot call method `status` on `void``.
 
 Arguments never pass through a shell, so no quoting or escaping is involved.
 `status()` runs the command synchronously and blocks until the child exits.
+`exec()` runs it in place of this process instead: the program keeps this
+process's id, standard input, output and error, and nothing after a
+successful call runs. It returns only when the program could not be started.
 
 `spawn()` starts it instead, and answers a `Child` whose `stdin` and `stdout`
 are pipes to this process; its standard error is this process's. A program

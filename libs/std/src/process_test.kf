@@ -92,3 +92,9 @@ fun a_killed_child_is_reported_by_wait(): void {
     child.kill()
     assert_eq(child.wait().exit_code(), 128, "death by a signal")
 }
+
+@test
+fun a_program_that_does_not_exist_fails_to_exec(): void {
+    val failed = Command.new("/no/such/program").exec()
+    assert_eq(failed.code, 2, "ENOENT, and this test process is still here to see it")
+}

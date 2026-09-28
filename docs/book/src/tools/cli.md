@@ -278,10 +278,12 @@ the exact source of every program is known and
 [`komp update --installed`](#komp-update) can resolve it again.
 
 `komp <command>`, for a command komp does not have, runs `komp-<command>`
-with the arguments that follow it and exits with its status: the version the
-current project's `[tools]` pins, else the default. Installing `komp_fmt` is
-what makes `komp fmt` work, whether or not `~/.kflat/bin` is on `PATH`. A
-built-in command always wins over an installed one of the same name.
+with the arguments that follow it: the version the current project's `[tools]`
+pins, else the default. komp replaces itself with the program rather than
+waiting on it, so the program has komp's process, standard input and output,
+and exit status, and whoever stops it leaves no komp behind. Installing
+`komp_fmt` is what makes `komp fmt` work, whether or not `~/.kflat/bin` is on
+`PATH`. A built-in command always wins over an installed one of the same name.
 
 ### komp search and komp info
 
@@ -555,5 +557,6 @@ backward compatibility. It compiles the crate to the named C file, or to
 dependencies correctly.
 
 A first argument that is neither a command, an installed `komp-<command>`,
-nor a directory is reported as an unknown command.
+nor a directory is reported as an unknown command, naming the package that
+would provide it: `komp lsp` suggests `komp install komp_lsp`.
 

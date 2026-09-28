@@ -1,0 +1,11 @@
+import core.assert.assert_eq
+
+@test
+fun a_command_names_its_komp_package(): void {
+    assert_eq(tool_package("lsp").as_str(), "komp_lsp", "`komp lsp` runs komp_lsp")
+}
+
+@test
+fun a_dash_in_a_command_is_an_underscore_in_its_package(): void {
+    assert_eq(tool_package("dep-graph").as_str(), "komp_dep_graph", "package names use underscores")
+}

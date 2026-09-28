@@ -361,7 +361,7 @@ pub fun run_cli(): int32 {
 
     if !is_directory(a0) {
         runtime_println("error: no command `${a0}`, no installed komp-${a0}, and no project directory by that name")
-        runtime_println("`komp help` lists the commands; `komp install` adds programs from an index")
+        runtime_println("`komp help` lists the commands; `komp install ${tool_package(a0)}` adds the program")
         return 1
     }
     // CONSTRAINT: the legacy positional form the bootstrap script uses; no
