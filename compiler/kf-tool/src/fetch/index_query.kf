@@ -1,0 +1,82 @@
+// Reading an index as a catalog: every package it lists, or one package's
+// versions, for `komp search` and `komp info`.
+
+import alloc.list.*
+import std.fs.is_directory
+import std.fs.is_file
+import std.fs.read_dir
+
+/// A package an index lists, with its versions in the order it lists them.
+pub struct IndexPackage {
+    pub val name: String
+    pub val versions: List<IndexVersion>
+}
+
+impl IndexPackage {
+    /// The highest version not yanked, or "" when every one is.
+    pub fun newest(): String {
+        return self.versions.highest_allowed("")?.version ?: String.from("")
+    }
+}
+
+/// The packages found, or `error` saying why the index could not be read.
+pub struct IndexQuery {
+    pub val packages: List<IndexPackage>
+    pub val error: String
+}
+
+fun query_failed(error: String): IndexQuery {
+    return IndexQuery { packages: List.new<IndexPackage>(), error: error }
+}
+
+/// Every package in the index at `url` whose name contains `query`, sorted
+/// by name; "" matches every one.
+pub fun search_index(url: str, query: str, cache: str): IndexQuery {
+    var refreshed = List.new<String>()
+    val checkout = index_checkout(url, cache, &refreshed)
+    if checkout.error.byte_len() > 0 { return query_failed(checkout.error.clone()) }
+    var names = List.new<String>()
+    val top = read_dir(checkout.dir.as_str())
+    if top.is_err() { return query_failed("cannot read ${checkout.dir}") }
+    // Package files sit in subdirectories; the root holds the index's own files.
+    while entry in &top.unwrap() {
+        val path = "${checkout.dir}/${entry}"
+        if !entry.starts_with(".") && is_directory(path.as_str()) { collect_package_names(path.as_str(), &var names) }
+    }
+    names.sort()
+    var packages = List.new<IndexPackage>()
+    while name in &names {
+        if !name.contains(query) { continue }
+        val file = "${checkout.dir}/${index_file_path(name.as_str())}"
+        val versions = parse_index_file(read_file(file.as_str()).as_str())
+        packages.push(IndexPackage { name: name.clone(), versions: versions })
+    }
+    return IndexQuery { packages: packages, error: "" }
+}
+
+/// The package `name` in the index at `url`, or `error` when it lists none.
+pub fun index_package(url: str, name: str, cache: str): IndexQuery {
+    var refreshed = List.new<String>()
+    val checkout = index_checkout(url, cache, &refreshed)
+    if checkout.error.byte_len() > 0 { return query_failed(checkout.error.clone()) }
+    val file = "${checkout.dir}/${index_file_path(name)}"
+    if !is_file(file.as_str()) { return query_failed("the index ${url} has no package `${name}`") }
+    var packages = List.new<IndexPackage>()
+    val versions = parse_index_file(read_file(file.as_str()).as_str())
+    packages.push(IndexPackage { name: String.from(name), versions: versions })
+    return IndexQuery { packages: packages, error: "" }
+}
+
+/// Every `<name>.toml` below `dir`, as `<name>`.
+fun collect_package_names(dir: str, names: &var List<String>): void {
+    val listed = read_dir(dir)
+    if listed.is_err() { return }
+    while entry in &listed.unwrap() {
+        val path = "${dir}/${entry}"
+        if is_directory(path.as_str()) {
+            collect_package_names(path.as_str(), names)
+        } else if entry.ends_with(".toml") {
+            names.push(entry.substring(0, entry.byte_len() - 5))
+        }
+    }
+}

@@ -15,6 +15,8 @@ pub fun command_usage(command: str): str {
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
         "uninstall" => "komp uninstall <name>"
+        "search" => "komp search [<query>] [--index <url>]"
+        "info" => "komp info <name> [--index <url>]"
         "self" => "komp self update [<version>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
@@ -82,6 +84,14 @@ komp-<command>, so installing komp_fmt gives `komp fmt`.
                     without one, the highest published
   --index <url>     the index to look in, instead of the default"""
         "uninstall" => """Remove a program `komp install` put in ~/.kflat/bin, and its record."""
+        "search" => """List the packages a package index offers whose names contain <query>,
+each with its newest version; with no query, every package.
+
+  --index <url>     the index to look in, instead of the default"""
+        "info" => """List every version of a package in a package index, marking the newest
+and any yanked.
+
+  --index <url>     the index to look in, instead of the default"""
         "self" => """Install the newest komp release, or the version named, from its
 release archive, checked against the sha256 published beside it. It goes in
 ~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
@@ -144,6 +154,8 @@ pub fun print_usage(): void {
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  install   build a program from a package index into ~/.kflat/bin")
     runtime_println("  uninstall remove an installed program")
+    runtime_println("  search    list the packages an index offers")
+    runtime_println("  info      list a package's versions in an index")
     runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")

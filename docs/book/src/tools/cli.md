@@ -20,6 +20,8 @@ points, and then compiles and links the C with cc.
 | `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
 | `komp uninstall <name>` | Remove an installed program |
+| `komp search [<query>]` | List the packages an index offers, with their newest versions |
+| `komp info <name>` | List every version of a package in an index |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
@@ -252,6 +254,27 @@ its row.
 Installing `komp_fmt` is what makes `komp fmt` work, whether or not
 `~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
 one of the same name.
+
+### komp search and komp info
+
+`komp search` lists the packages a package index offers, each with its newest
+version that is not yanked; `komp search <query>` keeps the ones whose names
+contain it. `komp info <name>` lists every version of one package, marking
+the newest and any yanked. Both read the index's checkout in the cache,
+bringing it up to date first, and take `--index <url>` to look in another
+index than the default.
+
+```console
+$ komp search
+json      0.2.0
+komp_fmt  0.1.0
+$ komp search fmt
+komp_fmt  0.1.0
+$ komp info json
+json, in https://github.com/komp-co/index
+  0.1.0
+  0.2.0  newest
+```
 
 ### komp self update
 
