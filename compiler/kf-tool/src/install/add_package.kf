@@ -1,0 +1,56 @@
+// `komp add`: a library from a package index written into a crate's
+// `[dependencies]`, at the version the index now resolves it to.
+
+import alloc.list.*
+import kf_shared.join_path
+import kf_tool.build.project_is_bin
+import kf_tool.fetch.cached_root
+import kf_tool.fetch.resolve_from_index
+import kf_tool.project.Dependency
+import kf_tool.project.declared_index_url
+import kf_tool.project.with_dependency
+import std.fs.write_text
+
+/// The version the index resolved and the requirement written, or `error`
+/// saying why kf.toml was left as it was.
+pub struct Added {
+    pub val version: String
+    pub val requirement: String
+    pub val error: String
+}
+
+fun add_failed(error: String): Added {
+    return Added { version: "", requirement: "", error: error }
+}
+
+/// Adds `name` to the `[dependencies]` of the crate at `root`, replacing an
+/// entry of that name. `requirement` "" writes the newest version, which
+/// then allows its compatible successors; `index` names an `[indexes]` entry,
+/// "" the default index.
+pub fun add_package(root: str, name: str, requirement: str, index: str, cache: str): Added {
+    val manifest_path = join_path(root, "kf.toml")
+    val src = read_file(manifest_path.as_str())
+    val url = declared_index_url(src.as_str(), index)
+    if url.is_empty() { return add_failed("kf.toml declares no index `${index}` under [indexes]") }
+    val dep = Dependency {
+        name: String.from(name), version: String.from(requirement), index: String.from(index), index_url: url.clone(),
+        path: "", git: "", rev: "", tag: "", branch: "", tarball: "", checksum: ""
+    }
+    var refreshed = List.new<String>()
+    val fetched = resolve_from_index(&dep, cache, &refreshed)
+    if fetched.error.byte_len() > 0 { return add_failed(fetched.error.clone()) }
+    if project_is_bin(fetched.entry.cached_root(cache).as_str()) {
+        return add_failed("`${name}` is a program, not a library: `komp install ${name}` installs it")
+    }
+    val written = if requirement.is_empty() { fetched.entry.version.clone() } else { String.from(requirement) }
+    val row = if index.is_empty() {
+        "${name} = \"${written}\""
+    } else {
+        "${name} = { version = \"${written}\", index = \"${index}\" }"
+    }
+    val updated = with_dependency(src.as_str(), name, row.as_str())
+    if write_text(manifest_path.as_str(), updated.as_str()).is_err() {
+        return add_failed("cannot write ${manifest_path}")
+    }
+    return Added { version: fetched.entry.version.clone(), requirement: written, error: "" }
+}

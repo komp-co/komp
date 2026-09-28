@@ -350,6 +350,7 @@ pub fun run_cli(): int32 {
         }
         "init" => return init_project()
         "install" => return install_command(nargs)
+        "add" => return add_command(nargs)
         "search" => return search_command(nargs)
         "info" => return info_command(nargs)
         "uninstall" => return uninstall_command(nargs)

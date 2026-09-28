@@ -18,6 +18,7 @@ points, and then compiles and links the C with cc.
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
 | `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
+| `komp add <name>[@<req>]` | Add a library from a package index to `[dependencies]` |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
 | `komp uninstall <name>` | Remove an installed program |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
@@ -219,6 +220,24 @@ $ komp metadata
 | `lint_options` | The crate's `lint.toml` options as `{"name", "key", "value"}`, the value as `lint.toml` writes it; kflatc's `--lint-toml-option` |
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
+
+### komp add
+
+`komp add <name>` adds a library from a package index to the crate's
+`[dependencies]`, then fetches it and updates `kf.lock` as a build would. The
+row it writes is the newest version, which allows that version's compatible
+successors; `<name>@<req>` writes that requirement instead. An entry of the
+same name is replaced, and the rest of `kf.toml` is left as written.
+`--index <name>` looks in an index `kf.toml` declares under `[indexes]`, and
+writes the row with that `index`. At a workspace, `-p <crate>` picks the
+member.
+
+```console
+$ komp add json
+added `json` "0.2.0" to ./kf.toml, resolving to 0.2.0
+$ komp add komp_fmt
+error: `komp_fmt` is a program, not a library: `komp install komp_fmt` installs it
+```
 
 ### komp install
 

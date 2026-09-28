@@ -1,0 +1,62 @@
+// Editing kf.toml's `[dependencies]` as text, for `komp add`: the rest of the
+// file, its comments and its order stay as written.
+
+import alloc.list.*
+
+/// `src` with `row` as its `[dependencies]` entry for `name`: replacing the
+/// entry already there, else after the section's last entry, else in a new
+/// section at the end.
+pub fun with_dependency(src: str, name: str, row: str): String {
+    val lines = split_lines(src)
+    var section = ""
+    var replace_at: int64 = -1
+    var insert_after: int64 = -1
+    while i in 0..lines.size() {
+        val line = lines[i].as_str().trim()
+        if line.starts_with("[") {
+            section = String.from(line.as_str())
+        } else if section.as_str() == "[dependencies]" {
+            if line.is_empty() || line.starts_with("#") { continue }
+            if read_key(String.from(line.as_str())).as_str() == name { replace_at = i as int64 }
+            insert_after = i as int64
+        }
+        if line.as_str() == "[dependencies]" { insert_after = i as int64 }
+    }
+    var out = ""
+    while i in 0..lines.size() {
+        if i as int64 == replace_at {
+            out.append(row)
+        } else {
+            out.append(lines[i].as_str())
+        }
+        out.append("\n")
+        if replace_at < 0 && i as int64 == insert_after {
+            out.append(row)
+            out.append("\n")
+        }
+    }
+    if insert_after < 0 {
+        if out.byte_len() > 0 && !out.ends_with("\n\n") { out.append("\n") }
+        out.append("[dependencies]\n")
+        out.append(row)
+        out.append("\n")
+    }
+    return out
+}
+
+/// The URL `[indexes]` gives `index`; the default index for "", and "" when
+/// the manifest declares no index by that name.
+pub fun declared_index_url(src: str, index: str): String {
+    if index.is_empty() { return default_index_url() }
+    var in_indexes = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = item.as_str().trim()
+        if line.starts_with("[") {
+            in_indexes = line.as_str() == "[indexes]"
+        } else if in_indexes && read_key(String.from(line.as_str())).as_str() == index {
+            return read_string_value(line)
+        }
+    }
+    return ""
+}

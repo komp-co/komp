@@ -122,6 +122,10 @@ The index is read only to choose a version. What was chosen is fetched like
 any other remote dependency and pinned in `kf.lock`, which also records the
 index, so a build with a lock never reads the index at all.
 
+`komp add json` writes such a row for you, at the newest version, and fetches
+it; [`komp search`](../tools/cli.md#komp-search-and-komp-info) finds what an
+index offers. See [komp add](../tools/cli.md#komp-add).
+
 ### Fetched dependencies
 
 A dependency can also come from a git repository or a tarball, on any host:

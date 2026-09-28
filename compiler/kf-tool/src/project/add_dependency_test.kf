@@ -1,0 +1,48 @@
+import core.assert.assert_eq
+
+@test
+fun a_row_goes_after_the_last_dependency(): void {
+    val src = "[dependencies]\ngreet = { path = \"../greet\" }\n\n[lint]\ndead_code = \"allow\"\n"
+    assert_eq(with_dependency(src, "json", "json = \"0.2.0\"").as_str(),
+        "[dependencies]\ngreet = { path = \"../greet\" }\njson = \"0.2.0\"\n\n[lint]\ndead_code = \"allow\"\n",
+        "inside the section, before the next")
+}
+
+@test
+fun a_row_replaces_the_same_dependency(): void {
+    val src = "[dependencies]\njson = \"0.1.0\"\n"
+    assert_eq(with_dependency(src, "json", "json = \"0.2.0\"").as_str(), "[dependencies]\njson = \"0.2.0\"\n",
+        "one row")
+}
+
+@test
+fun an_empty_section_takes_the_row_under_its_header(): void {
+    val src = "[project]\nname = \"app\"\n\n[dependencies]\n"
+    assert_eq(with_dependency(src, "json", "json = \"0.2.0\"").as_str(),
+        "[project]\nname = \"app\"\n\n[dependencies]\njson = \"0.2.0\"\n", "right after it")
+}
+
+@test
+fun a_manifest_without_the_section_gains_one(): void {
+    val src = "[project]\nname = \"app\"\n"
+    assert_eq(with_dependency(src, "json", "json = \"0.2.0\"").as_str(),
+        "[project]\nname = \"app\"\n\n[dependencies]\njson = \"0.2.0\"\n", "at the end")
+}
+
+@test
+fun a_comment_in_the_section_stays(): void {
+    val src = "[dependencies]\n# pinned for the parser\njson = \"0.1.0\"\n"
+    assert_eq(with_dependency(src, "greet", "greet = \"1.0.0\"").as_str(),
+        "[dependencies]\n# pinned for the parser\njson = \"0.1.0\"\ngreet = \"1.0.0\"\n", "untouched")
+}
+
+@test
+fun a_declared_index_is_found_by_name(): void {
+    val src = "[indexes]\nwork = \"https://git.example/index\"\n"
+    assert_eq(declared_index_url(src, "work").as_str(), "https://git.example/index", "its URL")
+}
+
+@test
+fun an_undeclared_index_has_no_url(): void {
+    assert_eq(declared_index_url("[project]\nname = \"a\"\n", "work").as_str(), "", "not declared")
+}
