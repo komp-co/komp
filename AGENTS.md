@@ -77,6 +77,10 @@ no single-file mode.
   `Box<T>`, borrow with `&T` or `&var T`, and call the library rather than
   declaring an `extern`; bless a block that must stay with `--update` and say
   why in the commit.
+- **The tree is formatted.** CI runs `komp fmt --check compiler libs` with
+  the formatter from the package index (`komp install komp_fmt`); run
+  `komp fmt` on what you touch before committing. The `pre-commit` hook in
+  `.githooks` checks the staged files when the formatter is installed.
 - **Lints are errors in CI.** The sweep runs `komp lint --deny-warnings` on
   every crate. Fix what it reports; when a finding must stay, put
   `@allow(<lint>)` on the declaration and say why in the commit. The seed

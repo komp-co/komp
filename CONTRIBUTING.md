@@ -78,6 +78,11 @@ git config core.hooksPath .githooks
 `git push --no-verify` bypasses the *local* hook only — the server-side rule
 still stands, which is the point of having both.
 
+The same setting enables a `pre-commit` hook that refuses a commit whose
+staged `.kf` files `komp fmt` would change, once the formatter is installed
+with `komp install komp_fmt`. CI makes the same check over `compiler/` and
+`libs/`.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request — whatever it targets, so

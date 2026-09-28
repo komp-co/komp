@@ -291,6 +291,25 @@ fi
 
 if [ "$CHECK_CLI" = "1" ]; then
 
+# The compiler and libraries are laid out as komp fmt formats them: the
+# formatter is installed from the package index at the version below, as a
+# user would, and `--check` names every file it would change.
+phase "formatting"
+mkdir -p "$WORK/fmt-toolchain/bin"
+cp "$WORK/komp" "$WORK/kflatc" "$WORK/fmt-toolchain/bin/"
+[ -e "$WORK/fmt-toolchain/libs" ] || ln -s "$ROOT/libs" "$WORK/fmt-toolchain/libs"
+KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
+    cat "$WORK/fmt-install.log" >&2
+    echo "FAIL: komp_fmt could not be installed from the package index" >&2
+    exit 1
+}
+if ! unformatted=$(cd "$ROOT" && "$WORK/fmt-home/bin/komp-fmt" --check compiler libs); then
+    echo "$unformatted" | sed 's/^/       /' >&2
+    echo "FAIL: these files are not formatted; run \`komp fmt compiler libs\`" >&2
+    exit 1
+fi
+echo "  PASS  compiler and libs are formatted"
+
 phase "cli quiet flags"
 mkdir -p "$WORK/quiet-project/src"
 {

@@ -1,0 +1,14 @@
+#!/bin/sh
+# Refuse a commit whose staged .kf files are not formatted, as CI would.
+# Skipped when komp-fmt is not installed (`komp install komp_fmt`).
+#
+# Bypass: git commit --no-verify
+fmt="${KFLAT_HOME:-$HOME/.kflat}/bin/komp-fmt"
+[ -x "$fmt" ] || exit 0
+files=$(git diff --cached --name-only --diff-filter=ACM -- 'compiler/*.kf' 'libs/*.kf')
+[ -n "$files" ] || exit 0
+# shellcheck disable=SC2086
+unformatted=$("$fmt" --check $files) && exit 0
+echo "These files are not formatted; run \`komp fmt\` on them and stage the result:"
+echo "$unformatted" | sed 's/^/  /'
+exit 1
