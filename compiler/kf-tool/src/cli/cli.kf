@@ -213,7 +213,7 @@ pub fun run_cli(): int32 {
                     list = true
                 } else if arg == "--fix" {
                     fix = true
-                } else if arg == "--diagnostic-format=json" {
+                } else if arg == "--diagnostic-format=json" || is_format_flag(arg) {
                     as_json = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
                     li = li + 1 // read by the lint config
@@ -238,7 +238,7 @@ pub fun run_cli(): int32 {
                     runtime_println(no_toolchain.as_str())
                     return 1
                 }
-                return list_lints(dir.as_str())
+                return list_lints(dir.as_str(), as_json)
             }
             if fix { return run_on_selected("fix", project.as_str(), nargs, false) }
             return run_on_selected("lint", project.as_str(), nargs, as_json)

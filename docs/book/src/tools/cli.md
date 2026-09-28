@@ -350,6 +350,7 @@ line, for editors and scripts; a failure prints `{"error": "..."}` and exits
 |---|---|
 | `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
 | `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp lint --list` | `{"groups", "lints": [{"name", "group", "level", "default", "description", "options": [{"key", "value", "default", "description"}]}]}` |
 | `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
 | `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
 | `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
@@ -449,7 +450,8 @@ what they do to `compile`. The crates' own C sources are left out; komp
 appends them.
 
 `kflatc lints` prints every lint at the level the lint flags on its command
-line give it, as `komp lint --list` shows.
+line give it, as `komp lint --list` shows; `--json` prints the same as one
+JSON object.
 
 `kflatc version` prints what komp needs to know about the compiler it runs, one
 `key value` line each after the first: its interface `abi`, `runtime` and

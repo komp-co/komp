@@ -52,12 +52,13 @@ pub fun BuildCrate.invoke_kflatc_lint(project: str, tdir: str, as_json: bool): i
 }
 
 /// Every lint, at the level `project`'s configuration and this command
-/// line give it: `kflatc lints`.
-pub fun list_lints(project: str): int32 {
+/// line give it: `kflatc lints`, as JSON for `as_json`.
+pub fun list_lints(project: str, as_json: bool): int32 {
     val path = kflatc_path()
     if kflatc_missing(&path) { return 1 }
     var command = Command.new(path.as_str())
     command.arg("lints")
+    if as_json { command.arg("--json") }
     forward_compiler_flags(&var command, project)
     return command.status().exit_code()
 }

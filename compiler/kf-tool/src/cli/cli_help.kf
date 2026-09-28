@@ -64,7 +64,8 @@ fun command_detail(command: str): str {
 Levels come from lint.toml beside kf.toml (and the workspace's), then
 kf.toml's [lint] table, then these flags.
 
-  --list                      every lint: its group, level and what it reports
+  --list                      every lint: its group, level and what it reports;
+                              with --format=json, as one JSON object
   --fix                       apply the repairs the lints suggest, as komp fix
   --diagnostic-format=json    one JSON object per diagnostic, no tally
   -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
