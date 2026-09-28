@@ -2,8 +2,16 @@
 // and the binary's own bytes.
 
 import alloc.list.*
+import kf_tool.project.Version
+import kf_tool.project.parse_version
 import std.fs.TempDir
 import std.process.*
+
+/// The oldest kflatc whose command line this komp's matches: the first with
+/// the lint.toml flags komp passes.
+pub fun oldest_kflatc_driven(): Version {
+    return Version { major: 0, minor: 5, patch: 3 }
+}
 
 pub struct CompilerIdentity {
     pub val abi: String
@@ -27,6 +35,12 @@ pub fun kflatc_identity(): CompilerIdentity? {
         return Option.None
     }
     val lines = read_file(answer.as_str()).lines()
+    val too_old = kflatc_too_old(&lines)
+    if too_old.byte_len() > 0 {
+        val oldest = oldest_kflatc_driven().render()
+        println("komp: ${path} is kflatc ${too_old}; this komp drives kflatc ${oldest} and newer")
+        return Option.None
+    }
     val abi = version_field(&lines, "abi")
     val runtime = version_field(&lines, "runtime")
     val target = version_field(&lines, "target")
@@ -38,6 +52,17 @@ pub fun kflatc_identity(): CompilerIdentity? {
     // header's first NUL, which would hash the same 7 bytes for every build.
     val binary_hash = "${unsafe { kf_file_hash(path.as_str()) }}"
     return Option.Some(CompilerIdentity { abi: abi, runtime: runtime, target: target, binary_hash: binary_hash })
+}
+
+/// The version `kflatc version` names on its first line when it is older
+/// than this komp drives, else "".
+pub fun kflatc_too_old(lines: &List<String>): String {
+    if lines.size() == 0 { return "" }
+    val first = lines.at(0).clone()
+    if !first.starts_with("kflatc ") { return "" }
+    val named = first.substring(7, first.byte_len())
+    val version = parse_version(named.as_str()) ?: return ""
+    return if version.compare(&oldest_kflatc_driven()) < 0 { named } else { String.from("") }
 }
 
 /// The value of the `key value` line, or "".

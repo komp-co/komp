@@ -3,7 +3,7 @@
 import kf_tool.build.FetchPolicy
 import kf_tool.build.sync_sources
 import kf_tool.fetch.cache_root
-import kf_tool.install.choose_toolchain
+import kf_tool.install.choose_or_install_toolchain
 import kf_tool.install.install_home
 import kf_tool.install.kflat_pin_for
 import kf_tool.project.command_dir
@@ -18,7 +18,7 @@ pub fun is_fetch_flag(arg: str): bool {
 
 /// False once the reason has been printed.
 pub fun fetched_for(root: str, nargs: int32): bool {
-    val no_toolchain = toolchain_error_for(root)
+    val no_toolchain = toolchain_error_for(root, has_own_flag(nargs, "--offline"))
     if no_toolchain.byte_len() > 0 {
         runtime_println(no_toolchain.as_str())
         return false
@@ -47,15 +47,16 @@ pub fun update_project(project: str, nargs: int32): int32 {
     return 1
 }
 
-/// Points `KFLATC` at the compiler `root`'s `kflat` pin picks, for this
-/// process and what it runs; a `KFLATC` already set wins. "" once chosen,
-/// else why none fits.
-pub fun toolchain_error_for(root: str): String {
+/// Points `KFLATC` at the compiler `root`'s `kflat` pin picks, installing it
+/// unless `offline`, for this process and what it runs; a `KFLATC` already
+/// set wins. "" once chosen, else why none fits.
+pub fun toolchain_error_for(root: str, offline: bool): String {
     val given = env_var("KFLATC") ?: String.from("")
     if !given.is_empty() { return "" }
     val pin = kflat_pin_for(root)
     if pin.is_empty() { return "" }
-    val choice = choose_toolchain(pin.as_str(), kflat_version(), install_home().as_str())
+    val choice = choose_or_install_toolchain(pin.as_str(), kflat_version(), install_home().as_str(),
+        cache_root().as_str(), offline)
     if choice.kflatc.byte_len() > 0 { set_env_var("KFLATC", choice.kflatc.as_str()) }
     return choice.error
 }

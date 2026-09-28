@@ -233,7 +233,7 @@ pub fun run_cli(): int32 {
             if project.as_str() == "" { project = String.from(".") }
             if list {
                 val dir = command_dir(project.as_str())
-                val no_toolchain = toolchain_error_for(dir.as_str())
+                val no_toolchain = toolchain_error_for(dir.as_str(), has_own_flag(nargs, "--offline"))
                 if no_toolchain.byte_len() > 0 {
                     runtime_println(no_toolchain.as_str())
                     return 1

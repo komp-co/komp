@@ -261,14 +261,30 @@ kflat = "0.4"
 komp builds with its own compiler when the requirement allows komp's version.
 Otherwise it builds with the highest toolchain under `~/.kflat/toolchains`
 that the requirement allows, with that toolchain's `core`, `alloc` and `std`.
-[Installing a release](installing.md) puts one there. `komp metadata` names
-the compiler it chose, so tools that ask komp use it too. When nothing fits,
-the command stops before building:
+`komp metadata` names the compiler it chose, so tools that ask komp use it
+too.
+
+When none installed fits, komp installs one before building: the newest
+release when the requirement allows it, else the version the requirement
+writes. It goes into `~/.kflat/toolchains` beside the others, and the `komp`
+on `PATH` stays the one it was. With `--offline` komp installs nothing and
+stops instead:
+
+```console
+$ komp build --offline
+error: kf.toml pins kflat 0.6: this komp is 0.5.3 and no installed toolchain fits; --offline installs none
+```
+
+komp drives kflatc 0.5.3 and newer, the releases whose command line matches
+its own. A requirement that allows none of them stops the build, whatever is
+installed:
 
 ```console
 $ komp build
-error: kf.toml pins kflat 0.3: this komp is 0.5.3 and no installed toolchain fits (installed: 0.4.9); install a release it allows with that release's install.sh
+error: kf.toml pins kflat 0.4, older than the oldest kflatc this komp drives (0.5.3); pin a newer release, or build with a komp from that one
 ```
+
+A `KFLATC` older than that is refused the same way, by name.
 
 In a workspace, `kflat` goes in `[workspace]` and pins every member; a
 member's own is not read. `KFLATC`, when set, wins over any pin.

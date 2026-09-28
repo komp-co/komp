@@ -12,7 +12,7 @@ import kf_tool.project.command_dir
 /// 0 when the graph resolved; a failure prints JSON too, with an `error`.
 pub fun metadata_command(project: str, nargs: int32): int32 {
     val dir = command_dir(project)
-    val no_toolchain = toolchain_error_for(dir.as_str())
+    val no_toolchain = toolchain_error_for(dir.as_str(), has_own_flag(nargs, "--offline"))
     if no_toolchain.byte_len() > 0 {
         println(metadata_failure(no_toolchain.as_str()).json.as_str())
         return 1

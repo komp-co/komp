@@ -1,9 +1,11 @@
 // The compiler a project's `kflat` pin picks: komp's own when the pin allows
 // it, else the highest toolchain installed under `<home>/toolchains` that it
-// allows.
+// allows and this komp can drive.
 
 import alloc.list.*
 import kf_shared.join_path
+import kf_tool.build.oldest_kflatc_driven
+import kf_tool.project.Requirement
 import kf_tool.project.Version
 import kf_tool.project.enclosing_workspace
 import kf_tool.project.manifest_kflat_pin
@@ -14,13 +16,15 @@ import std.fs.is_file
 import std.fs.read_dir
 
 /// The kflatc to run, "" for komp's own, or `error` saying why none fits.
+/// `installable` when a release the pin allows could fit.
 pub struct ToolchainChoice {
     pub val kflatc: String
     pub val error: String
+    pub val installable: bool
 }
 
-fun no_toolchain(error: String): ToolchainChoice {
-    return ToolchainChoice { kflatc: "", error: error }
+fun no_toolchain(error: String, installable: bool): ToolchainChoice {
+    return ToolchainChoice { kflatc: "", error: error, installable: installable }
 }
 
 /// The pin governing `crate_root`: its workspace's when it is a member, else
@@ -35,18 +39,33 @@ pub fun kflat_pin_for(crate_root: str): String {
 
 pub fun choose_toolchain(pin: str, own_version: str, home: str): ToolchainChoice {
     val wanted = parse_requirement(pin) ?: return no_toolchain(
-        "error: kf.toml: `kflat = \"${pin}\"` is not a version requirement"
+        "error: kf.toml: `kflat = \"${pin}\"` is not a version requirement", false
     )
+    val oldest = oldest_kflatc_driven()
+    if wanted.high.compare(&oldest) <= 0 {
+        val error = "error: kf.toml pins kflat ${pin}, older than the oldest kflatc this komp drives " +
+            "(${oldest.render()}); pin a newer release, or build with a komp from that one"
+        return no_toolchain(error, false)
+    }
     val own = parse_version(own_version) ?: Version { major: 0, minor: 0, patch: 0 }
-    if wanted.allows(&own) { return ToolchainChoice { kflatc: "", error: "" } }
+    if wanted.allows(&own) { return ToolchainChoice { kflatc: "", error: "", installable: false } }
     val installed = installed_toolchains(home)
     // Ascending, so the last one allowed is the highest.
     var chosen = ""
     while version in &installed {
-        if wanted.allows(version) { chosen = version.render() }
+        if wanted.allows(version) && version.compare(&oldest) >= 0 { chosen = version.render() }
     }
-    if chosen.byte_len() == 0 { return no_toolchain(missing_toolchain(pin, own_version, &installed)) }
-    return ToolchainChoice { kflatc: toolchain_kflatc(home, chosen.as_str()), error: "" }
+    if chosen.byte_len() == 0 { return no_toolchain(missing_toolchain(pin, own_version, &installed), true) }
+    return ToolchainChoice { kflatc: toolchain_kflatc(home, chosen.as_str()), error: "", installable: false }
+}
+
+/// The release to install for `wanted`: `newest` when it allows that, else
+/// the lowest version it allows that this komp drives.
+pub fun release_for(wanted: &Requirement, newest: str): String {
+    val latest = parse_version(newest) ?: Version { major: 0, minor: 0, patch: 0 }
+    if newest.byte_len() > 0 && wanted.allows(&latest) { return String.from(newest) }
+    val oldest = oldest_kflatc_driven()
+    return if wanted.low.compare(&oldest) < 0 { oldest.render() } else { wanted.low.render() }
 }
 
 pub fun toolchain_kflatc(home: str, version: str): String {
@@ -74,6 +93,5 @@ fun missing_toolchain(pin: str, own_version: str, installed: &List<Version>): St
         found.append(version.render().as_str())
     }
     if found.byte_len() > 0 { found.append(")") }
-    return "error: kf.toml pins kflat ${pin}: this komp is ${own_version} and no installed toolchain fits${found}; " +
-        "install a release it allows with that release's install.sh"
+    return "error: kf.toml pins kflat ${pin}: this komp is ${own_version} and no installed toolchain fits${found}"
 }

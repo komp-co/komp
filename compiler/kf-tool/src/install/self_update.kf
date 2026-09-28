@@ -70,34 +70,44 @@ pub fun self_update(requested: str, current: str, home: str, cache: str): SelfUp
     if requested.byte_len() == 0 && version.as_str() == current {
         return SelfUpdate { version: version, installed: false, error: "" }
     }
-    val staging = fresh_staging(cache, "self-update")
-    if staging.byte_len() == 0 { return update_failed("cannot create a directory under ${cache}") }
+    val error = install_release(version.as_str(), home, cache)
+    if error.byte_len() > 0 { return update_failed(error) }
+    return SelfUpdate { version: version, installed: true, error: "" }
+}
+
+/// Downloads release `version`, checks it against its published sha256 and
+/// runs its install.sh with `home` as `KFLAT_HOME`. "" once installed, else
+/// why not.
+pub fun install_release(version: str, home: str, cache: str): String {
+    val releases = releases_url()
+    val staging = fresh_staging(cache, "release")
+    if staging.byte_len() == 0 { return "cannot create a directory under ${cache}" }
     val name = "kflat-${version}.tar.gz"
     val url = "${releases}/download/v${version}/${name}"
     val archive = "${staging}.tar.gz"
     val digest_file = "${staging}.tar.gz.published"
     if !download(url.as_str(), archive.as_str()) || !download("${url}.sha256".as_str(), digest_file.as_str()) {
         clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
-        return update_failed("cannot download ${url} and its .sha256; is ${version} a release?")
+        return "cannot download ${url} and its .sha256; is ${version} a release?"
     }
     val published = first_word(read_file(digest_file.as_str()).as_str())
     val got = sha256_of(archive.as_str())
     if got.byte_len() == 0 || got.as_str() != published.as_str() {
         clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
-        return update_failed("${name} does not match its published sha256")
+        return "${name} does not match its published sha256"
     }
     val script = "${staging}/kflat-${version}/install.sh"
     if !extract(archive.as_str(), staging.as_str(), false) || !exists(script.as_str()) {
         clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
-        return update_failed("${name} holds no kflat-${version}/install.sh")
+        return "${name} holds no kflat-${version}/install.sh"
     }
     var install = Command.new("sh")
     install.arg(script.as_str())
     install.env("KFLAT_HOME", home)
     val ok = install.status().success()
     clean_up(staging.as_str(), archive.as_str(), digest_file.as_str())
-    if !ok { return update_failed("installing ${version} failed; its install.sh said why above") }
-    return SelfUpdate { version: version, installed: true, error: "" }
+    if !ok { return "installing ${version} failed; its install.sh said why above" }
+    return ""
 }
 
 fun download(url: str, to: str): bool {

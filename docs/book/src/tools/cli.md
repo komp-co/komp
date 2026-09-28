@@ -324,7 +324,7 @@ usual), and 2 on a malformed command line.
 | `--diagnostic-format=json` (on `check`) | Output diagnostics as JSON lines |
 | `--unity` (on `build`/`run`/`test`) | Emit a single merged C unit |
 | `--locked` | Fail rather than change `kf.lock` |
-| `--offline` | Fail rather than fetch a dependency |
+| `--offline` | Fail rather than fetch a dependency or install a [pinned toolchain](../start/projects.md#pinning-the-toolchain) |
 
 ### Colored output
 

@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import kf_tool.project.parse_requirement
 import std.fs.scratch_path
 
 extern "C" fun system(cmd: str): int32
@@ -23,24 +24,24 @@ fun komps_own_compiler_wins_when_the_pin_allows_it(): void {
 
 @test
 fun the_highest_installed_toolchain_the_pin_allows_is_chosen(): void {
-    val home = home_with("kf_tc_high", "0.4.1 0.4.7 0.4.3 0.5.0")
-    val chosen = choose_toolchain("0.4", "0.5.3", home.as_str()).kflatc
-    assert_eq(chosen.as_str().ends_with("/toolchains/0.4.7/bin/kflatc"), true, "0.4.7, not 0.5.0")
+    val home = home_with("kf_tc_high", "1.2.1 1.4.7 1.2.3 2.0.0")
+    val chosen = choose_toolchain("1.2", "0.5.3", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/toolchains/1.4.7/bin/kflatc"), true, "1.4.7, not 2.0.0")
 }
 
 @test
 fun a_toolchain_directory_without_a_kflatc_is_passed_over(): void {
-    val home = home_with("kf_tc_empty", "0.4.1")
-    val _made = unsafe { system("mkdir -p ${home}/toolchains/0.4.2".as_str()) }
-    val chosen = choose_toolchain("0.4", "0.5.3", home.as_str()).kflatc
-    assert_eq(chosen.as_str().ends_with("/0.4.1/bin/kflatc"), true, "0.4.2 holds nothing")
+    val home = home_with("kf_tc_empty", "1.2.1")
+    val _made = unsafe { system("mkdir -p ${home}/toolchains/1.2.2".as_str()) }
+    val chosen = choose_toolchain("1.2", "0.5.3", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/1.2.1/bin/kflatc"), true, "1.2.2 holds nothing")
 }
 
 @test
 fun no_fitting_toolchain_names_what_is_installed(): void {
-    val home = home_with("kf_tc_none", "0.5.0")
-    val error = choose_toolchain("0.3", "0.5.3", home.as_str()).error
-    assert_eq(error.as_str().contains("(installed: 0.5.0)"), true, "what there is")
+    val home = home_with("kf_tc_none", "2.0.0")
+    val error = choose_toolchain("1.2", "0.5.3", home.as_str()).error
+    assert_eq(error.as_str().contains("(installed: 2.0.0)"), true, "what there is")
 }
 
 @test
@@ -57,4 +58,43 @@ fun a_member_takes_its_workspaces_pin(): void {
         "printf '[project]\\nname = \"one\"\\nkflat = \"0.5\"\\n' > ${ws}/one/kf.toml"
     val _made = unsafe { system(setup.as_str()) }
     assert_eq(kflat_pin_for("${ws}/one".as_str()).as_str(), "0.4", "the workspace's, not the member's")
+}
+
+@test
+fun a_pin_older_than_komp_drives_is_refused(): void {
+    val home = home_with("kf_tc_old", "0.4.1")
+    val choice = choose_toolchain("0.4", "0.5.3", home.as_str())
+    assert_eq(choice.error.contains("oldest kflatc this komp drives") && !choice.installable, true,
+        "0.4.1 is installed, but its command line is not komp's")
+}
+
+@test
+fun an_installed_toolchain_older_than_komp_drives_is_passed_over(): void {
+    val home = home_with("kf_tc_floor", "0.5.2 0.5.4")
+    val chosen = choose_toolchain("0.5.2", "0.6.0", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/0.5.4/bin/kflatc"), true, "0.5.2 is too old")
+}
+
+@test
+fun a_missing_toolchain_is_installable(): void {
+    val home = home_with("kf_tc_installable", "")
+    assert_eq(choose_toolchain("1.2", "0.5.3", home.as_str()).installable, true, "a release could fit")
+}
+
+@test
+fun the_newest_release_is_installed_when_the_pin_allows_it(): void {
+    val wanted = parse_requirement("1.2") ?: return
+    assert_eq(release_for(&wanted, "1.2.9").as_str(), "1.2.9", "the newest")
+}
+
+@test
+fun a_pin_the_newest_release_is_outside_installs_its_own_version(): void {
+    val wanted = parse_requirement("1.2.3") ?: return
+    assert_eq(release_for(&wanted, "2.0.0").as_str(), "1.2.3", "the version the pin writes")
+}
+
+@test
+fun an_unknown_newest_release_installs_the_pins_version(): void {
+    val wanted = parse_requirement("1.2") ?: return
+    assert_eq(release_for(&wanted, "").as_str(), "1.2.0", "the lowest it allows")
 }
