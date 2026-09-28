@@ -49,14 +49,17 @@ pub fun search_command(nargs: int32): int32 {
         runtime_println("no package in ${args.index} matches `${args.positional}`")
         return 0
     }
-    var width: uint64 = 0
+    var name_width: uint64 = 0
+    var version_width: uint64 = 0
     while package in &found.packages {
-        if package.name.byte_len() > width { width = package.name.byte_len() }
+        if package.name.byte_len() > name_width { name_width = package.name.byte_len() }
+        if package.shown_version().byte_len() > version_width { version_width = package.shown_version().byte_len() }
     }
     while package in &found.packages {
-        val newest = package.newest()
-        val shown = if newest.is_empty() { String.from("(every version yanked)") } else { newest }
-        runtime_println("${padded(package.name.as_str(), width)}  ${shown}")
+        val version = padded(package.shown_version().as_str(), version_width)
+        val line = "${padded(package.name.as_str(), name_width)}  ${version}"
+        val described = if package.description.is_empty() { line } else { "${line}  ${package.description}" }
+        runtime_println(described.as_str().trim_end())
     }
     return 0
 }
@@ -76,12 +79,18 @@ pub fun info_command(nargs: int32): int32 {
 
 fun IndexPackage.print_versions(index: str): void {
     runtime_println("${self.name}, in ${index}")
+    if !self.description.is_empty() { runtime_println(self.description.as_str()) }
     val newest = self.newest()
     while version in &self.versions {
         val is_newest = version.version.as_str() == newest.as_str()
         val note = if version.yanked { "  yanked" } else if is_newest { "  newest" } else { "" }
         runtime_println("  ${version.version}${note}")
     }
+}
+
+fun IndexPackage.shown_version(): String {
+    val newest = self.newest()
+    return if newest.is_empty() { String.from("(every version yanked)") } else { newest }
 }
 
 fun padded(text: str, width: uint64): String {

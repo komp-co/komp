@@ -2,6 +2,7 @@
 //
 //   schema = 1
 //   name = "json"
+//   description = "JSON reading and writing"   # optional
 //
 //   [[version]]
 //   version = "0.1.0"
@@ -35,6 +36,17 @@ pub fun index_file_path(name: str): String {
     if n <= 2 { return "${n}/${name}.toml" }
     if n == 3 { return "3/${name.substring(0, 1)}/${name}.toml" }
     return "${name.substring(0, 2)}/${name.substring(2, 4)}/${name}.toml"
+}
+
+/// The `description` before the first `[[version]]`, or "".
+pub fun index_file_description(src: str): String {
+    val lines = split_lines(src)
+    while raw in &lines {
+        val line = trim_string(raw.clone())
+        if line.as_str() == "[[version]]" { return "" }
+        if read_key(line.clone()).as_str() == "description" { return read_string_value(line) }
+    }
+    return ""
 }
 
 /// The versions in file order. An entry of another schema reads as none.

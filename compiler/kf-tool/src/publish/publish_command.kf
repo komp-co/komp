@@ -39,8 +39,8 @@ pub fun publish_package(root: str, index_url: str, cache: str): int32 {
     val _branch = git_in(work.as_str(), "checkout --quiet -b ${branch}".as_str())
     val target = "${work}/${relative}"
     create_dir_all(Path.new(target.as_str()).parent())
-    val text = entry_with_version(existing.as_str(), facts.name.as_str(), facts.version.as_str(), facts.git.as_str(),
-        facts.rev.as_str())
+    val text = entry_with_version(existing.as_str(), facts.name.as_str(), facts.description.as_str(),
+        facts.version.as_str(), facts.git.as_str(), facts.rev.as_str())
     write_file(target.as_str(), text.as_str())
     if !commit_entry(work.as_str(), relative.as_str(), release.as_str()) {
         return publish_refused("cannot commit the entry in ${work}")

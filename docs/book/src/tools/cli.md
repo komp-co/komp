@@ -122,6 +122,8 @@ opened   https://github.com/komp-co/index/pull/12
 ```
 
 The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
+`kf.toml`'s `description`, when it has one, becomes the package's description
+in the index, replacing the one an earlier version gave.
 komp refuses, and says what to do, when the crate is a `bin`, its name is not
 lowercase `snake_case`, the working tree has uncommitted changes, the tag is
 missing, names another commit or is not pushed, the crate does not pass
@@ -277,7 +279,7 @@ one of the same name.
 ### komp search and komp info
 
 `komp search` lists the packages a package index offers, each with its newest
-version that is not yanked; `komp search <query>` keeps the ones whose names
+version that is not yanked and its description; `komp search <query>` keeps the ones whose names
 contain it. `komp info <name>` lists every version of one package, marking
 the newest and any yanked. Both read the index's checkout in the cache,
 bringing it up to date first, and take `--index <url>` to look in another
@@ -285,15 +287,19 @@ index than the default.
 
 ```console
 $ komp search
-json      0.2.0
-komp_fmt  0.1.0
+json      0.2.0  JSON reading and writing
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
 $ komp search fmt
-komp_fmt  0.1.0
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
 $ komp info json
 json, in https://github.com/komp-co/index
+JSON reading and writing
   0.1.0
   0.2.0  newest
 ```
+
+A package's description is the one `komp publish` took from its `kf.toml`;
+a package published without one shows none.
 
 ### komp self update
 

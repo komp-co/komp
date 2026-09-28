@@ -11,9 +11,10 @@ fun catalog_index(name: str): String {
     sh("rm -rf ${index} && mkdir -p ${index}/ko/mp ${index}/3/z".as_str())
     write_file("${index}/config.toml".as_str(), "schema = 1\n")
     val row = "source = { git = \"file:///nowhere\", rev = \"0000000000000000000000000000000000000000\" }\n"
-    write_file("${index}/ko/mp/komp_alpha.toml".as_str(), (String.from("schema = 1\nname = \"komp_alpha\"\n") +
-            "\n[[version]]\nversion = \"0.1.0\"\n${row}\n[[version]]\nversion = \"0.2.0\"\n${row}" +
-            "\n[[version]]\nversion = \"0.2.1\"\n${row}yanked = true\n").as_str())
+    var alpha = String.from("schema = 1\nname = \"komp_alpha\"\ndescription = \"The first letter\"\n")
+    alpha.append("\n[[version]]\nversion = \"0.1.0\"\n${row}\n[[version]]\nversion = \"0.2.0\"\n${row}".as_str())
+    alpha.append("\n[[version]]\nversion = \"0.2.1\"\n${row}yanked = true\n".as_str())
+    write_file("${index}/ko/mp/komp_alpha.toml".as_str(), alpha.as_str())
     write_file("${index}/ko/mp/komp_beta.toml".as_str(),
         "schema = 1\nname = \"komp_beta\"\n\n[[version]]\nversion = \"1.0.0\"\n${row}".as_str())
     write_file("${index}/3/z/zed.toml".as_str(),
@@ -52,4 +53,11 @@ fun info_lists_every_version_yanked_included(): void {
 fun info_on_a_package_the_index_lacks_says_so(): void {
     val found = index_package(catalog_index("kf_catalog_e").as_str(), "komp_gamma", test_cache().as_str())
     assert_eq(found.error.contains("has no package `komp_gamma`"), true, "names it")
+}
+
+@test
+fun a_package_carries_its_description(): void {
+    val found = search_index(catalog_index("kf_catalog_f").as_str(), "", test_cache().as_str())
+    assert_eq("${found.packages[0].description}|${found.packages[1].description}".as_str(), "The first letter|",
+        "komp_alpha's, and none for komp_beta")
 }

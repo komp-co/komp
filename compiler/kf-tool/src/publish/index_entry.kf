@@ -1,9 +1,54 @@
 // The text `komp publish` adds to a package's file in the index.
 
-/// `existing` with one more `[[version]]`; a new file for "".
-pub fun entry_with_version(existing: str, name: str, version: str, git: str, rev: str): String {
-    var out = if existing == "" { "schema = 1\nname = \"${name}\"\n" } else { String.from(existing) }
+import alloc.list.*
+import kf_tool.project.read_key
+import kf_tool.project.split_lines
+
+/// `existing` with one more `[[version]]`; a new file for "". A non-empty
+/// `description` replaces the file's, or goes after its `name`.
+pub fun entry_with_version(existing: str, name: str, description: str, version: str, git: str, rev: str): String {
+    var out = if existing == "" {
+        "schema = 1\nname = \"${name}\"\n"
+    } else {
+        with_description(existing, description)
+    }
+    if existing == "" && description != "" { out.append("description = \"${description}\"\n".as_str()) }
     if !out.as_str().ends_with("\n") { out.append("\n") }
     out.append("\n[[version]]\nversion = \"${version}\"\nsource = { git = \"${git}\", rev = \"${rev}\" }\n")
+    return out
+}
+
+/// Only the header before the first `[[version]]` is looked at; published
+/// versions are never edited.
+fun with_description(existing: str, description: str): String {
+    if description == "" { return String.from(existing) }
+    val row = "description = \"${description}\""
+    val lines = split_lines(existing)
+    var out = ""
+    var in_header = true
+    var placed = false
+    while line in &lines {
+        val trimmed = line.as_str().trim()
+        if trimmed.as_str() == "[[version]]" {
+            if in_header && !placed {
+                out.append(row.as_str())
+                out.append("\n")
+                placed = true
+            }
+            in_header = false
+        }
+        if in_header && read_key(String.from(trimmed.as_str())).as_str() == "description" {
+            out.append(row.as_str())
+            placed = true
+        } else {
+            out.append(line.as_str())
+        }
+        out.append("\n")
+        if in_header && !placed && read_key(String.from(trimmed.as_str())).as_str() == "name" {
+            out.append(row.as_str())
+            out.append("\n")
+            placed = true
+        }
+    }
     return out
 }

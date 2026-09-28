@@ -1,6 +1,7 @@
 // What a package release is, read from its manifest and its git checkout,
 // and every reason it cannot be published yet.
 
+import kf_tool.project.manifest_description
 import kf_tool.project.parse_manifest
 import kf_tool.project.parse_version
 import kf_shared.normalized_path
@@ -11,16 +12,19 @@ pub struct ReleaseFacts {
     pub val version: String
     pub val git: String
     pub val rev: String
+    /// kf.toml's `description`, or "".
+    pub val description: String
     pub val error: String
 }
 
 fun refused(message: String): ReleaseFacts {
-    return ReleaseFacts { name: "", version: "", git: "", rev: "", error: message }
+    return ReleaseFacts { name: "", version: "", git: "", rev: "", description: "", error: message }
 }
 
 /// The crate at `root`, released as the commit its `vX.Y.Z` tag names.
 pub fun release_facts(root: str): ReleaseFacts {
-    val manifest = parse_manifest(read_file("${root}/kf.toml".as_str()).as_str())
+    val manifest_text = read_file("${root}/kf.toml".as_str())
+    val manifest = parse_manifest(manifest_text.as_str())
     if manifest.error.byte_len() > 0 { return refused("invalid kf.toml: ${manifest.error}") }
     val name = manifest.name.clone()
     if manifest.kind.as_str() != "lib" {
@@ -52,7 +56,8 @@ pub fun release_facts(root: str): ReleaseFacts {
         return refused("cannot reach `origin` (${remote})")
     if !listed.as_str().contains(head.as_str()) { return refused("${tag} is not on `origin`: run ${push}") }
     return ReleaseFacts {
-        name: name, version: version, git: public_git_url(remote.as_str()), rev: head.clone(), error: ""
+        name: name, version: version, git: public_git_url(remote.as_str()), rev: head.clone(),
+        description: manifest_description(manifest_text.as_str()), error: ""
     }
 }
 

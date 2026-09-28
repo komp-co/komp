@@ -9,6 +9,8 @@ import std.fs.read_dir
 /// A package an index lists, with its versions in the order it lists them.
 pub struct IndexPackage {
     pub val name: String
+    /// "" when the index gives none.
+    pub val description: String
     pub val versions: List<IndexVersion>
 }
 
@@ -48,8 +50,7 @@ pub fun search_index(url: str, query: str, cache: str): IndexQuery {
     while name in &names {
         if !name.contains(query) { continue }
         val file = "${checkout.dir}/${index_file_path(name.as_str())}"
-        val versions = parse_index_file(read_file(file.as_str()).as_str())
-        packages.push(IndexPackage { name: name.clone(), versions: versions })
+        packages.push(package_from(name.as_str(), read_file(file.as_str()).as_str()))
     }
     return IndexQuery { packages: packages, error: "" }
 }
@@ -62,9 +63,14 @@ pub fun index_package(url: str, name: str, cache: str): IndexQuery {
     val file = "${checkout.dir}/${index_file_path(name)}"
     if !is_file(file.as_str()) { return query_failed("the index ${url} has no package `${name}`") }
     var packages = List.new<IndexPackage>()
-    val versions = parse_index_file(read_file(file.as_str()).as_str())
-    packages.push(IndexPackage { name: String.from(name), versions: versions })
+    packages.push(package_from(name, read_file(file.as_str()).as_str()))
     return IndexQuery { packages: packages, error: "" }
+}
+
+fun package_from(name: str, text: str): IndexPackage {
+    return IndexPackage {
+        name: String.from(name), description: index_file_description(text), versions: parse_index_file(text)
+    }
 }
 
 /// Every `<name>.toml` below `dir`, as `<name>`.

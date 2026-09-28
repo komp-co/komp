@@ -29,6 +29,17 @@ The name is derived from the directory's own name, the last component of the
 path you give: hyphens become underscores (`komp new work/my-project` →
 `my_project`), because the crate name becomes a C identifier.
 
+A library published to an index can say what it is in one line, which
+[`komp search`](../tools/cli.md#komp-search-and-komp-info) shows beside it:
+
+```toml
+[project]
+name = "json"
+version = "0.2.0"
+kind = "lib"
+description = "JSON reading and writing"
+```
+
 ### kind: library vs binary
 
 | `kind` | Entry point | Output |

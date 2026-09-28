@@ -1,0 +1,12 @@
+import core.assert.assert_eq
+
+@test
+fun a_project_describes_itself(): void {
+    val src = "[project]\nname = \"json\"\ndescription = \"JSON reading and writing\"\n"
+    assert_eq(manifest_description(src).as_str(), "JSON reading and writing", "as written")
+}
+
+@test
+fun a_description_in_another_section_is_not_the_crates(): void {
+    assert_eq(manifest_description("[lint]\ndescription = \"allow\"\n").as_str(), "", "not [project]")
+}

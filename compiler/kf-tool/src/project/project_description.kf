@@ -1,0 +1,17 @@
+// A crate's one-line summary: `description = "..."` in `[project]` or
+// `[package]`, which `komp publish` copies into the index.
+
+/// The description as written, or "" when the manifest gives none.
+pub fun manifest_description(src: str): String {
+    var in_project = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = item.as_str().trim()
+        if line.starts_with("[") {
+            in_project = line == "[project]" || line == "[package]"
+        } else if in_project && read_key(String.from(line.as_str())).as_str() == "description" {
+            return read_string_value(line)
+        }
+    }
+    return ""
+}
