@@ -213,7 +213,6 @@ fun mk_pair_decl(): TopDecl {
     unsafe { *slit_p = slit }
 
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("p"), null, slit_p)))
     val pa = ep(ExprKind.FieldAccess(ep(ExprKind.Variable(intern("p"))), intern("a")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(pa))))
@@ -267,7 +266,6 @@ fun mk_wrap_impl_tc(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, slit_p)))
     val getcall = ep(ExprKind.MethodCall(ep(ExprKind.Variable(intern("b"))), intern("get"), List.new<Expr>()))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(getcall))))
@@ -326,7 +324,6 @@ fun mk_two_impl_tc(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("t"), null, slit_p)))
     val call = ep(ExprKind.MethodCall(ep(ExprKind.Variable(intern("t"))), intern("second"), List.new<Expr>()))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(call))))
@@ -670,7 +667,6 @@ fun mk_show_trait(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("w"), null, slit_p)))
     val call = ep(ExprKind.MethodCall(ep(ExprKind.Variable(intern("w"))), intern("show"), List.new<Expr>()))
     body.push(new_stmt(no_span(), StmtKind.Expression(call)))

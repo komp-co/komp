@@ -215,7 +215,6 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     finits.push(new_field_init(no_span(), String.from("x"), x_init))
     finits.push(new_field_init(no_span(), String.from("y"), y_init))
     val lit = new_expr(no_span(), ExprKind.StructLit(intern("Point"), finits))
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     val let_p = new_stmt(no_span(), StmtKind.LetVal(intern("p"), null, expr_ptr(lit)))
 
     // return p.x - p.y

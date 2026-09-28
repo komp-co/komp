@@ -347,7 +347,7 @@ pub fun Module.compute_reached(): Reached {
 
     val defs = self.build_def_table()
     var visited = List.new<bool>()
-    while name in &defs.names {
+    while _ in &defs.names {
         visited.push(false)
     }
 

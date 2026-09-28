@@ -143,6 +143,7 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 // `List.new<T>()` is a MethodCall with type args on the side channel.
+@allow(deref_through_temporary)
 @test fun parse_new_list_generic_call(): void {
     var p = parser_for("fun f(): void { val xs = List.new<int32>() }")
     val m = p.parse_module(List.new<String>())
@@ -175,6 +176,7 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 // `unsafe { *p }` is a Deref.
+@allow(deref_through_temporary)
 @test fun parse_unsafe_deref_read(): void {
     var p = parser_for("fun f(): void { val x = unsafe { *p } }")
     val m = p.parse_module(List.new<String>())
@@ -201,6 +203,7 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 // `(*p).field` is a FieldAccess on a Deref.
+@allow(deref_through_temporary)
 @test fun parse_paren_deref_field(): void {
     var p = parser_for("fun f(): void { val x = (*p).field }")
     val m = p.parse_module(List.new<String>())
@@ -294,6 +297,7 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 // `alloc<Expr>()` folds to the callee `alloc__Expr`.
+@allow(deref_through_temporary)
 @test fun parse_alloc_generic_call(): void {
     var p = parser_for("fun f(): void { val q = unsafe { alloc<Expr>() } }")
     val m = p.parse_module(List.new<String>())

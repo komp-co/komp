@@ -113,34 +113,34 @@ pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr
             // `cmp(other: Self)` on `T: Compare` reads `cmp(other: T)`).
             var eff_table: Ptr<DeclTable>? = table
             if td.linkage.is_imported() { eff_table = Option.None }
-            var ctxT = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
-            ctxT.seed_generics(type_param_names(td.generics))
-            ctxT.generics.push(String.from("Self"))
+            var ctx_t = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+            ctx_t.seed_generics(type_param_names(td.generics))
+            ctx_t.generics.push(String.from("Self"))
             val assoc_names = assoc_type_names(&methods)
             var reqs = List.new<TraitMethodReq>()
             var assocs = List.new<TraitAssocReq>()
             while ti in 0..methods.size() {
                 val method_owner = methods.at_mut(ti)
                 val mm = unsafe { *method_owner }
-                ctxT.metadata_owner = method_owner
+                ctx_t.metadata_owner = method_owner
                 when (mm.kind) {
                     Function(params, ret_ptr, body, _p, _u, is_mut, is_static) => {
                         // The method's own `<T>` is in scope too.
                         val method_generics = type_param_names(mm.generics)
-                        ctxT.seed_generics(method_generics)
+                        ctx_t.seed_generics(method_generics)
                         var ptys = List.new<Type>()
                         while pp in &params {
                             val p_tr: TypeRef = unsafe { *pp.ty }
-                            val param_ty = (assoc_names_as_projections(p_tr, &assoc_names)).resolve_type_ref(&var ctxT)
-                            param_ty.validate_dyn_placement(p_tr.span, &var ctxT)
+                            val param_ty = (assoc_names_as_projections(p_tr, &assoc_names)).resolve_type_ref(&var ctx_t)
+                            param_ty.validate_dyn_placement(p_tr.span, &var ctx_t)
                             ptys.push(param_ty)
                         }
                         val r_tr: TypeRef = unsafe { *ret_ptr }
-                        val rty = (assoc_names_as_projections(r_tr, &assoc_names)).resolve_type_ref(&var ctxT)
-                        rty.validate_dyn_placement(r_tr.span, &var ctxT)
+                        val rty = (assoc_names_as_projections(r_tr, &assoc_names)).resolve_type_ref(&var ctx_t)
+                        rty.validate_dyn_placement(r_tr.span, &var ctx_t)
                         reqs.push(TraitMethodReq { name: mm.name.as_string(), span: mm.span, arity: params.size(), has_default: body.size() > 0, has_method_generics: mm.generics.size() > 0, is_static: is_static, params: ptys, ret: rty, is_mutating: is_mut })
-                        while method_generic in &method_generics {
-                            ctxT.generics.pop()
+                        while _ in &method_generics {
+                            ctx_t.generics.pop()
                         }
                     }
                     // An associated type, not a method.

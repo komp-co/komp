@@ -176,12 +176,12 @@ fun emit_lit_str(s: String): String {
 /// `\NNN`, always three digits so the next byte cannot join the escape.
 fun c_octal_escape(b: uint8): String {
     var out = String.from("\\")
-    val hi: uint8 = (b / 64) as uint8
-    val mid: uint8 = ((b / 8) % 8) as uint8
-    val lo: uint8 = (b % 8) as uint8
-    out.push_byte((48 + hi) as uint8)
-    out.push_byte((48 + mid) as uint8)
-    out.push_byte((48 + lo) as uint8)
+    val hi: uint8 = b / 64
+    val mid: uint8 = (b / 8) % 8
+    val lo: uint8 = b % 8
+    out.push_byte(48 + hi)
+    out.push_byte(48 + mid)
+    out.push_byte(48 + lo)
     return out
 }
 

@@ -56,6 +56,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     }
 }
 
+@allow(deref_through_temporary)
 @test fun rc_insert_take_call_skips_retain(): void {
     // val y = take(x): no Retain; take is fresh.
     var ctx = rc_ctx_for_test("main")
@@ -233,6 +234,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     assert_eq(true, true, "switch with no binders survives")
 }
 
+@allow(deref_through_temporary)
 @test fun rc_insert_bare_var_move_skips_retain(): void {
     // val x = y  (y: String) -> a move: no Retain.
     var ctx = rc_ctx_for_test("main")
@@ -272,6 +274,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     }
 }
 
+@allow(deref_through_temporary)
 @test fun rc_insert_field_read_is_borrow(): void {
     // val x = obj.field -> a borrow: no Retain.
     var ctx = rc_ctx_for_test("main")
@@ -296,6 +299,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     }
 }
 
+@allow(deref_through_temporary)
 @test fun rc_insert_deref_read_is_borrow(): void {
     // val v = *p -> a borrow: no Retain and no Release(v).
     var ctx = rc_ctx_for_test("main")

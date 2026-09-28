@@ -163,7 +163,6 @@ impl Parser {
                 break
             }
             val arg_ptr = self.parse_type_ref_ptr()
-            val type_arg = unsafe { *arg_ptr }
             val tr = unsafe { *arg_ptr }
             unsafe { dealloc<TypeRef>(arg_ptr) }
             val is_poison: bool = tyref_is_poison(tr)

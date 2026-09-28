@@ -121,17 +121,17 @@ fun qualified_dyn_method_message(): String {
 
 @test fun dyn_method_rejects_wrong_substituted_argument(): void {
     val outcome = run_dyn_method("send", false, 2, false)
-    assert_eq(outcome.dynamic == false && outcome.diagnostics == 1, true, "Dispatch<int32>.send rejects bool")
+    assert_eq(!outcome.dynamic && outcome.diagnostics == 1, true, "Dispatch<int32>.send rejects bool")
 }
 
 @test fun dyn_method_rejects_method_from_another_trait(): void {
     val outcome = run_dyn_method("hidden", false, 0, true)
-    assert_eq(outcome.dynamic == false && outcome.diagnostics == 1, true, "only the principal trait contributes methods")
+    assert_eq(!outcome.dynamic && outcome.diagnostics == 1, true, "only the principal trait contributes methods")
 }
 
 @test fun dyn_method_rejects_unknown_principal_method(): void {
     val outcome = run_dyn_method("missing", false, 0, false)
-    assert_eq(outcome.dynamic == false && outcome.diagnostics == 1, true, "unknown principal methods are diagnosed")
+    assert_eq(!outcome.dynamic && outcome.diagnostics == 1, true, "unknown principal methods are diagnosed")
 }
 
 @test fun dyn_method_slot_zero_follows_declaration_order(): void {
@@ -151,7 +151,7 @@ fun qualified_dyn_method_message(): String {
 
 @test fun dyn_method_rejects_mutation_through_shared_object(): void {
     val outcome = run_dyn_method("reset", false, 0, false)
-    assert_eq(outcome.dynamic == false && outcome.diagnostics == 1, true, "a shared trait object cannot call a mutating method")
+    assert_eq(!outcome.dynamic && outcome.diagnostics == 1, true, "a shared trait object cannot call a mutating method")
 }
 
 @test fun dyn_method_accepts_mutation_through_mutable_object(): void {

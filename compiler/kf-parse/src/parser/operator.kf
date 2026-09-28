@@ -114,7 +114,6 @@ pub fun Token.tok_is_newline(): bool {
         Eof => false
         LexError(_) => false
     }
-    return false
 }
 
 impl Parser {

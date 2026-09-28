@@ -171,7 +171,6 @@ fun mk_wrap_decl(): TopDecl {
 
 @test fun mono_unannotated_let_does_not_deref_null_annotation(): void {
     val init = mep(ExprKind.LitInt(1))
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("value"), null, init)))
     val main_td = new_top_decl(no_span(), String.from("main"), TopDeclKind.Function(List.new<Param>(), mtr_p("int32"), body, true, false, false, false))
@@ -192,7 +191,6 @@ fun mk_wrap_decl(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, slit_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))
@@ -271,7 +269,6 @@ fun mk_show_impl_mono(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, slit_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))
@@ -299,7 +296,6 @@ fun mk_show_impl_mono(): TopDecl {
     val call_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *call_p = call }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, call_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))

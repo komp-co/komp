@@ -1,0 +1,4 @@
+# The longest parameter list this crate already has; lower it as those
+# functions are refactored.
+[lints]
+too_many_parameters = { max = 17 }

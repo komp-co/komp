@@ -43,7 +43,7 @@ pub fun parse_interface_mapped(src: str, smap: Ptr<SourceMap>): InterfaceLoad {
     if version != interface_format_version() {
         val expected = "${interface_format_version()}"
         val actual = "${version}"
-        var message = "unsupported interface version (expected ${expected.as_str()}, got ${actual.as_str()})"
+        val message = "unsupported interface version (expected ${expected.as_str()}, got ${actual.as_str()})"
         return InterfaceLoad { ok: false, error: message, crate_name: "", glue: List.new<OwnershipGlue>(), dyn_traits: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), modules: List.new<Module>() }
     }
     if !reader.expect_key("crate") { return load_error("interface names no crate") }

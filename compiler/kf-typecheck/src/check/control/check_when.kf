@@ -140,8 +140,8 @@ fun check_if_expr_value(then_ptr: Ptr<Expr>, else_ptr: Ptr<Expr>, ctx: &var Type
         emit_if_arm_mismatch(then_ty.clone(), unsafe { else_ptr.ty }, unsafe { else_ptr.span }, ctx)
         return then_ty
     }
-    val a = expect_or_reject(unsafe { &var *then_ptr }, joined.clone(), ctx)
-    val b = expect_or_reject(unsafe { &var *else_ptr }, joined.clone(), ctx)
+    val _a = expect_or_reject(unsafe { &var *then_ptr }, joined.clone(), ctx)
+    val _b = expect_or_reject(unsafe { &var *else_ptr }, joined.clone(), ctx)
     return joined
 }
 

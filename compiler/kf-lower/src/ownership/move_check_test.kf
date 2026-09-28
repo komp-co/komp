@@ -71,6 +71,7 @@ fun fresh_ctx(dp: Ptr<List<Diagnostic>>): MoveCtx {
     assert_eq(result.size() == 0, true, "int locals don't trigger move diagnostics")
 }
 
+@allow(deref_through_temporary)
 @test fun move_after_move_clones_prior_consume(): void {
     // val y = x; val z = x: the first consume is auto-cloned and no
     // diagnostic is pushed.
@@ -108,6 +109,7 @@ fun fresh_ctx(dp: Ptr<List<Diagnostic>>): MoveCtx {
     assert_eq(ctx.contains_owned(intern("x")), true, "`x` still owns its own value")
 }
 
+@allow(deref_through_temporary)
 @test fun two_consumes_in_separate_statements_move_once(): void {
     // In different statements they are ordered: only the first copies.
     val dp = fresh_diag_ptr()

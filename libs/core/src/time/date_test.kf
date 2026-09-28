@@ -17,7 +17,6 @@ fun padded_as(value: int64, width: uint64, expected: str): bool {
 
 @test fun civil_and_days_are_inverses(): void {
     // Across a leap day, a century, and a pre-epoch date.
-    val samples = 0
     assert_eq(renders_as(&(civil_from_days(days_from_civil(2024, 2, 29))), "2024-02-29"), true, "leap day")
     assert_eq(renders_as(&(civil_from_days(days_from_civil(1900, 3, 1))), "1900-03-01"), true, "non-leap century")
     assert_eq(renders_as(&(civil_from_days(days_from_civil(2000, 2, 29))), "2000-02-29"), true, "leap century")

@@ -27,6 +27,6 @@ import core.text.*
     assert_eq(owned.char_at(1) == 'é', true, "char_at")
     assert_eq(owned.byte_len(), 6, "bytes disagree, which is the point")
     var n = 0
-    while c in owned.chars() { n = n + 1 }
+    while _ in owned.chars() { n = n + 1 }
     assert_eq(n, 5, "chars")
 }

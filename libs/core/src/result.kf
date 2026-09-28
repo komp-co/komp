@@ -15,7 +15,6 @@ impl Result<T, E> {
             Ok => true
             Err(_e) => false
         }
-        return false
     }
 
     pub fun is_err(): bool {
@@ -23,7 +22,6 @@ impl Result<T, E> {
             Ok => false
             Err(_e) => true
         }
-        return true
     }
 
     /// The success payload, or a controlled abort on an `Err`, whose message

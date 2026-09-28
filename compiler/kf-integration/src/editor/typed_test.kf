@@ -27,7 +27,7 @@ fun typed_fixture_path(): str {
 /// `fun add(a: int32, b: int32): int32 { return a + b }`, then a main binding
 /// its result.
 fun typed_fixture_source(): String {
-    var src = """fun add(a: int32, b: int32): int32 {
+    val src = """fun add(a: int32, b: int32): int32 {
     return a + b
 }
 

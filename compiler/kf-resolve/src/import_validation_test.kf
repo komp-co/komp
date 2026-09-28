@@ -165,7 +165,7 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
 @test fun per_module_map_records_caller_and_target(): void {
     var decls = List.new<TopDecl>()
     // mod_a has two decls, one with file_id=42 (the caller).
-    var d = make_decl_in_file("foo", "mod_a", 42)
+    val d = make_decl_in_file("foo", "mod_a", 42)
     decls.push(d)
     decls.push(make_decl("other", "mod_a"))
     // mod_b.sub has one decl (the import target).
@@ -189,7 +189,7 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     // Recorded with a poison target, keeping the lists index-aligned
     // with `m.imports`.
     var decls = List.new<TopDecl>()
-    var d = make_decl_in_file("foo", "mod_a", 1)
+    val d = make_decl_in_file("foo", "mod_a", 1)
     decls.push(d)
 
     var imports = List.new<Import>()
@@ -222,11 +222,11 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     // Two files in one module, one import. Only the file that wrote it is
     // recorded, which is what lets the checker refuse a sibling.
     var decls = List.new<TopDecl>()
-    var d1 = make_decl_in_file("foo", "mod_a", 1)
+    val d1 = make_decl_in_file("foo", "mod_a", 1)
     decls.push(d1)
-    var d2 = make_decl_in_file("bar", "mod_a", 2)
+    val d2 = make_decl_in_file("bar", "mod_a", 2)
     decls.push(d2)
-    var d3 = make_decl_in_file("target", "mod_b", 3)
+    val d3 = make_decl_in_file("target", "mod_b", 3)
     decls.push(d3)
 
     var imports = List.new<Import>()

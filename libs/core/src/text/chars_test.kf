@@ -15,7 +15,7 @@ import core.text.*
 
 @test fun chars_walks_every_character_once(): void {
     var seen = 0
-    while c in "héllo".chars() { seen = seen + 1 }
+    while _ in "héllo".chars() { seen = seen + 1 }
     assert_eq(seen, 5, "one step per character, not per byte")
 }
 

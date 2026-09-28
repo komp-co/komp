@@ -99,7 +99,7 @@ fun a_free_helper_in_this_crate_is_callable(): void {
     var xs = List.new<int32>()
     xs.push(10)
     xs.push(20)
-    var k: uint64 = 1
+    val k: uint64 = 1
     assert_eq(xs[k], 20, "a variable index")
     var ix = List.new<uint64>()
     ix.push(0)

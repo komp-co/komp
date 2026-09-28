@@ -622,7 +622,7 @@ fun build_unexpected_byte_msg(b: uint8): String {
     if b >= 33 {
         if b <= 126 {
             val buf: Ptr<uint8> = unsafe { alloc_array<uint8>(2) }
-            unsafe { *(buf + 0) = b }
+            unsafe { *buf = b }
             unsafe { *(buf + 1) = 0 as uint8 }
             val cmsg = "unexpected character `${unsafe { buf as str }}`"
             return cmsg

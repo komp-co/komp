@@ -199,7 +199,7 @@ fun Type.mc_is_move_only(names: &List<String>): bool {
         Struct(n) => {
             val name = type_identity_display(n)
             while item in &names {
-                if item.as_str().equals(type_identity_display(n).as_str()) { return true }
+                if item.as_str().equals(name.as_str()) { return true }
             }
             return false
         }

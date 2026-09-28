@@ -103,7 +103,7 @@ fun reuse_rejected_without_metadata(): void {
     val prep = unsafe { system("rm -rf ${scratch_path("kf_sc7_fp_meta")} && mkdir -p ${scratch_path("kf_sc7_fp_meta")}") }
     val expected = empty_artifact_manifest()
     val decision = decide_crate_reuse(scratch_path("kf_sc7_fp_meta"), &expected)
-    assert_eq(prep == 0 && decision.reuse == false, true, "no recorded metadata means rebuild")
+    assert_eq(prep == 0 && !decision.reuse, true, "no recorded metadata means rebuild")
 }
 
 @test
