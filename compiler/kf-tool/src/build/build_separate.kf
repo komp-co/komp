@@ -11,6 +11,7 @@ import kf_shared.crate_artifact_manifest_path
 import kf_shared.crate_archive_path
 import kf_shared.binary_path
 import kf_shared.ensure_dir
+import kf_shared.publish_text
 import std.fs.exists
 
 /// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.
@@ -54,12 +55,16 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
     var built_hashes = List.new<String>()
     var archives = List.new<String>()
     var root_object = ""
+    // What the binary is linked from: each crate's implementation, so a crate
+    // rebuilt by another root's build still relinks this one.
+    var link_inputs = String.from(profile.as_str())
     while i in 0..graph.crates.size() {
         val bc = *graph.crates.at(i)
         val is_root = i + 1 == graph.crates.size()
         val is_bin_root = is_root && bc.is_bin
         val expected = bc.expected_artifact_manifest(profile.as_str(), &built_names, &built_hashes, is_bin_root, &compiler)
         val decision = decide_crate_reuse(tdir.as_str(), &expected)
+        link_inputs.append(" ${bc.name}=${expected.implementation_hash}".as_str())
         if decision.reuse {
             build_note(verbose, "reusing", bc.name.as_str(), decision.reason.as_str())
             built_names.push(String.from(bc.name.as_str()))
@@ -93,11 +98,12 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
     }
     val root_name = graph.crates.at(graph.crates.size() - 1).name
     val bin = binary_path(tdir.as_str(), root_name.as_str())
-    if !relink {
-        if exists(bin.as_str()) {
-            build_note(verbose, "up to date", root_name.as_str(), "nothing rebuilt")
-            return 0
-        }
+    val link_key = content_hash(link_inputs.as_str())
+    val linked_from = "${bin}.linked"
+    val same_inputs = exists(linked_from.as_str()) && read_file(linked_from.as_str()).as_str() == link_key.as_str()
+    if !relink && same_inputs && exists(bin.as_str()) {
+        build_note(verbose, "up to date", root_name.as_str(), "nothing rebuilt")
+        return 0
     }
     // Dependents before dependencies: the root object, then the archives in
     // reverse dependency order.
@@ -113,6 +119,7 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
         r = r - 1
     }
     if !link_binary(bin.as_str(), &objects, &reversed, extra_cflags) { return 1 }
+    val _recorded = publish_text(linked_from.as_str(), link_key.as_str())
     return 0
 }
 

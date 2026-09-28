@@ -207,3 +207,32 @@ fun target_mismatch_rejects_reuse(): void {
     val dep_rebuilt = regenerated(inc_artifact("inc_dep.o").as_str())
     assert_eq(prep == 0 && first == 0 && marker == 0 && tamper == 0 && second == 0 && dep_rebuilt, true, "a target mismatch is never reused")
 }
+
+/// A workspace whose members `app` and `other` both depend on `dep`, sharing
+/// one target.
+fun prepare_shared_dependency_workspace(): String {
+    val ws = scratch_path("kf_sc7_inc_ws")
+    val _made = unsafe { system("rm -rf ${ws} && mkdir -p ${ws}/dep/src ${ws}/app/src ${ws}/other/src".as_str()) }
+    write_file("${ws}/kf.toml".as_str(), "[workspace]\nmembers = [\"dep\", \"app\", \"other\"]\n")
+    write_file("${ws}/dep/kf.toml".as_str(), "[project]\nname = \"ws_dep\"\nkind = \"lib\"\n")
+    write_file("${ws}/dep/src/lib.kf".as_str(), incremental_dep_source(40).as_str())
+    val main = "import ws_dep.*\n\nfun main(): int32 {\n    if magic() == 40 { return 0 }\n    return 1\n}\n"
+    while member in &["app", "other"] {
+        val manifest = "[project]\nname = \"ws_${member}\"\nkind = \"bin\"\n\n" +
+            "[dependencies]\nws_dep = { path = \"../dep\" }\n"
+        write_file("${ws}/${member}/kf.toml".as_str(), manifest.as_str())
+        write_file("${ws}/${member}/src/main.kf".as_str(), main.as_str())
+    }
+    return String.from(ws)
+}
+
+@test
+fun a_member_relinks_after_a_sibling_rebuilt_their_shared_dependency(): void {
+    val ws = prepare_shared_dependency_workspace()
+    val first = build_project_separate("${ws}/app".as_str(), "")
+    write_file("${ws}/dep/src/lib.kf".as_str(), incremental_dep_source(39).as_str())
+    val sibling = build_project_separate("${ws}/other".as_str(), "")
+    val second = build_project_separate("${ws}/app".as_str(), "")
+    val ran = unsafe { system("${ws}/target/kflat/ws_app".as_str()) }
+    assert_eq(first == 0 && sibling == 0 && second == 0 && ran != 0, true, "app runs the changed dependency")
+}
