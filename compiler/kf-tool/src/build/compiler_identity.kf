@@ -4,6 +4,7 @@
 import alloc.list.*
 import kf_tool.project.Version
 import kf_tool.project.parse_version
+import kf_tool.project.render
 import std.fs.TempDir
 import std.process.*
 
