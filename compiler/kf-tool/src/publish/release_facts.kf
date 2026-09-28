@@ -27,9 +27,6 @@ pub fun release_facts(root: str): ReleaseFacts {
     val manifest = parse_manifest(manifest_text.as_str())
     if manifest.error.byte_len() > 0 { return refused("invalid kf.toml: ${manifest.error}") }
     val name = manifest.name.clone()
-    if manifest.kind.as_str() != "lib" {
-        return refused("`${name}` is a bin crate; only a lib can be depended on")
-    }
     if !is_package_name(name.as_str()) {
         return refused("`${name}` is not a package name: lowercase letters, digits and `_`, starting with a letter")
     }

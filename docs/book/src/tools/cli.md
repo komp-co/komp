@@ -28,7 +28,7 @@ points, and then compiles and links the C with cc.
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
-| `komp publish <dir>` | Add a library's version to a package index by pull request |
+| `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
 | `komp version` | Print compiler version |
@@ -111,9 +111,10 @@ inside the crate, runs them, and reports failures. See
 
 ### komp publish
 
-`komp publish <project-dir>` adds a library's version to a package index,
+`komp publish <project-dir>` adds a package's version to a package index,
 [komp-co/index](https://github.com/komp-co/index) unless `--index <url>` or
-`$KFLAT_INDEX` names another:
+`$KFLAT_INDEX` names another. The package is a library that `[dependencies]`
+can name, or a program that [`komp install`](#komp-install) installs:
 
 ```console
 $ git tag v0.2.0 && git push origin v0.2.0
@@ -126,10 +127,10 @@ opened   https://github.com/komp-co/index/pull/12
 The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
 `kf.toml`'s `description`, when it has one, becomes the package's description
 in the index, replacing the one an earlier version gave.
-komp refuses, and says what to do, when the crate is a `bin`, its name is not
-lowercase `snake_case`, the working tree has uncommitted changes, the tag is
-missing, names another commit or is not pushed, the crate does not pass
-`komp check`, or the index already has that version.
+komp refuses, and says what to do, when its name is not lowercase
+`snake_case`, the working tree has uncommitted changes, the tag is missing,
+names another commit or is not pushed, the crate does not pass `komp check`,
+or the index already has that version.
 
 The entry is committed on a branch `publish/<name>-<version>` in a clone
 under komp's cache. Opening the pull request uses the
