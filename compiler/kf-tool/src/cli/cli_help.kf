@@ -19,7 +19,7 @@ pub fun command_usage(command: str): str {
         "search" => "komp search [<query>] [--index <url>]"
         "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
         "info" => "komp info <name> [--index <url>]"
-        "self" => "komp self update [<version>]"
+        "self" => "komp self update [<version>] | list | uninstall <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
         "init" => "komp init"
@@ -119,7 +119,11 @@ release archive, checked against the sha256 published beside it. It goes in
 ~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
 points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
 
-  <version>   that release, such as 0.5.1, instead of the newest"""
+  <version>   that release, such as 0.5.1, instead of the newest
+
+  list                 every installed toolchain, the default and the running
+                       one marked
+  uninstall <version>  remove that toolchain; not the default or the running one"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.

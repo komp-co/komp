@@ -14,6 +14,9 @@ import kf_tool.project.parse_version
 import std.fs.exists
 import std.fs.is_file
 import std.fs.read_dir
+import std.process.Command
+import alloc.path.Path
+import kf_tool.fetch.remove_tree
 import kf_tool.project.render
 
 /// The kflatc to run, "" for komp's own, or `error` saying why none fits.
@@ -95,4 +98,34 @@ fun missing_toolchain(pin: str, own_version: str, installed: &List<Version>): St
     }
     if found.byte_len() > 0 { found.append(")") }
     return "error: kf.toml pins kflat ${pin}: this komp is ${own_version} and no installed toolchain fits${found}"
+}
+
+/// The toolchain `<home>/bin/komp` runs, by version; "" when it points at
+/// none of them.
+pub fun default_toolchain(home: str): String {
+    val out = "${home}/bin/komp.target"
+    var read = Command.new("readlink")
+    read.arg("${home}/bin/komp".as_str())
+    read.stdout_to(Path.new(out.as_str()))
+    val ok = read.status().success()
+    val target = if ok { read_file(out.as_str()).as_str().trim() } else { String.from("") }
+    remove_tree(out.as_str())
+    val marker = "/toolchains/"
+    val at = target.index_of(marker) ?: return ""
+    val rest = target.substring(at + marker.byte_len(), target.byte_len())
+    val slash = rest.index_of("/") ?: return ""
+    return rest.substring(0, slash)
+}
+
+/// Removes toolchain `version`, but not the default nor the one `running`;
+/// "" once removed, else why not.
+pub fun remove_toolchain(home: str, version: str, running: str): String {
+    if parse_version(version) == null { return "`${version}` is not a version" }
+    if !is_file(toolchain_kflatc(home, version).as_str()) { return "kflat ${version} is not installed" }
+    if version == running { return "kflat ${version} is the komp running now" }
+    if default_toolchain(home).as_str() == version {
+        return "kflat ${version} is the default; `komp self update` to another one first"
+    }
+    remove_tree("${home}/toolchains/${version}".as_str())
+    return ""
 }

@@ -26,6 +26,7 @@ points, and then compiles and links the C with cc.
 | `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
+| `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -355,6 +356,24 @@ installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
 $ komp self update
 komp 0.5.1 is the newest release
 ```
+
+`komp self list` shows every installed toolchain, marking the default, the
+one `~/.kflat/bin/komp` runs, and the komp running the command; `komp self
+uninstall <version>` removes one, but neither of those two:
+
+```console
+$ komp self list
+0.5.2  /home/me/.kflat/toolchains/0.5.2
+0.5.3  running  /home/me/.kflat/toolchains/0.5.3
+0.5.4  default  /home/me/.kflat/toolchains/0.5.4
+$ komp self uninstall 0.5.4
+error: kflat 0.5.4 is the default; `komp self update` to another one first
+$ komp self uninstall 0.5.2
+uninstalled kflat 0.5.2
+```
+
+A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
+needs a removed toolchain installs it again the next time it builds.
 
 It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
 place to take releases from, laid out as GitHub lays them out.

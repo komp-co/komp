@@ -6,7 +6,6 @@
 import alloc.list.*
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
-import kf_tool.install.self_update
 import kf_tool.install.install_package
 import kf_tool.install.pinned_tool
 import kf_tool.install.project_tool_pin
@@ -208,23 +207,4 @@ fun on_path(dir: str): bool {
         }
     }
     return false
-}
-
-/// `komp self update [<version>]`.
-pub fun self_command(nargs: int32): int32 {
-    if nargs < 2 || nargs > 3 || cli_arg_get(1) != "update" { return usage_error("self") }
-    val version = if nargs == 3 { cli_arg_get(2) } else { "" }
-    if starts_with_dash(version) { return usage_error("self") }
-    val home = install_home()
-    val done = self_update(version, kflat_version(), home.as_str(), cache_root().as_str())
-    if done.error.byte_len() > 0 {
-        runtime_println("error: ${done.error}")
-        return 1
-    }
-    if !done.installed {
-        runtime_println("komp ${done.version} is the newest release")
-        return 0
-    }
-    runtime_println("installed komp ${done.version}; ${installed_bin_dir(home.as_str())}/komp now runs it")
-    return 0
 }

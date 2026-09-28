@@ -1,0 +1,73 @@
+// `komp self update [<version>]`, `komp self list` and `komp self uninstall
+// <version>`: the kflat releases installed under `~/.kflat/toolchains`.
+
+import kf_shared.cli_arg_get
+import kf_shared.kflat_version
+import kf_tool.fetch.cache_root
+import kf_tool.install.default_toolchain
+import kf_tool.install.install_home
+import kf_tool.install.installed_bin_dir
+import kf_tool.install.installed_toolchains
+import kf_tool.install.remove_toolchain
+import kf_tool.install.self_update
+import kf_tool.project.render
+
+pub fun self_command(nargs: int32): int32 {
+    if nargs < 2 { return usage_error("self") }
+    val home = install_home()
+    when cli_arg_get(1) {
+        "update" => {
+            if nargs > 3 { return usage_error("self") }
+            val version = if nargs == 3 { cli_arg_get(2) } else { "" }
+            if starts_with_dash(version) { return usage_error("self") }
+            return update_self(home.as_str(), version)
+        }
+        "list" => {
+            if nargs != 2 { return usage_error("self") }
+            return list_toolchains(home.as_str())
+        }
+        "uninstall" => {
+            if nargs != 3 || starts_with_dash(cli_arg_get(2)) { return usage_error("self") }
+            val error = remove_toolchain(home.as_str(), cli_arg_get(2), kflat_version())
+            if error.byte_len() > 0 {
+                runtime_println("error: ${error}")
+                return 1
+            }
+            runtime_println("uninstalled kflat ${cli_arg_get(2)}")
+            return 0
+        }
+        _ => return usage_error("self")
+    }
+}
+
+fun update_self(home: str, version: str): int32 {
+    val done = self_update(version, kflat_version(), home, cache_root().as_str())
+    if done.error.byte_len() > 0 {
+        runtime_println("error: ${done.error}")
+        return 1
+    }
+    if !done.installed {
+        runtime_println("komp ${done.version} is the newest release")
+        return 0
+    }
+    runtime_println("installed komp ${done.version}; ${installed_bin_dir(home)}/komp now runs it")
+    return 0
+}
+
+/// Each installed toolchain, the default and the running one marked.
+fun list_toolchains(home: str): int32 {
+    val versions = installed_toolchains(home)
+    if versions.is_empty() {
+        runtime_println("no toolchain is installed in ${home}/toolchains; this komp is ${kflat_version()}")
+        return 0
+    }
+    val chosen = default_toolchain(home)
+    while version in &versions {
+        val shown = version.render()
+        var notes = ""
+        if shown.as_str() == chosen.as_str() { notes.append("  default") }
+        if shown.as_str() == kflat_version() { notes.append("  running") }
+        runtime_println("${shown}${notes}  ${home}/toolchains/${shown}")
+    }
+    return 0
+}
