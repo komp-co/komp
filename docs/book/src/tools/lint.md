@@ -65,7 +65,7 @@ suspicious
   self_comparison          warn                  a variable compared with itself
   double_negation          warn                  `!` applied to a `!`, as in `!(!x)`
   unused_result            warn                  a `Result` an expression statement drops, error and all
-  float_equality           warn                  `==` or `!=` between floats other than zero
+  float_equality           warn                  `==` or `!=` between floats other than zero, outside tests
 
 style
   unused_import            warn                  an import whose module contributes no name this file writes

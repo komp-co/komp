@@ -10,6 +10,9 @@ pub struct TypedWalk {
     pub var found: List<Diagnostic>
     /// The types that derive `Copy`, by name.
     pub val copy_types: List<String>
+    /// Whether the function being walked is a test, whose exact float
+    /// comparisons are the expected values it states.
+    pub var in_test: bool
 }
 
 fun List<Stmt>.visit_typed(walk: &var TypedWalk): void {
@@ -68,8 +71,10 @@ fun visit_typed_arms(arms: &List<Arm>, walk: &var TypedWalk): void {
 fun Expr.visit_typed(walk: &var TypedWalk): void {
     when (self.kind) {
         Binary(left, op, right) => {
-            check_float_equality(self.span, &op, left.ty.is_float() || right.ty.is_float(),
-                left.is_float_zero() || right.is_float_zero(), walk)
+            if !walk.in_test {
+                check_float_equality(self.span, &op, left.ty.is_float() || right.ty.is_float(),
+                    left.is_float_zero() || right.is_float_zero(), walk)
+            }
             left.visit_typed(walk)
             right.visit_typed(walk)
         }
@@ -99,7 +104,9 @@ fun Expr.visit_typed(walk: &var TypedWalk): void {
             while init in &inits { init.value.visit_typed(walk) }
         }
         Cast(inner, _ty) => {
-            check_redundant_cast(self.span, &inner.ty, &self.ty, walk)
+            // `self as T` in a primitive's own impl reads the value behind
+            // `self`, which the checker has already typed as `T`.
+            if !inner.is_self() { check_redundant_cast(self.span, &inner.ty, &self.ty, walk) }
             inner.visit_typed(walk)
         }
         Lambda(_params, body) => body.visit_typed(walk)
@@ -137,5 +144,12 @@ fun Type.named(): String {
         Struct(name) => name.as_string()
         EnumTy(name) => name.as_string()
         _ => String.from("")
+    }
+}
+
+fun Expr.is_self(): bool {
+    return when (self.kind) {
+        Variable(name) => name.as_str() == "self"
+        _ => false
     }
 }

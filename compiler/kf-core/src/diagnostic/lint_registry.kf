@@ -130,7 +130,7 @@ pub fun lint_registry(): List<LintInfo> {
     out.push(lint_info("unused_result", "suspicious", LintLevel.Warn,
         "a `Result` an expression statement drops, error and all"))
     out.push(lint_info("float_equality", "suspicious", LintLevel.Warn,
-        "`==` or `!=` between floats other than zero"))
+        "`==` or `!=` between floats other than zero, outside tests"))
     out.push(lint_info("needless_var", "style", LintLevel.Warn,
         "a `var` that is read and never changed"))
     out.push(lint_info("len_zero", "style", LintLevel.Allow,

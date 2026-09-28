@@ -94,3 +94,10 @@ fun comparing_a_float_with_zero_is_not(): void {
     val src = "fun main(): int32 {\n    val a: float64 = 0.5\n    return if a == 0.0 { 1 } else { 0 }\n}\n"
     assert_eq(typed_codes("typed_float_zero", src).as_str(), "", "zero is exact")
 }
+
+@test
+fun a_test_may_compare_floats_exactly(): void {
+    val check = "@test\nfun halves(): void {\n    val a: float64 = 0.5\n    val _same = a == 0.5\n}\n\n"
+    val src = "${check}fun main(): int32 {\n    return 0\n}\n"
+    assert_eq(typed_codes("typed_float_test", src.as_str()).as_str(), "", "the expected value is exact")
+}
