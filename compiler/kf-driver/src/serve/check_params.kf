@@ -12,6 +12,8 @@ pub struct CheckParams {
     pub val loads: List<String>
     /// `name=level` rows.
     pub val lints: List<String>
+    /// `name.key=value` rows.
+    pub val lint_options: List<String>
 }
 
 /// `null` when a field is missing or has the wrong type. Fields a
@@ -24,6 +26,7 @@ pub fun read_check_params(line: str): CheckParams? {
     var root = String.from("")
     var loads = List.new<String>()
     var lints = List.new<String>()
+    var lint_options = List.new<String>()
     while reader.object_has_next() {
         val key = reader.read_key()
         when key.as_str() {
@@ -36,7 +39,8 @@ pub fun read_check_params(line: str): CheckParams? {
                         "name" => name = reader.read_string()
                         "root" => root = reader.read_string()
                         "loads" => loads = read_strings(&var reader)
-                        "lints" => lints = read_strings(&var reader)
+                        "lints" => lints = read_lint_rows(&var reader)
+                        "lint_options" => lint_options = read_option_rows(&var reader)
                         _ => reader.skip_value()
                     }
                 }
@@ -45,7 +49,9 @@ pub fun read_check_params(line: str): CheckParams? {
         }
     }
     if reader.has_error() || target_dir.is_empty() || name.is_empty() || root.is_empty() { return null }
-    return Option.Some(CheckParams { target_dir: target_dir, name: name, root: root, loads: loads, lints: lints })
+    return Option.Some(CheckParams {
+        target_dir: target_dir, name: name, root: root, loads: loads, lints: lints, lint_options: lint_options
+    })
 }
 
 fun read_strings(reader: &var JsonReader): List<String> {
@@ -53,4 +59,57 @@ fun read_strings(reader: &var JsonReader): List<String> {
     if !reader.begin_array() { return out }
     while reader.array_has_next() { out.push(reader.read_string()) }
     return out
+}
+
+/// Each entry a `name=level` string or a `{"name", "level"}` object.
+fun read_lint_rows(reader: &var JsonReader): List<String> {
+    var out = List.new<String>()
+    if !reader.begin_array() { return out }
+    while reader.array_has_next() {
+        if reader.peek_kind() != JsonKind.Object {
+            out.push(reader.read_string())
+            continue
+        }
+        var name = String.from("")
+        var level = String.from("")
+        val _opened = reader.begin_object()
+        while reader.object_has_next() {
+            val field = reader.read_key()
+            when field.as_str() {
+                "name" => name = reader.read_string()
+                "level" => level = reader.read_string()
+                _ => reader.skip_value()
+            }
+        }
+        out.push("${name}=${level}")
+    }
+    return out
+}
+
+/// Each entry a `{"name", "key", "value"}` object; the value a string or a number.
+fun read_option_rows(reader: &var JsonReader): List<String> {
+    var out = List.new<String>()
+    if !reader.begin_array() { return out }
+    while reader.array_has_next() {
+        var name = String.from("")
+        var key = String.from("")
+        var value = String.from("")
+        if !reader.begin_object() { return out }
+        while reader.object_has_next() {
+            val field = reader.read_key()
+            when field.as_str() {
+                "name" => name = reader.read_string()
+                "key" => key = reader.read_string()
+                "value" => value = read_option_value(reader)
+                _ => reader.skip_value()
+            }
+        }
+        out.push("${name}.${key}=${value}")
+    }
+    return out
+}
+
+fun read_option_value(reader: &var JsonReader): String {
+    if reader.peek_kind() == JsonKind.Number { return "${reader.read_int64()}" }
+    return reader.read_string()
 }

@@ -141,7 +141,23 @@ fun BuildCrate.write_metadata(writer: &var JsonWriter, members: &List<String>, p
         writer.end_object()
     }
     writer.end_array()
+    writer.key("lint_options")
+    writer.begin_array()
+    while row in &file.options { writer.write_lint_option(row.as_str()) }
+    writer.end_array()
     writer.end_object()
+}
+
+/// A lint.toml option, `name.key=value`, as `{"name": ..., "key": ..., "value": ...}`;
+/// the value stays the text lint.toml gives, for the compiler to check.
+mutating fun JsonWriter.write_lint_option(row: str): void {
+    val dot = row.index_of(".") ?: return
+    val eq = row.index_of("=") ?: return
+    self.begin_object()
+    self.field_string("name", row.substring(0, dot).as_str())
+    self.field_string("key", row.substring(dot + 1, eq).as_str())
+    self.field_string("value", row.substring(eq + 1, row.byte_len()).as_str())
+    self.end_object()
 }
 
 /// A lint.toml row, `name=level`, as `{"name": ..., "level": ...}`.

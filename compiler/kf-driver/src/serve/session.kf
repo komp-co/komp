@@ -122,6 +122,7 @@ impl ServeSession {
             val level = row.substring(eq + 1, row.byte_len())
             cfg.apply_table_lint("lint configuration", name.as_str(), level.as_str(), &var config_diags)
         }
+        while row in &params.lint_options { cfg.apply_option_row(row.as_str(), &var config_diags) }
         val unit = CompileUnit {
             name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
             dep_hashes: List.new<String>(), loads: params.loads.clone()

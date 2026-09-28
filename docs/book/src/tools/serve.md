@@ -72,12 +72,15 @@ followed by the file's path under it, such as `/home/me/app/src/main.kf`.
 `kflatc check` does, reading staged text where there is some. `crate` has the
 shape of an entry in [`komp metadata`](cli.md#komp-metadata)'s `crates`
 array, so a client passes one through unchanged: `name`, `root`, `loads` (the
-interfaces to read, dependencies first) and `lints` (`name=level` rows).
+interfaces to read, dependencies first), `lints` (`{"name", "level"}`
+objects, or `name=level` strings) and `lint_options` (`{"name", "key",
+"value"}` objects, the value a string or a number).
 Other fields are passed over. `target_dir` is `komp metadata`'s, where the
 dependencies' interfaces are. They must already be there; `komp check` puts
 them there. Each diagnostic is the object `komp check
 --diagnostic-format=json` prints, described under
-[Structured fixes](cli.md#structured-fixes). A lint row that names no lint is
+[Structured fixes](cli.md#structured-fixes). A lint row that names no lint,
+or an option no lint has, is
 reported as an error diagnostic, as `kf.toml` reports it.
 
 **`symbols`, `folding` and `selection` only parse** the file, from its staged

@@ -1,0 +1,43 @@
+import core.assert.assert_eq
+
+fun check_line(crate_fields: str): String {
+    val crate_json = "{\"name\":\"a\",\"root\":\"/a\",\"loads\":[]${crate_fields}}"
+    return "{\"id\":1,\"method\":\"check\",\"params\":{\"target_dir\":\"/t\",\"crate\":${crate_json}}}"
+}
+
+/// `field` of the params `line` reads, space-separated; "" when it reads none.
+fun rows_of(line: String, field: str): String {
+    val params = read_check_params(line.as_str()) ?: return ""
+    val rows = if field == "lints" { params.lints } else { params.lint_options }
+    var out = ""
+    while row in &rows {
+        if out.byte_len() > 0 { out.append(" ") }
+        out.append(row.as_str())
+    }
+    return out
+}
+
+@test
+fun lints_may_be_name_level_strings(): void {
+    val lints = ",\"lints\":[\"dead_code=allow\"]"
+    assert_eq(rows_of(check_line(lints), "lints").as_str(), "dead_code=allow", "a row as given")
+}
+
+@test
+fun lints_may_be_objects_as_metadata_lists_them(): void {
+    val lints = ",\"lints\":[{\"name\":\"style\",\"level\":\"deny\"},{\"name\":\"dead_code\",\"level\":\"allow\"}]"
+    assert_eq(rows_of(check_line(lints), "lints").as_str(), "style=deny dead_code=allow", "as rows")
+}
+
+@test
+fun lint_options_become_name_key_value_rows(): void {
+    val options = ",\"lint_options\":[{\"name\":\"too_many_parameters\",\"key\":\"max\",\"value\":\"5\"}]"
+    assert_eq(rows_of(check_line(options), "lint_options").as_str(), "too_many_parameters.max=5",
+        "the row kflatc gets as --lint-toml-option")
+}
+
+@test
+fun a_numeric_option_value_is_accepted(): void {
+    val options = ",\"lint_options\":[{\"name\":\"too_many_lines\",\"key\":\"max\",\"value\":80}]"
+    assert_eq(rows_of(check_line(options), "lint_options").as_str(), "too_many_lines.max=80", "as text")
+}

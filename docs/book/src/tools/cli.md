@@ -169,14 +169,17 @@ $ komp metadata
   "members": ["/tmp/work/hello"],
   "crates": [
     {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
-     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": []},
+     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": [],
+     "lint_options": []},
     {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
-     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": []},
+     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": [],
+     "lint_options": []},
     {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
-     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": []},
+     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": [],
+     "lint_options": []},
     {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
      "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
-     "lints": [{"name": "dead_code", "level": "allow"}]}
+     "lints": [{"name": "dead_code", "level": "allow"}], "lint_options": []}
   ]
 }
 ```
@@ -193,6 +196,7 @@ $ komp metadata
 | `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
 | `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
 | `lints` | The crate's lint levels in the order they apply: its `lint.toml` rows, groups first, then its `[lint]` rows; kflatc's `--lint-toml` and `--lint` |
+| `lint_options` | The crate's `lint.toml` options as `{"name", "key", "value"}`, the value as `lint.toml` writes it; kflatc's `--lint-toml-option` |
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 

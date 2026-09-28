@@ -82,6 +82,8 @@ mutating fun JsonReader.crate_field(field: str): String {
             found = if self.read_bool() { String.from("true") } else { String.from("false") }
         } else if field == "lints" || field == "deps" {
             found = self.string_array_or_rows()
+        } else if field == "lint_options" {
+            found = self.option_rows()
         } else {
             found = self.read_string()
         }
@@ -141,6 +143,38 @@ fun a_crate_names_its_dependencies_by_crate_name(): void {
 fun a_crate_carries_its_version_and_kind(): void {
     val metadata = project_metadata(lone_project().as_str())
     assert_eq(crate_fields(&metadata.json, "version").as_str().ends_with("1.2.3,1.2.3,"), true, "from kf.toml")
+}
+
+/// `[{"name":n,"key":k,"value":v}]` as `n.k=v`.
+mutating fun JsonReader.option_rows(): String {
+    var out = ""
+    if !self.begin_array() { return out }
+    while self.array_has_next() {
+        if out.byte_len() > 0 { out.append(" ") }
+        var name = ""
+        var key = ""
+        var value = ""
+        val _opened = self.begin_object()
+        while self.object_has_next() {
+            val field = self.read_key()
+            when field.as_str() {
+                "name" => name = self.read_string()
+                "key" => key = self.read_string()
+                _ => value = self.read_string()
+            }
+        }
+        out.append("${name}.${key}=${value}".as_str())
+    }
+    return out
+}
+
+@test
+fun a_crate_carries_its_lint_toml_options(): void {
+    val root = lone_project()
+    write_file("${root}/lint.toml".as_str(), "[lints]\ntoo_many_parameters = { max = 5 }\n")
+    val metadata = project_metadata(root.as_str())
+    assert_eq(crate_fields(&metadata.json, "lint_options").as_str().ends_with(",too_many_parameters.max=5,"), true,
+        "the rows kflatc gets as --lint-toml-option")
 }
 
 @test
