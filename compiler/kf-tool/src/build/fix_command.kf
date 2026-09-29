@@ -1,5 +1,5 @@
 // `komp check --fix`: writes MachineApplicable repairs only, read off `kflatc check
-// --json`. Re-checks after each pass, since a pass skips overlapping repairs
+// --format=json`. Re-checks after each pass, since a pass skips overlapping repairs
 // and fixing one error changes what is reported next.
 
 import alloc.list.*

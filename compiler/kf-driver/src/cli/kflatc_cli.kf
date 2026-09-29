@@ -4,7 +4,7 @@
 //
 //   kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]
 //                  [--dep NAME=HASH]... [--load NAME]...
-//   kflatc check   --name N --root DIR --out DIR [--project DIR] [--json | --summary]
+//   kflatc check   --name N --root DIR --out DIR [--project DIR] [--format=json | --summary]
 //                  [--dep NAME=HASH]... [--load NAME]...
 //   kflatc lints   [--format=json] [-A/-W/-D LINT ...]
 //   kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]
@@ -48,10 +48,10 @@ pub fun kflatc_cli(): int32 {
     var i = 1
     while i < arg_count() {
         val flag = arg_at(i)
-        if flag == "--bin" || flag == "--json" || flag == "--tests" || flag == "--summary" {
+        if flag == "--bin" || flag == "--format=json" || flag == "--tests" || flag == "--summary" {
             if flag == "--bin" {
                 is_bin = true
-            } else if flag == "--json" {
+            } else if flag == "--format=json" {
                 as_json = true
             } else if flag == "--summary" {
                 summary = true
@@ -133,7 +133,7 @@ fun kflatc_version(): int32 {
 fun kflatc_usage(): int32 {
     println("usage: kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]")
     println("                      [--dep NAME=HASH]... [--load NAME]...")
-    println("       kflatc check   --name N --root DIR --out DIR [--project DIR] [--json | --summary]")
+    println("       kflatc check   --name N --root DIR --out DIR [--project DIR] [--format=json | --summary]")
     println("                      [--dep NAME=HASH]... [--load NAME]...")
     println("       kflatc lints   [--format=json]")
     println("       kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]")

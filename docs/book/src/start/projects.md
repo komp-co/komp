@@ -287,16 +287,16 @@ stops instead:
 
 ```console
 $ komp build --offline
-error: kf.toml pins kflat 0.6: this komp is 0.5.3 and no installed toolchain fits; --offline installs none
+error: kf.toml pins kflat 0.7: this komp is 0.6.0 and no installed toolchain fits; --offline installs none
 ```
 
-komp drives kflatc 0.5.3 and newer, the releases whose command line matches
+komp drives kflatc 0.6.0 and newer, the releases whose command line matches
 its own. A requirement that allows none of them stops the build, whatever is
 installed:
 
 ```console
 $ komp build
-error: kf.toml pins kflat 0.4, older than the oldest kflatc this komp drives (0.5.3); pin a newer release, or build with a komp from that one
+error: kf.toml pins kflat 0.5, older than the oldest kflatc this komp drives (0.6.0); pin a newer release, or build with a komp from that one
 ```
 
 A `KFLATC` older than that is refused the same way, by name.

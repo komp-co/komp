@@ -413,13 +413,13 @@ the one `~/.kflat/bin/komp` runs, and the komp running the command;
 
 ```console
 $ komp toolchain list
-0.5.2  /home/me/.kflat/toolchains/0.5.2
-0.5.3  running  /home/me/.kflat/toolchains/0.5.3
-0.5.4  default  /home/me/.kflat/toolchains/0.5.4
+0.5.4  /home/me/.kflat/toolchains/0.5.4
+0.6.0  running  /home/me/.kflat/toolchains/0.6.0
+0.6.1  default  /home/me/.kflat/toolchains/0.6.1
+$ komp toolchain remove 0.6.1
+error: kflat 0.6.1 is the default; `komp toolchain install` another one first
 $ komp toolchain remove 0.5.4
-error: kflat 0.5.4 is the default; `komp toolchain install` another one first
-$ komp toolchain remove 0.5.2
-removed kflat 0.5.2
+removed kflat 0.5.4
 ```
 
 A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
@@ -435,7 +435,7 @@ yourself; it is documented so its role in a build is not a mystery.
 
 ```console
 $ kflatc compile --name geometry --root ../geometry --out target/kflat --dep core=<hash> --load core
-$ kflatc check --name app --root . --out target/kflat --dep geometry= --load core --load geometry --json
+$ kflatc check --name app --root . --out target/kflat --dep geometry= --load core --load geometry --format=json
 ```
 
 `kflatc compile` compiles one crate against the interfaces (`.kfi`) of its dependencies,
@@ -457,7 +457,7 @@ with its `_test.kf` files and a generated test main, and writes
 `test/<name>_tests.h` and `.c` under `--out`, reporting no warnings. This is
 the translation unit `komp test` compiles and links into the test binary.
 
-`kflatc check` takes the same arguments, plus `--json` for newline-delimited
+`kflatc check` takes the same arguments, plus `--format=json` for newline-delimited
 JSON diagnostics or `--summary` for the tally `komp lint` prints, and
 type-checks the crate with its `_test.kf` files, writing nothing. `komp check` first brings each dependency's interface up to date with
 `kflatc compile`, marking it with a `.kfi.stamp` so the next check reuses it,

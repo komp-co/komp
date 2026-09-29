@@ -9,10 +9,10 @@ import std.fs.TempDir
 import std.process.*
 import kf_tool.project.render
 
-/// The oldest kflatc whose command line this komp's matches: the first with
-/// the lint.toml flags komp passes.
+/// The oldest kflatc whose command line this komp's matches: the first whose
+/// `check` takes `--format=json`.
 pub fun oldest_kflatc_driven(): Version {
-    return Version { major: 0, minor: 5, patch: 3 }
+    return Version { major: 0, minor: 6, patch: 0 }
 }
 
 pub struct CompilerIdentity {

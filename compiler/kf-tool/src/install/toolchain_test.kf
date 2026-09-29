@@ -70,9 +70,9 @@ fun a_pin_older_than_komp_drives_is_refused(): void {
 
 @test
 fun an_installed_toolchain_older_than_komp_drives_is_passed_over(): void {
-    val home = home_with("kf_tc_floor", "0.5.2 0.5.4")
-    val chosen = choose_toolchain("0.5.2", "0.6.0", home.as_str()).kflatc
-    assert_eq(chosen.as_str().ends_with("/0.5.4/bin/kflatc"), true, "0.5.2 is too old")
+    val home = home_with("kf_tc_floor", "0.5.4")
+    val chosen = choose_toolchain("0", "1.0.0", home.as_str()).kflatc
+    assert_eq(chosen.as_str().ends_with("/0.5.4/bin/kflatc"), false, "0.5.4 is too old, though `0` allows it")
 }
 
 @test

@@ -41,14 +41,14 @@ pub fun BuildCrate.invoke_kflatc_tests(project: str, tdir: str, dep_hashes: &Lis
 /// `tdir`, and answers kflatc's exit status: 0 when it has no errors.
 pub fun BuildCrate.invoke_kflatc_check(project: str, tdir: str, as_json: bool): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--json" } else { "" }, "")
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "" }, "")
 }
 
 /// As `invoke_kflatc_check`, with kflatc's tally of the lints after the
 /// diagnostics unless they are JSON.
 pub fun BuildCrate.invoke_kflatc_lint(project: str, tdir: str, as_json: bool): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--json" } else { "--summary" }, "")
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "--summary" }, "")
 }
 
 /// Every lint, at the level `project`'s configuration and this command
@@ -63,14 +63,14 @@ pub fun list_lints(project: str, as_json: bool): int32 {
     return command.status().exit_code()
 }
 
-/// As `invoke_kflatc_check` with `--json`, the diagnostics written to
+/// As `invoke_kflatc_check` with `--format=json`, the diagnostics written to
 /// `report` rather than printed.
 pub fun BuildCrate.invoke_kflatc_check_into(project: str, tdir: str, report: str): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, "--json", report)
+    return self.run_kflatc("check", project, tdir, &no_hashes, "--format=json", report)
 }
 
-/// `mode` is one of kflatc's `--bin`, `--tests` or `--json`, or empty. A
+/// `mode` is one of kflatc's `--bin`, `--tests` or `--format=json`, or empty. A
 /// non-empty `stdout_path` receives kflatc's output.
 fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: &List<String>, mode: str,
     stdout_path: str): int32 {

@@ -10,12 +10,12 @@ fun version_lines(first: str): List<String> {
 
 @test
 fun a_kflatc_older_than_komp_drives_is_named(): void {
-    assert_eq(kflatc_too_old(&version_lines("kflatc 0.5.2")).as_str(), "0.5.2", "its version")
+    assert_eq(kflatc_too_old(&version_lines("kflatc 0.5.4")).as_str(), "0.5.4", "its version")
 }
 
 @test
 fun the_oldest_kflatc_komp_drives_is_not_too_old(): void {
-    assert_eq(kflatc_too_old(&version_lines("kflatc 0.5.3")).as_str(), "", "the floor itself")
+    assert_eq(kflatc_too_old(&version_lines("kflatc 0.6.0")).as_str(), "", "the floor itself")
 }
 
 @test
