@@ -6,6 +6,10 @@ import json.reader.*
 
 pub struct CheckParams {
     pub val target_dir: String
+    /// Crates whose interface is written from source, staged text included,
+    /// before the check, dependencies first: the checked crate and each one
+    /// after reads them from there instead of the target directory.
+    pub val sources: List<SourceCrate>
     pub val name: String
     pub val root: String
     /// Every interface to load, dependencies first.
@@ -22,6 +26,7 @@ pub fun read_check_params(line: str): CheckParams? {
     var reader = params_of(line) ?: return null
     if !reader.begin_object() { return null }
     var target_dir = String.from("")
+    var sources = List.new<SourceCrate>()
     var name = String.from("")
     var root = String.from("")
     var loads = List.new<String>()
@@ -31,6 +36,11 @@ pub fun read_check_params(line: str): CheckParams? {
         val key = reader.read_key()
         when key.as_str() {
             "target_dir" => target_dir = reader.read_string()
+            "sources" => {
+                val read = read_source_crates(&var reader)
+                if read.is_none() { return null }
+                sources = read ?: List.new<SourceCrate>()
+            }
             "crate" => {
                 if !reader.begin_object() { return null }
                 while reader.object_has_next() {
@@ -50,8 +60,41 @@ pub fun read_check_params(line: str): CheckParams? {
     }
     if reader.has_error() || target_dir.is_empty() || name.is_empty() || root.is_empty() { return null }
     return Option.Some(CheckParams {
-        target_dir: target_dir, name: name, root: root, loads: loads, lints: lints, lint_options: lint_options
+        target_dir: target_dir, sources: sources, name: name, root: root, loads: loads, lints: lints,
+        lint_options: lint_options
     })
+}
+
+/// A crate of `sources`, shaped as `komp metadata` lists it.
+@derive(Clone)
+pub struct SourceCrate {
+    pub val name: String
+    pub val root: String
+    pub val loads: List<String>
+}
+
+/// `null` when an entry has no name or root.
+fun read_source_crates(reader: &var JsonReader): List<SourceCrate>? {
+    var out = List.new<SourceCrate>()
+    if !reader.begin_array() { return null }
+    while reader.array_has_next() {
+        if !reader.begin_object() { return null }
+        var name = String.from("")
+        var root = String.from("")
+        var loads = List.new<String>()
+        while reader.object_has_next() {
+            val field = reader.read_key()
+            when field.as_str() {
+                "name" => name = reader.read_string()
+                "root" => root = reader.read_string()
+                "loads" => loads = read_strings(reader)
+                _ => reader.skip_value()
+            }
+        }
+        if name.is_empty() || root.is_empty() { return null }
+        out.push(SourceCrate { name: name, root: root, loads: loads })
+    }
+    return Option.Some(out)
 }
 
 fun read_strings(reader: &var JsonReader): List<String> {

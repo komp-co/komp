@@ -1,0 +1,34 @@
+// Where a crate's dependencies' interfaces are read from: the target
+// directory, or, for the crates written from staged text, a directory of
+// their own.
+
+import alloc.list.*
+import kf_shared.crate_interface_path
+
+pub struct InterfaceLookup {
+    val target_dir: String
+    val staged_dir: String
+    /// The crates whose interface `staged_dir` holds.
+    val staged: List<String>
+}
+
+/// Every interface from the target directory.
+pub fun interfaces_in(target_dir: str): InterfaceLookup {
+    return InterfaceLookup { target_dir: String.from(target_dir), staged_dir: "", staged: List.new<String>() }
+}
+
+impl InterfaceLookup {
+    /// As `self`, with `name`'s interface read from `staged_dir`.
+    pub fun with_staged(staged_dir: str, name: str): InterfaceLookup {
+        var staged = self.staged.clone()
+        if !staged.contains(&String.from(name)) { staged.push(String.from(name)) }
+        return InterfaceLookup {
+            target_dir: self.target_dir.clone(), staged_dir: String.from(staged_dir), staged: staged
+        }
+    }
+
+    pub fun path_of(name: str): String {
+        if self.staged.contains(&String.from(name)) { return crate_interface_path(self.staged_dir.as_str(), name) }
+        return crate_interface_path(self.target_dir.as_str(), name)
+    }
+}

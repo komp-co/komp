@@ -733,6 +733,47 @@ if [ "$serve_ok" -ne 1 ]; then
 fi
 echo "  PASS  every answer keeps its shape, and the server stops at shutdown"
 
+# A `check` naming `sources` reads their interfaces as their staged text
+# makes them, so an unsaved edit to a library reaches the crate using it,
+# its visibility rules included; without them it reads the target directory.
+phase "cli kflatc serve checks against staged dependencies"
+staged_root="$WORK/serve-workspace"
+mkdir -p "$staged_root/geometry/src" "$staged_root/app/src"
+printf '[workspace]\nmembers = ["app", "geometry"]\ndefault-member = "app"\n' > "$staged_root/kf.toml"
+printf '[project]\nname = "geometry"\nversion = "0.1.0"\nkind = "lib"\n' > "$staged_root/geometry/kf.toml"
+printf 'pub fun area(w: int32, h: int32): int32 {\n    return w * h\n}\n' > "$staged_root/geometry/src/lib.kf"
+printf '[project]\nname = "app"\nversion = "0.1.0"\nkind = "bin"\n\n[dependencies]\ngeometry = { path = "../geometry" }\n' \
+    > "$staged_root/app/kf.toml"
+printf 'import geometry.area\n\nfun main(): int32 {\n    return area(2, 3)\n}\n' > "$staged_root/app/src/main.kf"
+"$WORK/komp" check --workspace "$staged_root" > /dev/null 2>&1 || true
+staged_lib="$staged_root/geometry/src/lib.kf"
+staged_app="{\"name\":\"app\",\"root\":\"$staged_root/app\",\"loads\":[\"core\",\"alloc\",\"geometry\"],\"lints\":[]}"
+staged_sources="[{\"name\":\"geometry\",\"root\":\"$staged_root/geometry\",\"loads\":[\"core\",\"alloc\"]}]"
+staged_plain="{\"target_dir\":\"$staged_root/target/kflat\",\"crate\":$staged_app}"
+staged_check="{\"target_dir\":\"$staged_root/target/kflat\",\"sources\":$staged_sources,\"crate\":$staged_app}"
+{
+    echo '{"id":1,"method":"hello","params":{"protocol":1}}'
+    printf '%s\n' "{\"id\":2,\"method\":\"stage\",\"params\":{\"path\":\"$staged_lib\",\"text\":\"pub fun surface(w: int32, h: int32): int32 {\\n    return w * h\\n}\\n\"}}"
+    echo "{\"id\":3,\"method\":\"check\",\"params\":$staged_plain}"
+    echo "{\"id\":4,\"method\":\"check\",\"params\":$staged_check}"
+    printf '%s\n' "{\"id\":5,\"method\":\"stage\",\"params\":{\"path\":\"$staged_lib\",\"text\":\"fun area(w: int32, h: int32): int32 {\\n    return w * h\\n}\\n\"}}"
+    echo "{\"id\":6,\"method\":\"check\",\"params\":$staged_check}"
+    echo "{\"id\":7,\"method\":\"unstage\",\"params\":{\"path\":\"$staged_lib\"}}"
+    echo "{\"id\":8,\"method\":\"check\",\"params\":$staged_check}"
+    echo '{"id":9,"method":"shutdown"}'
+} > "$WORK/serve-staged.in"
+"$WORK/kflatc" serve < "$WORK/serve-staged.in" > "$WORK/serve-staged.out" 2>&1 || true
+staged_errors() {
+    sed -n "s/^{\"id\":$1,\"result\":{\"errors\":\([0-9]*\),.*/\1/p" "$WORK/serve-staged.out"
+}
+if [ "$(staged_errors 3)" != "0" ] || [ "$(staged_errors 4)" = "0" ] || [ -z "$(staged_errors 4)" ] ||
+    [ "$(staged_errors 6)" = "0" ] || [ -z "$(staged_errors 6)" ] || [ "$(staged_errors 8)" != "0" ]; then
+    echo "  FAIL  a staged dependency's edit should reach its user through sources only; answers:" >&2
+    cat "$WORK/serve-staged.out" >&2
+    exit 1
+fi
+echo "  PASS  a staged rename and a staged loss of pub reach the using crate; unstaged, it checks clean"
+
 # `core.ptr` turns a C function's null into absence, with the generic argument
 # inferred at a user struct, the type an FFI wrapper points at.
 phase "cli core.ptr answers about a null pointer"

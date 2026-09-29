@@ -38,6 +38,7 @@
 2 compiler/kf-driver/src/build/crate_sources.kf
 6 compiler/kf-driver/src/build/interface_project.kf
 2 compiler/kf-driver/src/build/module_list.kf
+1 compiler/kf-driver/src/build/staged_interface.kf
 3 compiler/kf-driver/src/build/unity_crates.kf
 2 compiler/kf-driver/src/cli/diagnostic_color.kf
 3 compiler/kf-driver/src/cli/diagnostic_json.kf

@@ -1,0 +1,18 @@
+import core.assert.assert_eq
+
+@test
+fun an_interface_is_read_from_the_target_directory(): void {
+    assert_eq(interfaces_in("/t").path_of("json").as_str(), "/t/json.kfi", "the target directory")
+}
+
+@test
+fun a_staged_crate_is_read_from_its_own_directory(): void {
+    val lookup = interfaces_in("/t").with_staged("/s", "geometry")
+    assert_eq(lookup.path_of("geometry").as_str(), "/s/geometry.kfi", "the staged directory")
+}
+
+@test
+fun staging_one_crate_leaves_the_others_in_the_target_directory(): void {
+    val lookup = interfaces_in("/t").with_staged("/s", "geometry")
+    assert_eq(lookup.path_of("json").as_str(), "/t/json.kfi", "still the target directory")
+}

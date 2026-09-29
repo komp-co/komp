@@ -101,28 +101,26 @@ fun Module.report_template_copies(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): vo
 }
 
 // Import validation, Resolve and TypeCheck, shared by the unity and separate
-// paths. Lints take their configured level; what survives is printed, and
-// only errors are counted.
+// paths. What survives the lint levels is printed, and only errors are
+// counted.
 mutating fun Module.run_resolve_typecheck(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
+    val diags = self.resolve_typecheck_diagnostics(smap)
+    while d in &diags { d.print_diag(smap) }
+    unsafe { errp.n = errp.n + count_errors(&diags) }
+}
+
+/// Import validation, Resolve and TypeCheck at the build's lint levels:
+/// what a crate reports before its interface is written, in that order.
+pub mutating fun Module.resolve_typecheck_diagnostics(smap: Ptr<SourceMap>): List<Diagnostic> {
     val callers = new_import_files()
     val targets = new_import_syms()
     val names = new_import_syms()
-    val import_diags = validate_imports_per_module(self, callers, targets, names, smap)
-    var nerr = 0
-    while d in &import_diags {
-        if d.diag_is_error() { nerr = nerr + 1 }
-        d.print_diag(smap)
-    }
-
+    var out = validate_imports_per_module(self, callers, targets, names, smap)
     var table = new_decl_table()
     resolve_module(self, &var table)
     val checked = typecheck_module_with_imports(self, &var table, callers, targets, names)
-    val tc_diags = apply_lint_levels(checked, self, &build_lint_config())
-    while d in &tc_diags {
-        if d.diag_is_error() { nerr = nerr + 1 }
-        d.print_diag(smap)
-    }
-    unsafe { errp.n = errp.n + nerr }
+    while d in &apply_lint_levels(checked, self, &build_lint_config()) { out.push(d.clone()) }
+    return out
 }
 
 /// Resolve and TypeCheck only, for `komp check`. Returns the error count.

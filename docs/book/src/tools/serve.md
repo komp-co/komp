@@ -44,7 +44,7 @@ people.
 | `hello` | `protocol` | `protocol` and `compiler`, the kflatc version |
 | `stage` | `path`, `text` | `null` |
 | `unstage` | `path` | `null` |
-| `check` | `target_dir`, `crate` | `errors`, a count, and `diagnostics`, an array |
+| `check` | `target_dir`, `crate`, and `sources` when there are any | `errors`, a count, and `diagnostics`, an array |
 | `symbols` | `path` | the file's declarations, nested |
 | `folding` | `path` | the file's foldable ranges |
 | `selection` | `path`, `offset` | the ranges around `offset`, innermost first |
@@ -77,7 +77,17 @@ objects, or `name=level` strings) and `lint_options` (`{"name", "key",
 "value"}` objects, the value a string or a number).
 Other fields are passed over. `target_dir` is `komp metadata`'s, where the
 dependencies' interfaces are. They must already be there; `komp check` puts
-them there. Each diagnostic is the object `komp check
+them there.
+
+`sources`, when given, lists crates whose interface is written from source
+before the check, staged text included, dependencies first: `{"name", "root",
+"loads"}` objects, as `komp metadata` lists workspace members. The checked
+crate, and each source after the one written, reads those interfaces instead
+of the target directory's, so an edit to a library that is not saved yet
+reaches the crate using it. A source that does not compile keeps the
+interface in the target directory. Nothing is written to the target
+directory. A kflatc older than this field passes over it and checks against
+the target directory, so a client can always send it. Each diagnostic is the object `komp check
 --format=json` prints, described under
 [Structured fixes](cli.md#structured-fixes). A lint row that names no lint,
 or an option no lint has, is

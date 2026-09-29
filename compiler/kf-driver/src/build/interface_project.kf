@@ -25,7 +25,7 @@ import kf_driver.cli.print_json_diag
 pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool, summary: bool): int32 {
     var cfg_diags = List.new<Diagnostic>()
     val cfg = project_lint_config(&var cfg_diags)
-    val checked = self.check_crate(tdir, &no_overlay(), &cfg)
+    val checked = self.check_crate(&interfaces_in(tdir), &no_overlay(), &cfg)
     if checked.failure.byte_len() > 0 {
         val message = checked.failure.as_str()
         if as_json { println(render_json_error(message)) } else { println("kflatc check: ${message}") }
@@ -53,13 +53,14 @@ pub struct CrateCheck {
 }
 
 /// The crate with its tests, from disk or `overlay`, checked against the
-/// interfaces of `self.loads` in `tdir`. Parse errors stop it before Resolve.
-pub fun CompileUnit.check_crate(tdir: str, overlay: &Overlay, cfg: &LintConfig): CrateCheck {
+/// interfaces of `self.loads` that `interfaces` finds. Parse errors stop it
+/// before Resolve.
+pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay, cfg: &LintConfig): CrateCheck {
     val smap = fresh_source_map()
     val parse_diags = fresh_diag_list()
     var modules = List.new<Module>()
     while dependency in &self.loads {
-        val path = crate_interface_path(tdir, dependency.as_str())
+        val path = interfaces.path_of(dependency.as_str())
         val loaded = load_compiled_crate(path.as_str(), smap)
         if !loaded.ok {
             val failure = "failed to load ${path}: ${loaded.error}"

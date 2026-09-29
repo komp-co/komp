@@ -41,3 +41,28 @@ fun a_numeric_option_value_is_accepted(): void {
     val options = ",\"lint_options\":[{\"name\":\"too_many_lines\",\"key\":\"max\",\"value\":80}]"
     assert_eq(rows_of(check_line(options), "lint_options").as_str(), "too_many_lines.max=80", "as text")
 }
+
+fun sources_line(sources: str): String {
+    val crate_json = "{\"name\":\"a\",\"root\":\"/a\",\"loads\":[]}"
+    val params = "{\"target_dir\":\"/t\",\"sources\":${sources},\"crate\":${crate_json}}"
+    return "{\"id\":1,\"method\":\"check\",\"params\":${params}}"
+}
+
+@test
+fun sources_are_read_in_order(): void {
+    val sources = "[{\"name\":\"b\",\"root\":\"/b\",\"loads\":[\"core\"]},{\"name\":\"c\",\"root\":\"/c\"}]"
+    val params = read_check_params(sources_line(sources).as_str())
+    assert_eq(params?.sources?.at(1)?.name?.as_str() ?: "", "c", "the second source")
+}
+
+@test
+fun a_source_without_a_root_is_invalid(): void {
+    val params = read_check_params(sources_line("[{\"name\":\"b\"}]").as_str())
+    assert_eq(params.is_none(), true, "a root is required")
+}
+
+@test
+fun no_sources_is_an_empty_list(): void {
+    val params = read_check_params(check_line("").as_str())
+    assert_eq(params?.sources?.size() ?: 99, 0, "none named")
+}

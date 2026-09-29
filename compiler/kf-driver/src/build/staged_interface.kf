@@ -1,0 +1,51 @@
+// A crate's interface written from its sources, staged text included, so a
+// crate checked against it sees an edit that is not saved yet.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_assemble.*
+import kf_interface.export_closure_diagnostics
+import kf_interface.emit.emit_interface_full
+import kf_driver.count_errors
+import kf_driver.fresh_source_map
+import kf_driver.resolve_typecheck_diagnostics
+
+/// The interface's text, or, when `failure` says why, none: a load missing,
+/// or the crate not compiling, in which case its last good interface stands.
+pub struct StagedInterface {
+    pub val text: String
+    pub val failure: String
+}
+
+/// As a build writes it between TypeCheck and Mono, without the tests, and
+/// with nothing printed.
+pub fun CompileUnit.interface_from_source(interfaces: &InterfaceLookup, overlay: &Overlay): StagedInterface {
+    val smap = fresh_source_map()
+    val parse_diags = fresh_diag_list()
+    var modules = List.new<Module>()
+    while dependency in &self.loads {
+        val path = interfaces.path_of(dependency.as_str())
+        val loaded = load_compiled_crate(path.as_str(), smap)
+        if !loaded.ok { return staged_failure("failed to load ${path}: ${loaded.error}") }
+        append_modules(&var modules, &loaded.modules)
+    }
+    val name = String.from(self.name.as_str())
+    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, parse_diags, false, overlay)
+    append_modules(&var modules, &source_crate.modules)
+    if unsafe { parse_diags.size() } > 0 { return staged_failure("`${self.name}` does not parse") }
+    var merged = merge_module_list(modules)
+    merged.crate = new_crate_id(self.name.as_str())
+    if count_errors(&merged.resolve_typecheck_diagnostics(smap)) > 0 {
+        return staged_failure("`${self.name}` does not compile")
+    }
+    if !export_closure_diagnostics(&merged, new_crate_id(self.name.as_str())).is_empty() {
+        return staged_failure("`${self.name}` exports a type it does not make public")
+    }
+    val text = merged.emit_interface_full(String.from(self.name.as_str()), &self.deps, &self.dep_hashes, smap)
+    return StagedInterface { text: text, failure: "" }
+}
+
+fun staged_failure(failure: str): StagedInterface {
+    return StagedInterface { text: "", failure: String.from(failure) }
+}

@@ -16,7 +16,11 @@ import kf_driver.new_lint_config
 import kf_shared.kflat_version
 import kf_driver.apply_option_row
 import kf_driver.apply_table_lint
+import kf_driver.build.InterfaceLookup
 import kf_driver.build.check_crate
+import kf_driver.build.interface_from_source
+import kf_driver.build.interfaces_in
+import std.fs.TempDir
 import kf_driver.editor.focus
 
 /// The protocol versions this compiler speaks.
@@ -32,6 +36,9 @@ pub struct ServeSession {
     var typed: List<TypedCrate>
     /// Which crates `typed` holds.
     var typed_key: String
+    /// Where `check` writes the interfaces of its `sources`: empty until
+    /// the first needs it.
+    var staged_interfaces: List<TempDir>
     /// Set by `shutdown`: the loop stops after answering it.
     pub var stopping: bool
 }
@@ -39,7 +46,8 @@ pub struct ServeSession {
 impl ServeSession {
     pub static fun new(): ServeSession {
         return ServeSession {
-            greeted: false, buffers: no_overlay(), typed: List.new<TypedCrate>(), typed_key: "", stopping: false
+            greeted: false, buffers: no_overlay(), typed: List.new<TypedCrate>(), typed_key: "",
+            staged_interfaces: List.new<TempDir>(), stopping: false
         }
     }
 
@@ -116,7 +124,7 @@ impl ServeSession {
         return result_line(id, typed_result(method, &params, &self.typed[0]).as_str())
     }
 
-    fun check(id: str, line: str): String {
+    mutating fun check(id: str, line: str): String {
         val params = read_check_params(line) ?: return invalid_params(id, "check")
         var config_diags = List.new<Diagnostic>()
         var cfg = new_lint_config()
@@ -131,7 +139,8 @@ impl ServeSession {
             name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
             dep_hashes: List.new<String>(), loads: params.loads.clone()
         }
-        val checked = unit.check_crate(params.target_dir.as_str(), &self.buffers, &cfg)
+        val interfaces = self.write_sources(&params)
+        val checked = unit.check_crate(&interfaces, &self.buffers, &cfg)
         if checked.failure.byte_len() > 0 { return error_line(id, "check_failed", checked.failure.as_str()) }
         var writer = JsonWriter.object()
         writer.field_int64("errors", (config_diags.size() + count_errors(&checked.diagnostics) as uint64) as int64)
@@ -141,6 +150,29 @@ impl ServeSession {
         while d in &checked.diagnostics { writer.write_raw(d.render_json_diag(checked.smap).as_str()) }
         writer.end_array()
         return result_line(id, writer.finish().as_str())
+    }
+}
+
+impl ServeSession {
+    /// Writes each of `sources`' interfaces from its staged text, in order,
+    /// each read by the ones after it; a source that does not compile keeps
+    /// the interface in the target directory.
+    mutating fun write_sources(params: &CheckParams): InterfaceLookup {
+        var lookup = interfaces_in(params.target_dir.as_str())
+        if params.sources.is_empty() { return lookup }
+        if self.staged_interfaces.is_empty() { self.staged_interfaces.push(TempDir.new("kflatc-serve")) }
+        val dir = String.from(self.staged_interfaces[0].path().as_str())
+        while source in &params.sources {
+            val unit = CompileUnit {
+                name: source.name.clone(), root: source.root.clone(), deps: List.new<String>(),
+                dep_hashes: List.new<String>(), loads: source.loads.clone()
+            }
+            val staged = unit.interface_from_source(&lookup, &self.buffers)
+            if !staged.failure.is_empty() { continue }
+            write_file("${dir}/${source.name}.kfi".as_str(), staged.text.as_str())
+            lookup = lookup.with_staged(dir.as_str(), source.name.as_str())
+        }
+        return lookup
     }
 }
 
