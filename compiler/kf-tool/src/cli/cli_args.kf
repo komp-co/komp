@@ -1,6 +1,5 @@
 import core.args.arg_count
 import core.args.arg_at
-import alloc.list.*
 import kf_shared.is_quiet_flag
 import kf_shared.cli_arg_get
 
@@ -64,88 +63,6 @@ fun test_flags_well_formed(nargs: int32, start: int32): bool {
     return true
 }
 
-pub struct CliArgs {
-    pub val command: String
-    pub val project: String
-    pub val manifest_path: String
-    pub val package: String
-    pub val output: String
-    pub val program_args: List<String>
-    pub val quiet: bool
-    pub val valid: bool
-}
-
-fun known_command(value: str): bool {
-    val compile_command = value == "build" || value == "check" || value == "run" || value == "test"
-    val project_command = value == "new"
-    return compile_command || project_command || value == "help" || value == "version"
-}
-
 pub fun starts_with_dash(value: str): bool {
     return value.byte_len() > 0 && value.byte_at(0) == 45
-}
-
-/// Cargo-style options. Arguments after `--` belong to the program `komp run`
-/// launches.
-pub fun parse_cli_args(): CliArgs {
-    val count = arg_count()
-    var command = String.from("build")
-    var project = ""
-    var manifest_path = ""
-    var package = ""
-    var output = ""
-    var program_args = List.new<String>()
-    var quiet = false
-    var valid = true
-    var i = 0
-
-    if count > 0 && known_command(arg_at(0)) {
-        command = String.from(arg_at(0))
-        i = 1
-    }
-
-    var after_separator = false
-    while i < count {
-        val arg = arg_at(i)
-        if after_separator {
-            program_args.push(String.from(arg))
-        } else if arg == "--" {
-            after_separator = true
-        } else if arg == "-h" || arg == "--help" {
-            command = String.from("help")
-        } else if arg == "-V" || arg == "--version" {
-            command = String.from("version")
-        } else if is_quiet_flag(arg) {
-            quiet = true
-        } else if arg == "--manifest-path" {
-            i = i + 1
-            if i >= count { valid = false } else { manifest_path = String.from(arg_at(i)) }
-        } else if arg == "-p" || arg == "--package" {
-            i = i + 1
-            if i >= count { valid = false } else { package = String.from(arg_at(i)) }
-        } else if arg == "-o" || arg == "--output" {
-            i = i + 1
-            if i >= count { valid = false } else { output = String.from(arg_at(i)) }
-        } else if starts_with_dash(arg) {
-            valid = false
-        } else if project.as_str() == "" {
-            project = String.from(arg)
-        } else if command.as_str() == "build" && output.as_str() == "" {
-            // The old `komp <project> <out.c>` bootstrap form.
-            output = String.from(arg)
-        } else {
-            valid = false
-        }
-        i = i + 1
-    }
-    return CliArgs {
-        command: command,
-        project: project,
-        manifest_path: manifest_path,
-        package: package,
-        output: output,
-        program_args: program_args,
-        quiet: quiet,
-        valid: valid
-    }
 }

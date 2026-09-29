@@ -217,7 +217,7 @@ fi
 # bootstraps the next tree, and the install archive, the seed with the
 # libraries and bootstrap/install.sh beside it. Byte-identical from identical
 # input: sorted, a fixed date, no owner, gzip -n.
-version="$("$proven_komp" version | sed -n 's/^komp //p')"
+version="$("$proven_komp" --version | sed -n 's/^komp //p')"
 pack() {
     (cd "$WORK/out" && tar --sort=name --mtime='2000-01-01 00:00Z' --owner=0 --group=0 --numeric-owner -cf - "$1" \
         | gzip -n -9 > "$1.tar.gz")

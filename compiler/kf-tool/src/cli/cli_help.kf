@@ -21,7 +21,6 @@ pub fun command_usage(command: str): str {
         "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new [<name>]"
-        "version" => "komp version"
         "help" => "komp help [<command>]"
         _ => ""
     }
@@ -159,7 +158,6 @@ member and every crate they reach, dependencies first. Fetches first, as a
 build would; a failure is JSON too, with an `error` field, and exits 1."""
         "new" => """Create a new project in a new directory of that name; with no name, or
 `.`, in the current directory, named after it."""
-        "version" => "Print the compiler version."
         "help" => "Print the command list, or the help for one command."
         _ => ""
     }
@@ -196,7 +194,6 @@ pub fun print_usage(): void {
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
     runtime_println("  new       create a new project, or one in the current directory")
-    runtime_println("  version   print the compiler version")
     runtime_println("")
     runtime_println("The project directory defaults to the current directory, or is")
     runtime_println("named by --manifest-path. At a workspace, a command runs on its")
@@ -204,7 +201,8 @@ pub fun print_usage(): void {
     runtime_println("Dependencies from an index, git or a tarball are fetched before a")
     runtime_println("build and pinned in kf.lock: --locked fails rather than change it,")
     runtime_println("--offline rather than fetch.")
-    runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this.")
+    runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this;")
+    runtime_println("-V, --version print the version.")
     runtime_println("")
     runtime_println("`komp <command> --help` describes one command.")
 }

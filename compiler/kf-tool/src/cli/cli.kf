@@ -137,10 +137,6 @@ pub fun run_cli(): int32 {
     val a0: str = cli_arg_get(0)
 
     when a0 {
-        "version" => {
-            println("komp ${kflat_version()}")
-            return 0
-        }
         "help" => {
             // `komp help build` means `komp build --help`.
             if nargs >= 2 && has_help(cli_arg_get(1)) {

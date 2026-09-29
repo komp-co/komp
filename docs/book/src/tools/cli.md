@@ -28,7 +28,7 @@ points, and then compiles and links the C with cc.
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new [<name>]` | Scaffold a new project directory, or with no name the current one |
-| `komp version` | Print compiler version |
+| `komp --version` | Print the compiler version |
 
 At a workspace, `build`, `check`, `test` and `fix` work on the workspace's
 `default-member`. `-p <crate>` picks one member and `--workspace` picks all of

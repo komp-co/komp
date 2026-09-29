@@ -7,9 +7,7 @@
 #
 # `~/.local/bin/komp` is a symlink to `.build/komp`, so this updates the `komp`
 # on PATH. The new binary is moved into place only after it answers
-# `komp version`, so a broken build leaves the previous one.
-#
-# `version` the subcommand: `--version` is not what this checks.
+# `komp --version`, so a broken build leaves the previous one.
 #
 # Stage1 is this tree compiled by the seed: it behaves as the
 # source says, but was built by the old compiler, so it contains the old
@@ -96,8 +94,8 @@ fi
 
 # A binary that cannot answer for itself does not go on PATH.
 if [ "$smoke" -eq 1 ]; then
-    if ! "$WORK/komp" version > "$WORK/version.log" 2>&1; then
-        echo "FAIL: the new binary did not survive \`komp version\`; keeping the old one." >&2
+    if ! "$WORK/komp" --version > "$WORK/version.log" 2>&1; then
+        echo "FAIL: the new binary did not survive \`komp --version\`; keeping the old one." >&2
         head -5 "$WORK/version.log" >&2
         echo "      Pass --keep-going to install it anyway." >&2
         exit 1
@@ -113,7 +111,7 @@ mv -f "$WORK/komp" .build/komp.new
 mv -f .build/komp.new .build/komp
 
 echo "==> .build/komp is $branch @ $rev"
-"$ROOT/.build/komp" version 2>&1 | head -1 || true
+"$ROOT/.build/komp" --version 2>&1 | head -1 || true
 
 # `bin/komp` is the path the editor docs and the LSP README name; a symlink
 # keeps it the same file as `.build/komp`.
