@@ -154,12 +154,18 @@ pub fun run_cli(): int32 {
             // Lint flags are read by the lint config itself and skipped here. The
             // project directory is the last argument that is not a flag or value.
             var as_json = false
+            var fix = false
+            var dry_run = false
             var project = ""
             var ci = 1
             while ci < nargs {
                 val arg = cli_arg_get(ci)
                 if arg == "--diagnostic-format=json" {
                     as_json = true
+                } else if arg == "--fix" {
+                    fix = true
+                } else if arg == "--dry-run" {
+                    dry_run = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
                     ci = ci + 1 // skip the lint name
                 } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
@@ -174,12 +180,15 @@ pub fun run_cli(): int32 {
             val from_manifest = manifest_root(nargs)
             if from_manifest.as_str() != "" { project = from_manifest }
             if project.as_str() == "" { project = String.from(".") }
+            if dry_run && !fix { return usage_error("check") }
+            if fix { return run_on_selected("fix", project.as_str(), nargs, dry_run) }
             return run_on_selected("check", project.as_str(), nargs, as_json)
         }
         "lint" => {
             // As `check`, with `--list` and `--fix` of its own.
             var list = false
             var fix = false
+            var dry_run = false
             var as_json = false
             var project = ""
             var li = 1
@@ -189,6 +198,8 @@ pub fun run_cli(): int32 {
                     list = true
                 } else if arg == "--fix" {
                     fix = true
+                } else if arg == "--dry-run" {
+                    dry_run = true
                 } else if arg == "--diagnostic-format=json" || is_format_flag(arg) {
                     as_json = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
@@ -216,16 +227,9 @@ pub fun run_cli(): int32 {
                 }
                 return list_lints(dir.as_str(), as_json)
             }
-            if fix { return run_on_selected("fix", project.as_str(), nargs, false) }
+            if dry_run && !fix { return usage_error("lint") }
+            if fix { return run_on_selected("fix", project.as_str(), nargs, dry_run) }
             return run_on_selected("lint", project.as_str(), nargs, as_json)
-        }
-        "fix" => {
-            if nargs >= 2 && cli_arg_get(1) == "--dry-run" {
-                if positionals_from(nargs, 2) > 1 { return usage_error("fix") }
-                return run_on_selected("fix", project_for(nargs, 2).as_str(), nargs, true)
-            }
-            if positionals_from(nargs, 1) > 1 { return usage_error("fix") }
-            return run_on_selected("fix", project_for(nargs, 1).as_str(), nargs, false)
         }
         "run" => {
             val mode = build_mode_from_flag(cli_arg_get(1))

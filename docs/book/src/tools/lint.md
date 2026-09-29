@@ -197,7 +197,7 @@ lint: no problems
 | Flag | Effect |
 |---|---|
 | `--list` | Print every lint, its group and its level; check nothing. With `--format=json`, as [one JSON object](cli.md#json-output) |
-| `--fix` | Apply the repairs the diagnostics suggest, as [`komp fix`](cli.md#structured-fixes) does |
+| `--fix` | Apply the repairs the diagnostics suggest, as [`komp check --fix`](cli.md#structured-fixes) does; with `--dry-run`, print them instead |
 | `--diagnostic-format=json` | One JSON object per diagnostic, and no tally |
 | `-A`, `-W`, `-D <lint or group>` | Allow, warn or deny, for this run |
 | `--deny-warnings` | Report every warning as an error |

@@ -172,7 +172,7 @@ pub fun count_errors(diags: &List<Diagnostic>): int32 {
     return errors
 }
 
-/// As `check_module_json`, returning the diagnostics for `komp fix`. Borrow
+/// As `check_module_json`, returning the diagnostics for `komp check --fix`. Borrow
 /// liveness reports no fixes and is not run.
 pub mutating fun Module.collect_module_diags(smap: Ptr<SourceMap>): List<Diagnostic> {
     val callers = new_import_files()

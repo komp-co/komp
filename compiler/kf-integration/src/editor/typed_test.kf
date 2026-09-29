@@ -362,7 +362,7 @@ fun an_unused_import_is_a_warning_carrying_a_cautious_fix(): void {
         if d.primary.message.as_str().contains("unused import") {
             checked = true
             assert_eq(d.diag_is_warning(), true, "reported as a warning, not an error")
-            assert_eq(fix_is_machine_applicable(&d.fix), false, "so `komp fix` leaves it alone")
+            assert_eq(fix_is_machine_applicable(&d.fix), false, "so `komp check --fix` leaves it alone")
             assert_eq(d.fix.replacement.as_str(), "", "the repair deletes rather than rewrites")
         }
     }

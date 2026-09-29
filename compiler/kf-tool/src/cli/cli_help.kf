@@ -6,11 +6,10 @@
 pub fun command_usage(command: str): str {
     return when command {
         "build" => "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]"
-        "check" => "komp check [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
+        "check" => "komp check [--fix [--dry-run]] [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
         "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
-        "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
-        "lint" => "komp lint [--list] [--fix] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
+        "lint" => "komp lint [--list] [--fix [--dry-run]] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "tool" => "komp tool install <name>[@<req>] [--index <url>] | list | update [<name>...] | remove <name>[@<ver>]"
@@ -42,6 +41,9 @@ fun command_detail(command: str): str {
   --workspace          build every workspace member"""
         "check" => """Type-check without producing a binary.
 
+  --fix                      write the repairs the checker is sure of, in place
+  --dry-run                  with --fix, print what would change and write
+                             nothing
   --diagnostic-format=json   one JSON object per diagnostic
   -A | -W | -D <lint>        allow, warn or deny one lint for this run
   --deny-warnings            treat every warning as an error
@@ -65,18 +67,16 @@ kf.toml's [lint] table, then these flags.
 
   --list                      every lint: its group, level and what it reports;
                               with --format=json, as one JSON object
-  --fix                       apply the repairs the lints suggest, as komp fix
+  --fix                       apply the repairs the lints suggest, as
+                              komp check --fix does
+  --dry-run                   with --fix, print what would change and write
+                              nothing
   --diagnostic-format=json    one JSON object per diagnostic, no tally
   -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
   --deny-warnings             treat every warning as an error
   --manifest-path <path>      the project's kf.toml, or its directory
   -p, --package <crate>       lint this workspace member
   --workspace                 lint every workspace member"""
-        "fix" => """Apply the repairs the checker suggests, in place.
-
-  --dry-run           print what would change and write nothing
-  -p, --package <c>   fix this workspace member
-  --workspace         fix every workspace member"""
         "tool" => """The programs komp builds from a package index into ~/.kflat/tools
 ($KFLAT_HOME when set). `komp <command>` runs komp-<command>, the version the
 project's [tools] pins or the default, so installing komp_fmt gives `komp fmt`.
@@ -185,7 +185,6 @@ pub fun print_usage(): void {
     runtime_println("  run       build the project and run it")
     runtime_println("  test      run the project's @test functions")
     runtime_println("  lint      report the project's lints, as lint.toml sets them")
-    runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  add       add a library from a package index to [dependencies]")
     runtime_println("  tool      install, list, update or remove programs from a package index")

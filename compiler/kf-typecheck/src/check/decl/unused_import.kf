@@ -99,7 +99,7 @@ fun contains_file(files: &List<uint32>, f: uint32): bool {
 }
 
 /// The repair deletes the line, but is `MaybeIncorrect`: a name can reach a
-/// module by a path this does not watch (a trait method), so `komp fix` does
+/// module by a path this does not watch (a trait method), so `komp check --fix` does
 /// not take it unattended.
 fun Import.unused_import_warning(): Diagnostic {
     var msg = String.from("unused import `")

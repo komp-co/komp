@@ -1313,7 +1313,7 @@ if [ -n "$lintfailed" ] && [ -z "$failed" ]; then
         exit 1
     fi
     echo "FAIL: lints to fix in:$lintfailed" >&2
-    echo "      \`komp lint <crate>\` names each one, and \`komp fix\` carries the repairs" >&2
+    echo "      \`komp lint <crate>\` names each one, and \`komp check --fix\` carries the repairs" >&2
     echo "      it can; \`@allow(<lint>)\` on the declaration keeps one on purpose." >&2
     exit 1
 fi

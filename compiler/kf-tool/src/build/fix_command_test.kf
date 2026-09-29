@@ -1,4 +1,4 @@
-// Which files `komp fix` may write. A path dependency is spelled through its
+// Which files `komp check --fix` may write. A path dependency is spelled through its
 // parent, which a textual prefix test mistakes for containment.
 
 import core.assert.assert_eq

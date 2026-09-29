@@ -1,4 +1,4 @@
-// The splice engine behind `komp fix`, a function from text and edits to text,
+// The splice engine behind `komp check --fix`, a function from text and edits to text,
 // free of the compiler and filesystem so it can be tested alone.
 
 import alloc.list.*

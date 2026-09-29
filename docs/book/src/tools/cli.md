@@ -538,6 +538,9 @@ Applying a repair over the diagnostic's own span would overwrite the whole
 call. A fix also names its own file, since a repair need not land where
 the problem was reported.
 
+`komp check --fix` writes every machine-applicable repair into the files it
+names, and `komp check --fix --dry-run` prints what it would change instead.
+
 `fix` is null on every diagnostic that does not know a repair — most of
 them. It is a suggestion only where the compiler already knows the answer
 exactly. Today that is two cases.

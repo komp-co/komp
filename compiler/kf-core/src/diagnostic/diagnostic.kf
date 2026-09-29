@@ -16,7 +16,7 @@ pub fun new_label(span: Span, message: String): Label {
     return Label { span: span, message: message }
 }
 
-/// How far a fix can be trusted. `komp fix` writes only `MachineApplicable`.
+/// How far a fix can be trusted. `komp check --fix` writes only `MachineApplicable`.
 ///
 /// - `MachineApplicable`: the repair is the answer (one candidate).
 /// - `MaybeIncorrect`: a guess to confirm (tied candidates).
@@ -34,7 +34,7 @@ pub struct Fix {
     pub val replacement: String
     /// The quick-fix menu entry.
     pub val title: String
-    /// Whether `komp fix` may write it unasked; editors offer every fix.
+    /// Whether `komp check --fix` may write it unasked; editors offer every fix.
     pub val applicability: Applicability
 }
 
@@ -76,7 +76,7 @@ pub fun new_diagnostic(severity: Severity, primary: Label): Diagnostic {
     }
 }
 
-/// `d` with a repair trusted enough for `komp fix` to write.
+/// `d` with a repair trusted enough for `komp check --fix` to write.
 pub fun with_fix(d: Diagnostic, span: Span, replacement: String, title: String): Diagnostic {
     return with_fix_applic(d, span, replacement, title, Applicability.MachineApplicable)
 }

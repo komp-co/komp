@@ -46,8 +46,8 @@ komp test hello       # run its @test functions
 ```
 
 `komp build` writes per-crate artifacts and links them; `--unity` builds
-through a single C file instead. `komp fix` applies the repairs the checker
-suggests. Every command takes a project directory — one containing a
+through a single C file instead. `komp check --fix` applies the repairs the
+checker suggests. Every command takes a project directory — one containing a
 `kf.toml` — or `--manifest-path`.
 
 ## Repository layout
