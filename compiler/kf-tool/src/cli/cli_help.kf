@@ -19,7 +19,7 @@ pub fun command_usage(command: str): str {
         "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
         "info" => "komp info <name> [--index <url>] [--offline]"
         "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
-        "self" => "komp self update [<version>] | list | uninstall <version>"
+        "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
         "init" => "komp init"
@@ -129,16 +129,16 @@ allows, and the newest version in its index.
   --offline         read each index as the cache has it, not bringing it up
                     to date first
   --format=json     one JSON object"""
-        "self" => """Install the newest komp release, or the version named, from its
-release archive, checked against the sha256 published beside it. It goes in
-~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
-points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
+        "toolchain" => """The kflat releases installed in ~/.kflat/toolchains ($KFLAT_HOME when set).
 
-  <version>   that release, such as 0.5.1, instead of the newest
-
+  install [<version>]  the newest release, or the one named, such as 0.5.1,
+                       from its release archive, checked against the sha256
+                       published beside it; ~/.kflat/bin/komp then points at
+                       it, and earlier toolchains stay. Needs curl, tar and a
+                       C compiler
   list                 every installed toolchain, the default and the running
                        one marked
-  uninstall <version>  remove that toolchain; not the default or the running one"""
+  remove <version>     that toolchain; not the default or the running one"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
@@ -194,7 +194,7 @@ pub fun print_usage(): void {
     runtime_println("  cache     list, remove, clean or verify downloaded sources")
     runtime_println("  info      list a package's versions in an index")
     runtime_println("  outdated  compare a project's packages with their newest versions")
-    runtime_println("  self      update komp itself: komp self update")
+    runtime_println("  toolchain install, list or remove kflat releases")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
     runtime_println("  new       create a new project")

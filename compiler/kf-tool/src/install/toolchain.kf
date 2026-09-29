@@ -124,7 +124,7 @@ pub fun remove_toolchain(home: str, version: str, running: str): String {
     if !is_file(toolchain_kflatc(home, version).as_str()) { return "kflat ${version} is not installed" }
     if version == running { return "kflat ${version} is the komp running now" }
     if default_toolchain(home).as_str() == version {
-        return "kflat ${version} is the default; `komp self update` to another one first"
+        return "kflat ${version} is the default; `komp toolchain install` another one first"
     }
     remove_tree("${home}/toolchains/${version}".as_str())
     return ""

@@ -1,4 +1,4 @@
-// `komp self update` against releases laid out as GitHub lays them out, in
+// `komp toolchain install` against releases laid out as GitHub lays them out, in
 // scratch space: `download/v<version>/kflat-<version>.tar.gz` and its
 // `.sha256`. The archive's install.sh only leaves a mark, so no C builds.
 

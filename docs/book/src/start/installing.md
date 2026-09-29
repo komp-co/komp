@@ -25,7 +25,7 @@ somewhere other than `~/.kflat`. Installing a version again replaces it;
 other versions stay where they are, for the projects that
 [pin](projects.md#pinning-the-toolchain) them.
 
-From then on, [`komp self update`](../tools/cli.md#komp-self-update) installs
+From then on, [`komp toolchain install`](../tools/cli.md#komp-toolchain) installs
 each new release the same way.
 
 ## Building from the seed

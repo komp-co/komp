@@ -1,4 +1,4 @@
-// `komp self update`: a release's install archive, downloaded, checked
+// `komp toolchain install`: a release's install archive, downloaded, checked
 // against its published sha256 and installed by its own install.sh, which
 // links the new komp into `bin/` under the install home. Toolchains already
 // installed stay.

@@ -24,8 +24,7 @@ points, and then compiles and links the C with cc.
 | `komp outdated [<dir>]` | Compare a project's index packages and tools with their newest versions |
 | `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
-| `komp self update [<version>]` | Install the newest komp release, or the one named |
-| `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
+| `komp toolchain install \| list \| remove` | Install the newest kflat release or the one named, list the installed ones, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -376,7 +375,7 @@ line, for editors and scripts; a failure prints `{"error": "..."}` and exits
 | `komp tool list` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
 | `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
 | `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
-| `komp self list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
+| `komp toolchain list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
 
 ```console
 $ komp info json --format=json
@@ -387,41 +386,41 @@ $ komp info json --format=json
 object per diagnostic (see [Structured fixes](#structured-fixes)), and
 [`komp metadata`](#komp-metadata) always prints JSON.
 
-### komp self update
+### komp toolchain
 
-`komp self update` installs the newest komp release, the way a release's
+`komp toolchain install` installs the newest komp release, the way a release's
 [install script](../start/installing.md) installs it: it downloads
 `kflat-<version>.tar.gz`, checks it against the sha256 published beside it,
 builds komp and kflatc with `cc`, and puts them in
 `~/.kflat/toolchains/<version>/`, where `~/.kflat/bin/komp` then points.
 Toolchains already installed stay where they are, for the projects that
-[pin](../start/projects.md#pinning-the-toolchain) them. `komp self update 0.5.1`
-installs that release instead of the newest, which also goes back to an
+[pin](../start/projects.md#pinning-the-toolchain) them. `komp toolchain install
+0.5.1` installs that release instead of the newest, which also goes back to an
 earlier one.
 
 ```console
-$ komp self update
+$ komp toolchain install
 building komp 0.5.1 with cc
 building kflatc 0.5.1 with cc
 installed kflat 0.5.1 in /home/me/.kflat/toolchains/0.5.1
 installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
-$ komp self update
+$ komp toolchain install
 komp 0.5.1 is the newest release
 ```
 
-`komp self list` shows every installed toolchain, marking the default, the
-one `~/.kflat/bin/komp` runs, and the komp running the command; `komp self
-uninstall <version>` removes one, but neither of those two:
+`komp toolchain list` shows every installed toolchain, marking the default,
+the one `~/.kflat/bin/komp` runs, and the komp running the command;
+`komp toolchain remove <version>` removes one, but neither of those two:
 
 ```console
-$ komp self list
+$ komp toolchain list
 0.5.2  /home/me/.kflat/toolchains/0.5.2
 0.5.3  running  /home/me/.kflat/toolchains/0.5.3
 0.5.4  default  /home/me/.kflat/toolchains/0.5.4
-$ komp self uninstall 0.5.4
-error: kflat 0.5.4 is the default; `komp self update` to another one first
-$ komp self uninstall 0.5.2
-uninstalled kflat 0.5.2
+$ komp toolchain remove 0.5.4
+error: kflat 0.5.4 is the default; `komp toolchain install` another one first
+$ komp toolchain remove 0.5.2
+removed kflat 0.5.2
 ```
 
 A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)

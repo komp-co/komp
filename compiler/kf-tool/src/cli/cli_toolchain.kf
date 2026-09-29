@@ -1,5 +1,6 @@
-// `komp self update [<version>]`, `komp self list` and `komp self uninstall
-// <version>`: the kflat releases installed under `~/.kflat/toolchains`.
+// `komp toolchain install [<version>]`, `komp toolchain list` and
+// `komp toolchain remove <version>`: the kflat releases installed under
+// `~/.kflat/toolchains`.
 
 import json.writer.JsonWriter
 import kf_shared.kflat_version
@@ -12,29 +13,29 @@ import kf_tool.install.remove_toolchain
 import kf_tool.install.self_update
 import kf_tool.project.render
 
-pub fun self_command(nargs: int32): int32 {
+pub fun toolchain_command(nargs: int32): int32 {
     val args = arguments_without_format(nargs)
-    if args.is_empty() { return usage_error("self") }
+    if args.is_empty() { return usage_error("toolchain") }
     val home = install_home()
     when args[0].as_str() {
-        "update" => {
-            if args.size() > 2 { return usage_error("self") }
+        "install" => {
+            if args.size() > 2 { return usage_error("toolchain") }
             val version = if args.size() == 2 { args[1].clone() } else { String.from("") }
-            if starts_with_dash(version.as_str()) { return usage_error("self") }
-            return update_self(home.as_str(), version.as_str())
+            if starts_with_dash(version.as_str()) { return usage_error("toolchain") }
+            return toolchain_install(home.as_str(), version.as_str())
         }
         "list" => {
-            if args.size() != 1 { return usage_error("self") }
+            if args.size() != 1 { return usage_error("toolchain") }
             return if wants_json(nargs) { list_toolchains_json(home.as_str()) } else { list_toolchains(home.as_str()) }
         }
-        "uninstall" => {
-            if args.size() != 2 || starts_with_dash(args[1].as_str()) { return usage_error("self") }
+        "remove" => {
+            if args.size() != 2 || starts_with_dash(args[1].as_str()) { return usage_error("toolchain") }
             val error = remove_toolchain(home.as_str(), args[1].as_str(), kflat_version())
             if error.byte_len() > 0 { return report_error(error.as_str(), wants_json(nargs)) }
-            runtime_println("uninstalled kflat ${args[1]}")
+            runtime_println("removed kflat ${args[1]}")
             return 0
         }
-        _ => return usage_error("self")
+        _ => return usage_error("toolchain")
     }
 }
 
@@ -62,7 +63,7 @@ fun list_toolchains_json(home: str): int32 {
     return 0
 }
 
-fun update_self(home: str, version: str): int32 {
+fun toolchain_install(home: str, version: str): int32 {
     val done = self_update(version, kflat_version(), home, cache_root().as_str())
     if done.error.byte_len() > 0 {
         runtime_println("error: ${done.error}")
