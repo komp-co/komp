@@ -296,7 +296,9 @@ version that is not yanked and its description; `komp search <query>` keeps the 
 contain it. `komp info <name>` lists every version of one package, marking
 the newest and any yanked. Both read the index's checkout in the cache,
 bringing it up to date first, and take `--index <url>` to look in another
-index than the default.
+index than the default. `--offline` reads the checkout as it is, which is
+what an editor wants while you type; it fails when the index has never been
+fetched.
 
 ```console
 $ komp search

@@ -25,7 +25,7 @@ fun catalog_index(name: str): String {
 
 @test
 fun search_lists_every_package_sorted_by_name(): void {
-    val found = search_index(catalog_index("kf_catalog_a").as_str(), "", test_cache().as_str())
+    val found = search_index(catalog_index("kf_catalog_a").as_str(), "", test_cache().as_str(), false)
     var names = ""
     while package in &found.packages { names.append("${package.name} ".as_str()) }
     assert_eq(names.as_str(), "komp_alpha komp_beta zed ", "every package, the index's own files left out")
@@ -33,31 +33,45 @@ fun search_lists_every_package_sorted_by_name(): void {
 
 @test
 fun search_keeps_the_names_containing_the_query(): void {
-    val found = search_index(catalog_index("kf_catalog_b").as_str(), "komp", test_cache().as_str())
+    val found = search_index(catalog_index("kf_catalog_b").as_str(), "komp", test_cache().as_str(), false)
     assert_eq(found.packages.size(), 2, "komp_alpha and komp_beta")
 }
 
 @test
 fun the_newest_version_passes_over_a_yanked_one(): void {
-    val found = search_index(catalog_index("kf_catalog_c").as_str(), "alpha", test_cache().as_str())
+    val found = search_index(catalog_index("kf_catalog_c").as_str(), "alpha", test_cache().as_str(), false)
     assert_eq(found.packages[0].newest().as_str(), "0.2.0", "0.2.1 is yanked")
 }
 
 @test
 fun info_lists_every_version_yanked_included(): void {
-    val found = index_package(catalog_index("kf_catalog_d").as_str(), "komp_alpha", test_cache().as_str())
+    val found = index_package(catalog_index("kf_catalog_d").as_str(), "komp_alpha", test_cache().as_str(), false)
     assert_eq(found.packages[0].versions.size(), 3, "0.1.0, 0.2.0 and the yanked 0.2.1")
 }
 
 @test
 fun info_on_a_package_the_index_lacks_says_so(): void {
-    val found = index_package(catalog_index("kf_catalog_e").as_str(), "komp_gamma", test_cache().as_str())
+    val found = index_package(catalog_index("kf_catalog_e").as_str(), "komp_gamma", test_cache().as_str(), false)
     assert_eq(found.error.contains("has no package `komp_gamma`"), true, "names it")
 }
 
 @test
 fun a_package_carries_its_description(): void {
-    val found = search_index(catalog_index("kf_catalog_f").as_str(), "", test_cache().as_str())
+    val found = search_index(catalog_index("kf_catalog_f").as_str(), "", test_cache().as_str(), false)
     assert_eq("${found.packages[0].description}|${found.packages[1].description}".as_str(), "The first letter|",
         "komp_alpha's, and none for komp_beta")
+}
+
+@test
+fun offline_search_of_an_uncached_index_names_the_fix(): void {
+    val found = search_index(catalog_index("kf_catalog_g").as_str(), "", "${test_cache()}/kf_catalog_g".as_str(), true)
+    assert_eq(found.error.contains("not in the cache yet"), true, "it does not clone")
+}
+
+@test
+fun offline_info_reads_the_cached_checkout(): void {
+    val url = catalog_index("kf_catalog_h")
+    val _cached = search_index(url.as_str(), "", test_cache().as_str(), false)
+    val found = index_package(url.as_str(), "komp_beta", test_cache().as_str(), true)
+    assert_eq(found.packages[0].newest().as_str(), "1.0.0", "from the checkout the search cloned")
 }

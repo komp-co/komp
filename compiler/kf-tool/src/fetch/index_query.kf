@@ -32,16 +32,23 @@ pub struct IndexQuery {
     pub val error: String
 }
 
+fun not_cached(url: str): String {
+    return "the index ${url} is not in the cache yet; run once without --offline"
+}
+
 fun query_failed(error: String): IndexQuery {
     return IndexQuery { packages: List.new<IndexPackage>(), error: error }
 }
 
 /// Every package in the index at `url` whose name contains `query`, sorted
-/// by name; "" matches every one.
-pub fun search_index(url: str, query: str, cache: str): IndexQuery {
+/// by name; "" matches every one. `offline` reads the index as the cache
+/// has it instead of bringing it up to date.
+pub fun search_index(url: str, query: str, cache: str, offline: bool): IndexQuery {
     var refreshed = List.new<String>()
+    if offline { refreshed.push(String.from(url)) }
     val checkout = index_checkout(url, cache, &refreshed)
     if checkout.error.byte_len() > 0 { return query_failed(checkout.error.clone()) }
+    if !is_directory(checkout.dir.as_str()) { return query_failed(not_cached(url)) }
     var names = List.new<String>()
     val top = read_dir(checkout.dir.as_str())
     if top.is_err() { return query_failed("cannot read ${checkout.dir}") }
@@ -61,8 +68,9 @@ pub fun search_index(url: str, query: str, cache: str): IndexQuery {
 }
 
 /// The package `name` in the index at `url`, or `error` when it lists none.
-pub fun index_package(url: str, name: str, cache: str): IndexQuery {
+pub fun index_package(url: str, name: str, cache: str, offline: bool): IndexQuery {
     var refreshed = List.new<String>()
+    if offline { refreshed.push(String.from(url)) }
     return index_package_in(url, name, cache, &var refreshed)
 }
 
@@ -73,7 +81,7 @@ pub fun index_package_in(url: str, name: str, cache: str, refreshed: &var List<S
     val checkout = index_checkout(url, cache, refreshed)
     if checkout.error.byte_len() > 0 { return query_failed(checkout.error.clone()) }
     if !is_directory(checkout.dir.as_str()) {
-        return query_failed("the index ${url} is not in the cache yet; run once without --offline")
+        return query_failed(not_cached(url))
     }
     val file = "${checkout.dir}/${index_file_path(name)}"
     if !is_file(file.as_str()) { return query_failed("the index ${url} has no package `${name}`") }

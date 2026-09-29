@@ -16,9 +16,9 @@ pub fun command_usage(command: str): str {
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
         "uninstall" => "komp uninstall <name>[@<version>]"
         "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
-        "search" => "komp search [<query>] [--index <url>]"
+        "search" => "komp search [<query>] [--index <url>] [--offline]"
         "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
-        "info" => "komp info <name> [--index <url>]"
+        "info" => "komp info <name> [--index <url>] [--offline]"
         "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
         "self" => "komp self update [<version>] | list | uninstall <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
@@ -111,11 +111,15 @@ successors. A program is refused: `komp install` installs one.
         "search" => """List the packages a package index offers whose names contain <query>,
 each with its newest version; with no query, every package.
 
-  --index <url>     the index to look in, instead of the default"""
+  --index <url>     the index to look in, instead of the default
+  --offline         read the index as the cache has it, not bringing it up
+                    to date first"""
         "info" => """List every version of a package in a package index, marking the newest
 and any yanked.
 
-  --index <url>     the index to look in, instead of the default"""
+  --index <url>     the index to look in, instead of the default
+  --offline         read the index as the cache has it, not bringing it up
+                    to date first"""
         "outdated" => """List the project's index dependencies and [tools] pins, each with its
 requirement, the version kf.lock holds, the newest version the requirement
 allows, and the newest version in its index.
