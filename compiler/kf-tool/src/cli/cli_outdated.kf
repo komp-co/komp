@@ -8,15 +8,34 @@ import kf_tool.build.outdated
 import kf_tool.fetch.cache_root
 import kf_tool.project.command_dir
 import kf_shared.canonicalize_path
+import kf_shared.cli_arg_get
 import kf_shared.join_path
 import kf_shared.resolve_path
 import std.env.current_dir
 import std.fs.exists
 
+/// The project directory, wherever it sits among the flags; `.` when there
+/// is none.
+fun outdated_project(nargs: int32): String {
+    val from_manifest = manifest_root(nargs)
+    if !from_manifest.is_empty() { return from_manifest }
+    var i: int32 = 1
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if arg == "--manifest-path" {
+            i = i + 1
+        } else if !starts_with_dash(arg) {
+            return String.from(arg)
+        }
+        i = i + 1
+    }
+    return String.from(".")
+}
+
 pub fun outdated_command(nargs: int32): int32 {
     if positionals_from(nargs, 1) > 1 { return usage_error("outdated") }
     val as_json = wants_json(nargs)
-    val dir = command_dir(project_for(nargs, 1).as_str())
+    val dir = command_dir(outdated_project(nargs).as_str())
     val root = canonicalize_path(resolve_path(current_dir().as_str(), dir.as_str()).as_str())
     if !exists(join_path(root.as_str(), "kf.toml").as_str()) {
         return report_error("no kf.toml in ${root}", as_json)

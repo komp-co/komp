@@ -567,6 +567,17 @@ printf '[lints]\nwildcard_import = "warn"\n' >> "$WORK/lint-file/lint.toml"
 }
 echo "  PASS  lint.toml sets groups and lints, and komp lint tallies them"
 
+# `komp outdated` finds its project wherever the directory sits among its
+# flags, as an editor passes them.
+mkdir -p "$WORK/outdated-app/src"
+printf '[project]\nname = "outdated_app"\nversion = "0.1.0"\nkind = "bin"\n' > "$WORK/outdated-app/kf.toml"
+outdated=$(cd / && "$WORK/komp" outdated --offline --format=json "$WORK/outdated-app" 2>&1 || true)
+case "$outdated" in
+    *'"project":"'*'/outdated-app","dependencies":[],"tools":[]}') ;;
+    *) echo "FAIL: komp outdated did not read the directory after its flags" >&2; echo "$outdated" >&2; exit 1 ;;
+esac
+echo "  PASS  komp outdated takes its directory after its flags"
+
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every
 # `--diagnostic-format=json` run.
