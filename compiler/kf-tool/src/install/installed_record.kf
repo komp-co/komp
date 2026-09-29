@@ -16,7 +16,7 @@ import std.fs.write_text
 @derive(Clone)
 pub struct InstalledTool {
     pub val entry: LockEntry
-    /// As `komp install <name>@<requirement>` gave it; "" allows any version.
+    /// As `komp tool install <name>@<requirement>` gave it; "" allows any version.
     pub val requirement: String
 }
 
@@ -55,7 +55,7 @@ fun recorded_requirements(text: str): List<String> {
 
 pub fun write_installed(home: str, tools: &List<InstalledTool>): bool {
     if !ensure_dir(home) { return false }
-    var text = String.from("# Written by komp install: every installed program, its exact source and ")
+    var text = String.from("# Written by komp tool install: every installed program, its exact source and ")
     text.append("the requirement it was installed with.\nschema = 1\n")
     while tool in tools {
         var one = List.new<LockEntry>()

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Refuse a commit whose staged .kf files are not formatted, as CI would.
-# Skipped when komp-fmt is not installed (`komp install komp_fmt`).
+# Skipped when komp-fmt is not installed (`komp tool install komp_fmt`).
 #
 # Bypass: git commit --no-verify
 fmt="${KFLAT_HOME:-$HOME/.kflat}/bin/komp-fmt"

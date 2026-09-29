@@ -1,18 +1,13 @@
-// `komp install [<name>[@<requirement>]] [--index <url>]`,
-// `komp uninstall <name>`, `komp update --installed [<name>...]`,
-// `komp self update`, and `komp <command>` running an installed
-// `komp-<command>`.
+// `komp tool install|list|update|remove`: the programs komp builds from a
+// package index into ~/.kflat, several versions of one side by side.
 
 import alloc.list.*
-import kf_tool.build.beside_self
 import kf_tool.fetch.cache_root
 import kf_tool.install.install_home
 import json.writer.JsonWriter
 import kf_tool.install.install_package
 import kf_tool.install.installed_tools
 import kf_tool.install.named
-import kf_tool.install.pinned_tool
-import kf_tool.install.project_tool_pin
 import kf_tool.install.stored_packages
 import kf_tool.install.stored_versions
 import kf_tool.project.render
@@ -23,36 +18,40 @@ import kf_tool.install.uninstall_package
 import kf_tool.install.update_installed
 import kf_tool.project.default_index_url
 import kf_shared.cli_arg_get
-import kf_shared.kflat_version
 import std.env.env_var
-import std.fs.exists
-import std.process.Command
 
-/// With no package, lists what is installed.
-pub fun install_command(nargs: int32): int32 {
+/// `komp tool install|list|update|remove`.
+pub fun tool_command(nargs: int32): int32 {
+    if nargs < 2 { return usage_error("tool") }
+    return when cli_arg_get(1) {
+        "install" => tool_install(nargs)
+        "list" => tool_list(nargs)
+        "update" => tool_update(nargs)
+        "remove" => tool_remove(nargs)
+        _ => usage_error("tool")
+    }
+}
+
+/// `komp tool install <name>[@<requirement>] [--index <url>]`.
+fun tool_install(nargs: int32): int32 {
     var package = ""
     var index = ""
-    var i = 1
+    var i = 2
     while i < nargs {
         val arg = cli_arg_get(i)
-        if is_format_flag(arg) {
-            // read by wants_json
-        } else if arg == "--index" {
-            if i + 1 >= nargs { return usage_error("install") }
+        if arg == "--index" {
+            if i + 1 >= nargs { return usage_error("tool") }
             index = String.from(cli_arg_get(i + 1))
             i = i + 1
         } else if starts_with_dash(arg) || package.byte_len() > 0 {
-            return usage_error("install")
+            return usage_error("tool")
         } else {
             package = String.from(arg)
         }
         i = i + 1
     }
+    if package.byte_len() == 0 { return usage_error("tool") }
     val home = install_home()
-    if package.byte_len() == 0 {
-        if wants_json(nargs) { return list_installed_json(home.as_str()) }
-        return list_installed(home.as_str())
-    }
     val at = package.index_of("@")
     val name = when (at) {
         Some(split) => package.substring(0, split)
@@ -74,9 +73,18 @@ pub fun install_command(nargs: int32): int32 {
     return 0
 }
 
-pub fun uninstall_command(nargs: int32): int32 {
-    if nargs != 2 || starts_with_dash(cli_arg_get(1)) { return usage_error("uninstall") }
-    val package = String.from(cli_arg_get(1))
+/// `komp tool list [--format=json]`.
+fun tool_list(nargs: int32): int32 {
+    if arguments_without_format(nargs).size() != 1 { return usage_error("tool") }
+    val home = install_home()
+    if wants_json(nargs) { return list_installed_json(home.as_str()) }
+    return list_installed(home.as_str())
+}
+
+/// `komp tool remove <name>[@<version>]`.
+fun tool_remove(nargs: int32): int32 {
+    if nargs != 3 || starts_with_dash(cli_arg_get(2)) { return usage_error("tool") }
+    val package = String.from(cli_arg_get(2))
     val at = package.index_of("@")
     val name = if at == null { package.clone() } else { package.substring(0, at ?: 0) }
     val version = if at == null { String.from("") } else { package.substring((at ?: 0) + 1, package.byte_len()) }
@@ -85,21 +93,18 @@ pub fun uninstall_command(nargs: int32): int32 {
         runtime_println("error: ${error}")
         return 1
     }
-    runtime_println(if version.is_empty() { "uninstalled `${name}`" } else { "uninstalled `${name}` ${version}" })
+    runtime_println(if version.is_empty() { "removed `${name}`" } else { "removed `${name}` ${version}" })
     return 0
 }
 
-/// `komp update --installed [<name>...]`: 1 when any program could not be
-/// updated.
-pub fun update_installed_command(nargs: int32): int32 {
+/// `komp tool update [<name>...]`: 1 when any program could not be updated.
+fun tool_update(nargs: int32): int32 {
     var names = List.new<String>()
-    var i = 1
+    var i = 2
     while i < nargs {
         val arg = cli_arg_get(i)
-        if arg != "--installed" {
-            if starts_with_dash(arg) { return usage_error("update") }
-            names.push(String.from(arg))
-        }
+        if starts_with_dash(arg) { return usage_error("tool") }
+        names.push(String.from(arg))
         i = i + 1
     }
     val home = install_home()
@@ -117,62 +122,6 @@ pub fun update_installed_command(nargs: int32): int32 {
         }
     }
     return if failed { 1 } else { 0 }
-}
-
-/// What `komp <command>` runs: `path` "" when no program answers to it, or
-/// `error` when a pin cannot be met.
-pub struct ToolCommand {
-    pub val path: String
-    pub val error: String
-}
-
-/// The package whose program `komp <command>` runs: `komp_` and the command,
-/// `-` read as `_`.
-pub fun tool_package(command: str): String {
-    return "komp_${command.replace("-", "_")}"
-}
-
-/// The `komp-<command>` that `komp <command>` runs: the version the current
-/// project's `[tools]` pins, installed on first use, else the default.
-pub fun installed_command(command: str): ToolCommand {
-    val none = ToolCommand { path: "", error: "" }
-    if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return none }
-    val home = install_home()
-    val package = tool_package(command)
-    val pinned = project_tool_pin(".", package.as_str())
-    if pinned != null {
-        val pin = pinned ?: return none
-        val chosen = pinned_tool(&pin, package.as_str(), cache_root().as_str(), home.as_str())
-        return ToolCommand { path: chosen.binary.clone(), error: chosen.error.clone() }
-    }
-    val path = "${installed_bin_dir(home.as_str())}/komp-${command}"
-    return if exists(path.as_str()) { ToolCommand { path: path, error: "" } } else { none }
-}
-
-/// `komp <command>` run as a program's: its exit status, or null when no
-/// program answers to `command`.
-pub fun run_tool_command(command: str, nargs: int32): int32? {
-    val tool = installed_command(command)
-    if tool.error.byte_len() > 0 {
-        runtime_println("error: ${tool.error}")
-        return Option.Some(1)
-    }
-    if tool.path.is_empty() { return null }
-    return Option.Some(run_installed(tool.path.as_str(), nargs))
-}
-
-/// Replaces komp with `path`, given every argument after the command, so
-/// the program owns komp's process, stdio and signals. `KOMP_BIN` names this
-/// komp unless it is already set, so a program that asks komp about the
-/// project asks the one that started it. Comes back only when `path` could
-/// not be started.
-pub fun run_installed(path: str, nargs: int32): int32 {
-    var command = Command.new(path)
-    while i in 1..nargs { command.arg(cli_arg_get(i)) }
-    if env_var("KOMP_BIN") == null { command.env("KOMP_BIN", beside_self("komp").as_str()) }
-    val failed = command.exec()
-    runtime_println("error: cannot run ${path}: ${failed.message}")
-    return 127
 }
 
 /// Each default, and every version in the store beside it.

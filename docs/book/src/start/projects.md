@@ -317,7 +317,7 @@ komp_doc = { version = "0.3", index = "work" }
 
 Inside the project, `komp fmt` runs the highest version of `komp_fmt` that
 `"0.1"` allows among those installed, and installs one the first time none
-does; elsewhere it runs the default [`komp install`](../tools/cli.md#komp-install)
+does; elsewhere it runs the default [`komp tool install`](../tools/cli.md#komp-tool)
 made. Versions sit side by side in `~/.kflat/tools`, each built once, so a
 project on 0.1 and a default of 0.2 each run their own. In a workspace,
 `[tools]` goes in the root `kf.toml` and pins every member.

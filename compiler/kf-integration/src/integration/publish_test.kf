@@ -79,7 +79,8 @@ fun a_program_is_committed_for_review(): void {
     val index = empty_index("kf_pub_index_e", false)
     publish(&package, &index, &cache)
     val entry = read_file("${cache}/publish/greet-0.1.0/gr/ee/greet.toml".as_str())
-    assert_eq(entry.as_str().contains("version = \"0.1.0\""), true, "`komp install` installs programs from the index")
+    val listed = entry.as_str().contains("version = \"0.1.0\"")
+    assert_eq(listed, true, "`komp tool install` installs programs from the index")
 }
 
 @test

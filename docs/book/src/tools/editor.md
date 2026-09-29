@@ -39,7 +39,7 @@ top-level names.
 Install it once, and every editor starts it the same way:
 
 ```sh
-komp install komp_lsp
+komp tool install komp_lsp
 ```
 
 An editor runs `komp lsp` in the project's directory. komp runs the

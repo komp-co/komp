@@ -1,4 +1,4 @@
-// `komp update --installed`: each installed program resolved again against
+// `komp tool update`: each installed program resolved again against
 // the requirement and index it was installed with, and rebuilt only when that
 // finds a newer version.
 

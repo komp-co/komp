@@ -2,7 +2,7 @@
 # Installs the kflat release this script ships in: builds komp and kflatc
 # with cc and puts them, with the libraries they compile against, in
 # $KFLAT_HOME/toolchains/<version> ($KFLAT_HOME is ~/.kflat unless set).
-# komp and kflatc are linked into $KFLAT_HOME/bin, where `komp install`
+# komp and kflatc are linked into $KFLAT_HOME/bin, where `komp tool install`
 # puts programs too, so that one directory goes on PATH.
 #
 #   sh install.sh            # CC and CFLAGS pick the C compiler and flags

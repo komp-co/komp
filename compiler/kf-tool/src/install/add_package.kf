@@ -40,7 +40,7 @@ pub fun add_package(root: str, name: str, requirement: str, index: str, cache: s
     val fetched = resolve_from_index(&dep, cache, &refreshed)
     if fetched.error.byte_len() > 0 { return add_failed(fetched.error.clone()) }
     if project_is_bin(fetched.entry.cached_root(cache).as_str()) {
-        return add_failed("`${name}` is a program, not a library: `komp install ${name}` installs it")
+        return add_failed("`${name}` is a program, not a library: `komp tool install ${name}` installs it")
     }
     val written = if requirement.is_empty() { fetched.entry.version.clone() } else { String.from(requirement) }
     val row = if index.is_empty() {

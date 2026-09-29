@@ -1,26 +1,4 @@
-// Parses arguments and dispatches:
-//
-//   komp <project-dir> [out.c]         compile to C (legacy positional form)
-//   komp build <project-dir>           build crate artifacts
-//   komp build --unity <project-dir> [out.c]
-//                                      compile one whole-program C file
-//   komp run <project-dir>             build artifacts and run
-//   komp check <project-dir>           type-check only
-//   komp fix [--dry-run] <project-dir>
-//                                      write the machine-applicable repairs
-//   komp test <project-dir>            run @test functions from artifacts
-//   komp update [<project-dir>]        re-resolve fetched dependencies
-//   komp install [<name>[@<req>]]      build a program from an index into
-//                                      ~/.kflat/bin, or list what is there
-//   komp uninstall <name>              remove an installed program
-//   komp self update [<version>]       install the newest komp release
-//   komp <command> [args]              run the installed komp-<command>
-//   komp publish [--status] [<project-dir>]
-//                                      add this version to a package index
-//   komp new <name>                    create a new project
-//   komp init                          create a new project in the current dir
-//   komp version                       print version
-//   komp help                          usage
+// Parses arguments and dispatches each command; cli_help.kf lists them.
 //
 // CONSTRAINT: an arg0 that is not a subcommand is the project directory, so
 // the bootstrap script and older seeds keep building komp.
@@ -338,7 +316,6 @@ pub fun run_cli(): int32 {
             return metadata_command(project_for(nargs, 1).as_str(), nargs)
         }
         "update" => {
-            if has_own_flag(nargs, "--installed") { return update_installed_command(nargs) }
             if positionals_from(nargs, 1) > 1 { return usage_error("update") }
             return update_project(project_for(nargs, 1).as_str(), nargs)
         }
@@ -347,20 +324,19 @@ pub fun run_cli(): int32 {
             return new_project(cli_arg_get(1))
         }
         "init" => return init_project()
-        "install" => return install_command(nargs)
+        "tool" => return tool_command(nargs)
         "add" => return add_command(nargs)
         "search" => return search_command(nargs)
         "cache" => return cache_command(nargs)
         "info" => return info_command(nargs)
         "outdated" => return outdated_command(nargs)
-        "uninstall" => return uninstall_command(nargs)
         "self" => return self_command(nargs)
         _ => { }
     }
 
     if !is_directory(a0) {
         runtime_println("error: no command `${a0}`, no installed komp-${a0}, and no project directory by that name")
-        runtime_println("`komp help` lists the commands; `komp install ${tool_package(a0)}` adds the program")
+        runtime_println("`komp help` lists the commands; `komp tool install ${tool_package(a0)}` adds the program")
         return 1
     }
     // CONSTRAINT: the legacy positional form the bootstrap script uses; no

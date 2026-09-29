@@ -298,7 +298,7 @@ phase "formatting"
 mkdir -p "$WORK/fmt-toolchain/bin"
 cp "$WORK/komp" "$WORK/kflatc" "$WORK/fmt-toolchain/bin/"
 [ -e "$WORK/fmt-toolchain/libs" ] || ln -s "$ROOT/libs" "$WORK/fmt-toolchain/libs"
-KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
+KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" tool install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
     cat "$WORK/fmt-install.log" >&2
     echo "FAIL: komp_fmt could not be installed from the package index" >&2
     exit 1

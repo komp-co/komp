@@ -1,4 +1,4 @@
-// `komp install` and `komp uninstall`: a program built from a `file://`
+// `komp tool install` and `komp tool remove`: a program built from a `file://`
 // index in scratch space, into an install home of its own.
 
 import core.assert.assert_eq

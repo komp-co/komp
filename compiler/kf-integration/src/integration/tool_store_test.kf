@@ -1,4 +1,4 @@
-// Tool versions side by side: `komp install` building each version once into
+// Tool versions side by side: `komp tool install` building each version once into
 // the store, and a project's `[tools]` pin picking among them. The indexes
 // come from `tool_index` and `publish_tool_version`: 0.1.0 exits 7, 0.1.1
 // exits 8, 0.2.0 exits 9.

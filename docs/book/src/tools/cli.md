@@ -17,10 +17,8 @@ points, and then compiles and links the C with cc.
 | `komp lint <dir>` | Check and report lints, with a tally; see [Linting](lint.md) |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
-| `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
 | `komp add <name>[@<req>]` | Add a library from a package index to `[dependencies]` |
-| `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
-| `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
+| `komp tool install \| list \| update \| remove` | Build programs from a package index into `~/.kflat`, list, update or remove them |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
 | `komp outdated [<dir>]` | Compare a project's index packages and tools with their newest versions |
@@ -115,7 +113,7 @@ inside the crate, runs them, and reports failures. See
 `komp publish <project-dir>` adds a package's version to a package index,
 [komp-co/index](https://github.com/komp-co/index) unless `--index <url>` or
 `$KFLAT_INDEX` names another. The package is a library that `[dependencies]`
-can name, or a program that [`komp install`](#komp-install) installs:
+can name, or a program that [`komp tool install`](#komp-tool) installs:
 
 ```console
 $ git tag v0.2.0 && git push origin v0.2.0
@@ -155,23 +153,6 @@ now has, and a tag or branch to the commit it names now. It fetches what is
 new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).
-
-`komp update --installed` updates the programs [`komp install`](#komp-install)
-put in `~/.kflat/bin` instead. Each is resolved again against the requirement
-and index it was installed with, and rebuilt only when that finds a newer
-version. Names pick some; none means every one.
-
-```console
-$ komp install komp_hello@0.1
-installed `komp_hello` 0.1.0 as /home/me/.kflat/bin/komp-hello
-$ komp update --installed
-updated `komp_hello` 0.1.0 -> 0.1.1
-$ komp update --installed komp_hello
-`komp_hello` 0.1.1 is the newest its requirement allows
-```
-
-Here 0.2.0 is published too, but `0.1` does not allow it; `komp install
-komp_hello@0.2` moves to it, and records that requirement instead.
 
 ### komp metadata
 
@@ -242,13 +223,13 @@ member.
 $ komp add json
 added `json` "0.2.0" to ./kf.toml, resolving to 0.2.0
 $ komp add komp_fmt
-error: `komp_fmt` is a program, not a library: `komp install komp_fmt` installs it
+error: `komp_fmt` is a program, not a library: `komp tool install komp_fmt` installs it
 ```
 
-### komp install
+### komp tool
 
-`komp install <name>` builds a program published to a package index and makes
-it the default: `~/.kflat/bin/<binary>` points at it, or `bin/` under
+`komp tool install <name>` builds a program published to a package index and
+makes it the default: `~/.kflat/bin/<binary>` points at it, or `bin/` under
 `$KFLAT_HOME` when that is set. The package is resolved as a dependency would
 be: `<name>@0.2` takes the highest version `0.2` allows, as the same
 requirement in `kf.toml` would, and a bare name the highest version published.
@@ -256,28 +237,43 @@ requirement in `kf.toml` would, and a bare name the highest version published.
 a `kf.lock` is built with the dependencies it pins.
 
 ```console
-$ komp install komp_fmt
+$ komp tool install komp_fmt
 installed `komp_fmt` 0.2.0 as /home/me/.kflat/bin/komp-fmt
-$ komp install
+$ komp tool list
 komp_fmt 0.2.0  /home/me/.kflat/bin/komp-fmt; also 0.1.0
-$ komp uninstall komp_fmt@0.1.0
-uninstalled `komp_fmt` 0.1.0
+$ komp tool remove komp_fmt@0.1.0
+removed `komp_fmt` 0.1.0
 ```
 
 Every version komp builds goes in `~/.kflat/tools/<package>/<version>`, once:
 a version already there is not built again, and installing another version
 makes it the default while the earlier one stays, for the projects that
-[pin](../start/projects.md#pinning-tools) it. `komp install` with no package
-lists each default and the other versions beside it. `komp uninstall
-<name>@<version>` removes one version, and `komp uninstall <name>` every one
-and the default.
+[pin](../start/projects.md#pinning-tools) it. `komp tool list` lists each
+default and the other versions beside it. `komp tool remove <name>@<version>`
+removes one version, and `komp tool remove <name>` every one and the default.
+
+`komp tool update` resolves each program again against the requirement and
+index it was installed with, and rebuilds it only when that finds a newer
+version. Names pick some; none means every one.
+
+```console
+$ komp tool install komp_hello@0.1
+installed `komp_hello` 0.1.0 as /home/me/.kflat/bin/komp-hello
+$ komp tool update
+updated `komp_hello` 0.1.0 -> 0.1.1
+$ komp tool update komp_hello
+`komp_hello` 0.1.1 is the newest its requirement allows
+```
+
+Here 0.2.0 is published too, but `0.1` does not allow it; `komp tool install
+komp_hello@0.2` moves to it, and records that requirement instead.
 
 A binary is named after its package with `_` spelled `-`. Only a
 `kind = "bin"` package installs; a library is a dependency, and belongs in
 `[dependencies]`. Each default is recorded in `installed.toml` beside `bin/`,
 in `kf.lock`'s format with the requirement it was installed with added, so
-the exact source of every program is known and
-[`komp update --installed`](#komp-update) can resolve it again.
+the exact source of every program is known and `komp tool update` can
+resolve it again.
 
 `komp <command>`, for a command komp does not have, runs `komp-<command>`
 with the arguments that follow it: the version the current project's `[tools]`
@@ -377,7 +373,7 @@ line, for editors and scripts; a failure prints `{"error": "..."}` and exits
 | `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
 | `komp outdated` | `{"project", "dependencies": [{"name", "requirement", "index", "locked", "allowed", "newest", "error"}], "tools"}`, each tool a row of the same shape |
 | `komp lint --list` | `{"groups", "lints": [{"name", "group", "level", "default", "description", "options": [{"key", "value", "default", "description"}]}]}` |
-| `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
+| `komp tool list` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
 | `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
 | `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
 | `komp self list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
@@ -589,5 +585,5 @@ dependencies correctly.
 
 A first argument that is neither a command, an installed `komp-<command>`,
 nor a directory is reported as an unknown command, naming the package that
-would provide it: `komp lsp` suggests `komp install komp_lsp`.
+would provide it: `komp lsp` suggests `komp tool install komp_lsp`.
 
