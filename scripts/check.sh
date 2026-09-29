@@ -578,6 +578,16 @@ case "$outdated" in
 esac
 echo "  PASS  komp outdated takes its directory after its flags"
 
+# `komp new` with no name scaffolds the current directory, named after it.
+mkdir -p "$WORK/new-here"
+(cd "$WORK/new-here" && "$WORK/komp" new > /dev/null) || {
+    echo "FAIL: komp new with no name failed in an empty directory" >&2; exit 1
+}
+grep -q '^name = "new_here"$' "$WORK/new-here/kf.toml" || {
+    echo "FAIL: komp new did not name the project after its directory" >&2; cat "$WORK/new-here/kf.toml" >&2; exit 1
+}
+echo "  PASS  komp new scaffolds the current directory"
+
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every
 # `--diagnostic-format=json` run.

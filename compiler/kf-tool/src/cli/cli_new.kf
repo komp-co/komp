@@ -1,4 +1,4 @@
-// `komp new` and `komp init`.
+// `komp new [<name>]`: a project in a new directory, or in this one.
 
 import core.text.ends_with_in
 import core.text.last_index_of_in
@@ -16,7 +16,10 @@ fun main_kf_src(): str {
 """
 }
 
+/// A project in the directory `name`; with no name, or `.`, in the current
+/// directory, named after it.
 pub fun new_project(name: str): int32 {
+    if name.is_empty() || name == "." { return new_project_here() }
     val crate_name = crate_name_from_dir(basename_of(name).as_str())
     val mkdir_full = "mkdir -p ${name}/src"
     val _rc = system(mkdir_full.as_str())
@@ -27,7 +30,7 @@ pub fun new_project(name: str): int32 {
     return 0
 }
 
-fun init_project(): int32 {
+fun new_project_here(): int32 {
     val cwd_s = unsafe { kf_current_dir() }
     val dir_name = basename_of(cwd_s.as_str())
     val crate_name = crate_name_from_dir(dir_name.as_str())

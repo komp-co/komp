@@ -77,7 +77,7 @@ pub struct CliArgs {
 
 fun known_command(value: str): bool {
     val compile_command = value == "build" || value == "check" || value == "run" || value == "test"
-    val project_command = value == "new" || value == "init"
+    val project_command = value == "new"
     return compile_command || project_command || value == "help" || value == "version"
 }
 

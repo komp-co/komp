@@ -21,8 +21,7 @@ pub fun command_usage(command: str): str {
         "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
         "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
-        "new" => "komp new <name>"
-        "init" => "komp init"
+        "new" => "komp new [<name>]"
         "version" => "komp version"
         "help" => "komp help [<command>]"
         _ => ""
@@ -158,8 +157,8 @@ entry is committed locally, komp says how to finish by hand, and exits 1.
 that run kflatc themselves. At a workspace or one of its members, every
 member and every crate they reach, dependencies first. Fetches first, as a
 build would; a failure is JSON too, with an `error` field, and exits 1."""
-        "new" => "Create a new project in a new directory of that name."
-        "init" => "Create a new project in the current directory."
+        "new" => """Create a new project in a new directory of that name; with no name, or
+`.`, in the current directory, named after it."""
         "version" => "Print the compiler version."
         "help" => "Print the command list, or the help for one command."
         _ => ""
@@ -197,8 +196,7 @@ pub fun print_usage(): void {
     runtime_println("  toolchain install, list or remove kflat releases")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
-    runtime_println("  new       create a new project")
-    runtime_println("  init      create a new project in the current directory")
+    runtime_println("  new       create a new project, or one in the current directory")
     runtime_println("  version   print the compiler version")
     runtime_println("")
     runtime_println("The project directory defaults to the current directory, or is")

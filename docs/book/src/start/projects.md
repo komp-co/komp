@@ -11,7 +11,7 @@ $ komp new my-project
 $ ls my-project
 kf.toml  src/
 
-$ komp init   # in an existing directory — scaffolds it in place
+$ komp new    # in an existing directory — scaffolds it in place
 ```
 
 Both write the same two files:

@@ -27,8 +27,7 @@ points, and then compiles and links the C with cc.
 | `komp toolchain install \| list \| remove` | Install the newest kflat release or the one named, list the installed ones, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
-| `komp new <name>` | Scaffold a new project directory |
-| `komp init` | Scaffold a project in the current directory |
+| `komp new [<name>]` | Scaffold a new project directory, or with no name the current one |
 | `komp version` | Print compiler version |
 
 At a workspace, `build`, `check`, `test` and `fix` work on the workspace's
