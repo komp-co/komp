@@ -6,7 +6,7 @@
 pub fun command_usage(command: str): str {
     return when command {
         "build" => "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]"
-        "check" => "komp check [--fix [--dry-run]] [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
+        "check" => "komp check [--fix [--dry-run]] [--format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
         "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
         "lint" => "komp lint [--list] [--fix [--dry-run]] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
@@ -43,7 +43,7 @@ fun command_detail(command: str): str {
   --fix                      write the repairs the checker is sure of, in place
   --dry-run                  with --fix, print what would change and write
                              nothing
-  --diagnostic-format=json   one JSON object per diagnostic
+  --format=json              one JSON object per diagnostic
   -A | -W | -D <lint>        allow, warn or deny one lint for this run
   --deny-warnings            treat every warning as an error
   --manifest-path <path>     the project's kf.toml, or its directory
@@ -70,7 +70,7 @@ kf.toml's [lint] table, then these flags.
                               komp check --fix does
   --dry-run                   with --fix, print what would change and write
                               nothing
-  --diagnostic-format=json    one JSON object per diagnostic, no tally
+  --format=json               one JSON object per diagnostic, no tally
   -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
   --deny-warnings             treat every warning as an error
   --manifest-path <path>      the project's kf.toml, or its directory

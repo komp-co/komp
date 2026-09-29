@@ -52,7 +52,7 @@ pub fun lint_table(cfg: &LintConfig): String {
 }
 
 /// Prints the table for the configuration on the command line, or with
-/// `--json` the same as one JSON object; exit 1, and the problems, when that
+/// `--format=json` the same as one JSON object; exit 1, and the problems, when that
 /// configuration names no lint or level.
 pub fun print_lint_table(): int32 {
     var diags = List.new<Diagnostic>()
@@ -61,7 +61,7 @@ pub fun print_lint_table(): int32 {
     if !diags.is_empty() { return 1 }
     var as_json = false
     while i in 0..arg_count() {
-        if arg_at(i) == "--json" { as_json = true }
+        if arg_at(i) == "--format=json" { as_json = true }
     }
     if as_json {
         println(lint_list_json(&cfg).as_str())

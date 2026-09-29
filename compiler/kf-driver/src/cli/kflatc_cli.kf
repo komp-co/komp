@@ -6,7 +6,7 @@
 //                  [--dep NAME=HASH]... [--load NAME]...
 //   kflatc check   --name N --root DIR --out DIR [--project DIR] [--json | --summary]
 //                  [--dep NAME=HASH]... [--load NAME]...
-//   kflatc lints   [--json] [-A/-W/-D LINT ...]
+//   kflatc lints   [--format=json] [-A/-W/-D LINT ...]
 //   kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]
 //   kflatc serve
 //   kflatc version
@@ -135,7 +135,7 @@ fun kflatc_usage(): int32 {
     println("                      [--dep NAME=HASH]... [--load NAME]...")
     println("       kflatc check   --name N --root DIR --out DIR [--project DIR] [--json | --summary]")
     println("                      [--dep NAME=HASH]... [--load NAME]...")
-    println("       kflatc lints   [--json]")
+    println("       kflatc lints   [--format=json]")
     println("       kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]")
     println("       kflatc version")
     println("       kflatc serve")

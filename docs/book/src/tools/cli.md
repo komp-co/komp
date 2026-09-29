@@ -381,8 +381,8 @@ $ komp info json --format=json
 {"index":"https://github.com/komp-co/index","name":"json","description":null,"newest":"0.2.0","versions":[{"version":"0.1.0","yanked":false},{"version":"0.2.0","yanked":false}]}
 ```
 
-`komp check` and `komp lint` take `--diagnostic-format=json` instead, one
-object per diagnostic (see [Structured fixes](#structured-fixes)), and
+With `--format=json`, `komp check` and `komp lint` print one object per
+diagnostic instead (see [Structured fixes](#structured-fixes)), and
 [`komp metadata`](#komp-metadata) always prints JSON.
 
 ### komp toolchain
@@ -470,7 +470,7 @@ what they do to `compile`. The crates' own C sources are left out; komp
 appends them.
 
 `kflatc lints` prints every lint at the level the lint flags on its command
-line give it, as `komp lint --list` shows; `--json` prints the same as one
+line give it, as `komp lint --list` shows; `--format=json` prints the same as one
 JSON object.
 
 `kflatc version` prints what komp needs to know about the compiler it runs, one
@@ -492,7 +492,7 @@ usual), and 2 on a malformed command line.
 |---|---|
 | `-q`, `--quiet` | Suppress compiler warnings (per-file copier notices) |
 | `--verbose` (on `build`) | Show the cc invocation |
-| `--diagnostic-format=json` (on `check`) | Output diagnostics as JSON lines |
+| `--format=json` (on `check`) | Output diagnostics as JSON lines |
 | `--unity` (on `build`/`run`/`test`) | Emit a single merged C unit |
 | `--locked` | Fail rather than change `kf.lock` |
 | `--offline` | Fail rather than fetch a dependency or install a [pinned toolchain](../start/projects.md#pinning-the-toolchain) |
@@ -511,11 +511,11 @@ into a clickable link.
 
 ## Structured fixes
 
-`--diagnostic-format=json` prints one object per diagnostic, and each
+`--format=json` prints one object per diagnostic, and each
 carries a `fix` — a machine-applicable repair, or null:
 
 ```console
-$ komp check --diagnostic-format=json my-project
+$ komp check --format=json my-project
 {"schema_version":3,"severity":"error","code":null,"message":"no method `sunm` on `Point` (did you mean `sum`?)","byte_start":171,"byte_end":179,"file":"src/lib.kf","line":13,"column":12,"secondary":[],"fix":{"title":"change to `sum`","replacement":"sum","applicability":"machine-applicable","byte_start":179,"byte_end":183,"file":"src/lib.kf"}}
 ```
 

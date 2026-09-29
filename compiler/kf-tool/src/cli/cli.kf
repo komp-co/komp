@@ -156,7 +156,7 @@ pub fun run_cli(): int32 {
             var ci = 1
             while ci < nargs {
                 val arg = cli_arg_get(ci)
-                if arg == "--diagnostic-format=json" {
+                if is_format_flag(arg) {
                     as_json = true
                 } else if arg == "--fix" {
                     fix = true
@@ -196,7 +196,7 @@ pub fun run_cli(): int32 {
                     fix = true
                 } else if arg == "--dry-run" {
                     dry_run = true
-                } else if arg == "--diagnostic-format=json" || is_format_flag(arg) {
+                } else if is_format_flag(arg) {
                     as_json = true
                 } else if arg == "-A" || arg == "-W" || arg == "-D" {
                     li = li + 1 // read by the lint config

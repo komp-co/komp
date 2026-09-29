@@ -590,7 +590,7 @@ echo "  PASS  komp new scaffolds the current directory"
 
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every
-# `--diagnostic-format=json` run.
+# `--format=json` run.
 phase "cli check resolves the implicit stdlib"
 mkdir -p "$WORK/implicit-project/src"
 {
@@ -610,7 +610,7 @@ mkdir -p "$WORK/implicit-project/src"
 
 # Cold: nothing has ever written target/kflat for this project.
 "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit.json"
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit.json"
 if [ -s "$WORK/implicit.json" ]; then
     echo "  FAIL  json check reported errors on a clean project:"
     head -3 "$WORK/implicit.json"
@@ -623,7 +623,7 @@ if "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null 2>&1; then
     echo "  FAIL  check exited 0 on an undefined function" >&2
     exit 1
 fi
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
 if ! grep -q '"severity":"error"' "$WORK/implicit-bad.json"; then
     echo "  FAIL  json check reported no error for an undefined function" >&2
     exit 1

@@ -67,5 +67,5 @@ check: found errors
 
 The diagnostic format is `file:line:column: severity: message`. The `^~~~`
 underline marks the exact span of the problem. If you need machine-readable
-output, use `--diagnostic-format=json`.
+output, use `--format=json`.
 

@@ -1,4 +1,4 @@
-// `kflatc lints --json`: the table as data, for an editor completing
+// `kflatc lints --format=json`: the table as data, for an editor completing
 // lint.toml.
 
 import alloc.list.*

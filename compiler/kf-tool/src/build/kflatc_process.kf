@@ -58,7 +58,7 @@ pub fun list_lints(project: str, as_json: bool): int32 {
     if kflatc_missing(&path) { return 1 }
     var command = Command.new(path.as_str())
     command.arg("lints")
-    if as_json { command.arg("--json") }
+    if as_json { command.arg("--format=json") }
     forward_compiler_flags(&var command, project)
     return command.status().exit_code()
 }

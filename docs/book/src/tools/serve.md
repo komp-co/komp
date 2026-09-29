@@ -78,7 +78,7 @@ objects, or `name=level` strings) and `lint_options` (`{"name", "key",
 Other fields are passed over. `target_dir` is `komp metadata`'s, where the
 dependencies' interfaces are. They must already be there; `komp check` puts
 them there. Each diagnostic is the object `komp check
---diagnostic-format=json` prints, described under
+--format=json` prints, described under
 [Structured fixes](cli.md#structured-fixes). A lint row that names no lint,
 or an option no lint has, is
 reported as an error diagnostic, as `kf.toml` reports it.
