@@ -1,5 +1,5 @@
 /// The release this tree becomes, printed by `komp version` and `kflatc version`.
 /// CONSTRAINT: a `vX.Y.Z` release tag must name this version.
 pub fun kflat_version(): str {
-    return "0.5.4"
+    return "0.6.0"
 }
