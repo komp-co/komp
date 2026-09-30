@@ -1,0 +1,10 @@
+//! run: exit 1
+//! deps: core
+// An index past the end panics rather than reading beyond the array.
+
+fun main(): int32 {
+    val xs: int32[2] = [1, 2]
+    var i: uint64 = 0
+    while i < 2 { i = i + 1 }
+    return xs[i]
+}

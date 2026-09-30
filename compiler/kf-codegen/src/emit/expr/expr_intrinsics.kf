@@ -6,6 +6,7 @@ import kf_codegen.concat_all
 import kf_codegen.emit.clone_fn_for_ctype
 import kf_codegen.emit.release_fn_for_ctype
 import kf_codegen.emit.instances.cname_of_mangle
+import kf_codegen.emit.c_type_of_type
 
 fun Expr.struct_lit_name(sname: String): String {
     if self.mangled_callee.as_str().equals("") {
@@ -158,5 +159,17 @@ fun emit_free(args: List<Expr>): String {
     parts.push(String.from("kf_free("))
     parts.push(a.emit_expr())
     parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
+/// `(W){ { a, b, c } }`: a compound literal of the array's C struct.
+fun Expr.emit_array_literal(elements: &List<Expr>): String {
+    var parts = List.new<String>()
+    parts.push("((${self.ty.c_type_of_type()}){ { ")
+    while i in 0..elements.size() {
+        if i > 0 { parts.push(String.from(", ")) }
+        parts.push(elements.at(i).emit_expr())
+    }
+    parts.push(String.from(" } })"))
     return concat_all(parts)
 }

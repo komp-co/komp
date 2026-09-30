@@ -49,6 +49,7 @@ pub fun Module.emit_crate_source_supported(m: &Module, crate_name: String, is_bi
     parts.push(support_layouts.emit_type_op_protos())
     parts.push(support.emit_support_protos())
     parts.push(support.emit_instance_forwards())
+    parts.push(self.emit_array_types(&support.instances))
     parts.push(glueview.emit_struct_news())
     parts.push(emit_public_glue_definitions(&hview.public_glue_lookup_view(&support), m))
     parts.push(glueview.emit_private_glue_definitions(m))

@@ -56,10 +56,16 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 /// names spell themselves; `kf__ref__String` is the structural mangle of
 /// `&String`, decoded with `ref_key_inner`, the inverse of `mangle_type_frag`.
 /// The marker is reserved-prefixed and carries mutability, so `&var T` reads
-/// back as one. `Ptr__X` and `Box__X` resolve as builtins.
+/// back as one. `Ptr__X` and `Box__X` resolve as builtins, and
+/// `kf__array__N__X` is `X[N]`.
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val function = ctx.fn_type_for(self.as_str())
     if function != null { return function!!.type_to_type_ref(span) }
+    val array = array_frag_parts(self.as_str())
+    if array != null {
+        val element = Box.new(array!!.element.tref_from_frag(span, ctx))
+        return new_type_ref(span, TypeRefKind.Array(element, array!!.length))
+    }
     val named = new_type_ref(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
@@ -109,8 +115,7 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         var j = 0
         while j < binding.names.size() {
             if binding.names.at(j).as_str().equals(param.as_str()) {
-                val ty_name = mangle_type(*binding.types.at(j))
-                args.push(new_type_ref(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(binding.types.at(j).type_arg_ref(span))
                 found = true
                 break
             }
@@ -119,8 +124,7 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         j = 0
         while !found && j < method_names.size() {
             if method_names.at(j).as_str().equals(param.as_str()) {
-                val ty_name = mangle_type(*method_types.at(j))
-                args.push(new_type_ref(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(method_types.at(j).type_arg_ref(span))
                 found = true
                 break
             }
@@ -158,7 +162,7 @@ fun Type.register_substituted_return_row(post: &Type, binding: &RecvBinding, spa
         val flat = mangle_type(*binding.types.at(i))
         if flat.as_str().byte_len() == 0 { return }
         names.push(*binding.names.at(i))
-        repls.push(new_type_ref(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
+        repls.push(binding.types.at(i).type_arg_ref(span))
         i = i + 1
     }
     val args = subst_tref_list(&row.args, &var names, &var repls)
@@ -216,4 +220,12 @@ fun mangled_name_is_ambiguous(name: str, ctx: &var TypeCtx): bool {
     if base_len + 2 >= name_len { return false }
     val frags = mangle_segments(mangle_suffix(owned, base_len + 2).as_str())
     return frags.size() != info.type_params.size()
+}
+
+/// A bound type as a type argument: by its mangled name, which a declared
+/// type resolves back from, and an array by its element and length, which
+/// no declaration answers to.
+fun Type.type_arg_ref(span: Span): TypeRef {
+    if self.kind.kind_tag() == TAG_ARRAY() { return self.type_to_type_ref(span) }
+    return new_type_ref(span, TypeRefKind.Named(intern(mangle_type(*self).as_str()), List.new<TypeRef>()))
 }

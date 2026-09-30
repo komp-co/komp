@@ -31,8 +31,8 @@
 10 compiler/kf-core/src/ast/dyn_meta/dyn_trait.kf
 9 compiler/kf-core/src/ast/subst/expr_subst.kf
 23 compiler/kf-core/src/ast/subst/subst.kf
-23 compiler/kf-core/src/ast/subst/type_ref_subst.kf
-17 compiler/kf-core/src/ast/ty.kf
+22 compiler/kf-core/src/ast/subst/type_ref_subst.kf
+18 compiler/kf-core/src/ast/ty.kf
 3 compiler/kf-core/src/ast/type_mangle_frag.kf
 3 compiler/kf-core/src/diagnostic/renderer.kf
 2 compiler/kf-driver/src/build/crate_sources.kf
@@ -125,9 +125,9 @@
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
 6 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
-7 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
+6 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
-35 compiler/kf-parse/src/parser/top_decl/impl.kf
+34 compiler/kf-parse/src/parser/top_decl/impl.kf
 3 compiler/kf-parse/src/parser/top_decl/signature_target.kf
 13 compiler/kf-parse/src/parser/top_decl/top_decl.kf
 48 compiler/kf-parse/src/parser/top_decl/types.kf
@@ -157,7 +157,7 @@
 40 compiler/kf-typecheck/src/check/check_lambda.kf
 12 compiler/kf-typecheck/src/check/check_method_call.kf
 7 compiler/kf-typecheck/src/check/check_method_expr.kf
-35 compiler/kf-typecheck/src/check/check_stmt.kf
+36 compiler/kf-typecheck/src/check/check_stmt.kf
 7 compiler/kf-typecheck/src/check/check_struct_lit.kf
 5 compiler/kf-typecheck/src/check/check_unknown_bounds.kf
 2 compiler/kf-typecheck/src/check/check_value_call.kf
@@ -205,7 +205,7 @@
 2 compiler/kf-typecheck/src/check/rebind_static_call.kf
 1 compiler/kf-typecheck/src/check/self_recursion.kf
 2 compiler/kf-typecheck/src/check/stored_lambda_value.kf
-14 compiler/kf-typecheck/src/check/subscript_mut.kf
+13 compiler/kf-typecheck/src/check/subscript_mut.kf
 6 compiler/kf-typecheck/src/check/untyped_receiver.kf
 5 compiler/kf-typecheck/src/check/written_type_ref.kf
 6 compiler/kf-typecheck/src/context.kf

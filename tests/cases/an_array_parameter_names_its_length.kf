@@ -1,0 +1,11 @@
+//! build: fail
+//! deps: core
+// `T[]` takes its length from an initializer; a parameter has none.
+
+fun first(xs: int32[]): int32 {
+    return xs[0]
+}
+
+fun main(): int32 {
+    return 0
+}

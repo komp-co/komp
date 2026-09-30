@@ -236,3 +236,29 @@ pub fun borrow_frag_inner(frag: str): String {
 pub fun borrow_frag_is_mut(frag: str): bool {
     return frag.starts_with("kf__mut__")
 }
+
+/// An array type's fragment, `kf__array__3__int32`: the length first, so the
+/// element's fragment is everything after it.
+pub fun array_mangle_frag(element: str, length: uint64): String {
+    return "kf__array__${length}__${element}"
+}
+
+/// An array fragment's element and length, the inverse of `array_mangle_frag`.
+pub struct ArrayFragParts {
+    pub val element: String
+    pub val length: uint64
+}
+
+/// None when `frag` is not an array fragment.
+pub fun array_frag_parts(frag: str): ArrayFragParts? {
+    val prefix = "kf__array__"
+    if !frag.starts_with(prefix) { return null }
+    var length: uint64 = 0
+    var i = prefix.byte_len()
+    while i < frag.byte_len() && frag.byte_at(i) >= 48 && frag.byte_at(i) <= 57 {
+        length = length * 10 + (frag.byte_at(i) - 48) as uint64
+        i = i + 1
+    }
+    if i == prefix.byte_len() || !frag.substring(i, frag.byte_len()).starts_with("__") { return null }
+    return ArrayFragParts { element: frag.substring(i + 2, frag.byte_len()), length: length }
+}

@@ -1,0 +1,22 @@
+//! run: exit 9
+//! deps: core, alloc
+// `while x in xs` hands out copies, `while x in &xs` borrows, and an array
+// can be an element of a list or the payload of an option.
+
+import alloc.list.*
+
+fun pick(flag: bool): int32[2]? {
+    if flag { return [2, 3] }
+    return null
+}
+
+fun main(): int32 {
+    val names: String[2] = [String.from("ab"), String.from("c")]
+    var length: uint64 = 0
+    while name in names { length = length + name.byte_len() }
+    while name in &names { length = length + name.byte_len() }
+    var rows = List.new<int32[2]>()
+    rows.push([1, 0])
+    val got = pick(true) ?: [0, 0]
+    return length as int32 + rows[0][0] + got[0]
+}

@@ -76,6 +76,16 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 ```
 
 
+## Arrays
+
+An array implements no traits: `==`, `Hash` and `Display` do not apply to
+one, and `@derive(Equal)`, `Hash` and `Default` fail on a struct holding one
+([#299]). Compare or print the elements instead.
+
+A parameter takes an array of one length. There is no slice, a view of an
+array of any length, so a function for several lengths is written once per
+length ([#300]).
+
 ## Function values
 
 - **A borrowing loop over a list of them fails in cc.** `while f in &handlers`
@@ -198,3 +208,5 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
+[#299]: https://github.com/komp-co/komp/issues/299
+[#300]: https://github.com/komp-co/komp/issues/300

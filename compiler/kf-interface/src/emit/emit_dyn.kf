@@ -89,6 +89,7 @@ pub fun Type.dyn_type_to_source(): String {
         DynTraitTy(_) => return self.dyn_trait_type_source()
         PtrTo(inner) => return dyn_wrapped_type_source("Ptr<", unsafe { &*inner }, ">")
         BoxOf(inner) => return dyn_wrapped_type_source("Box<", unsafe { &*inner }, ">")
+        ArrayOf(_inner, length) => return "${self.array_element().dyn_type_to_source()}[${length}]"
         RefTo(mutable, inner) => {
             if mutable { return dyn_wrapped_type_source("&var ", unsafe { &*inner }, "") }
             return dyn_wrapped_type_source("&", unsafe { &*inner }, "")

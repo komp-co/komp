@@ -24,6 +24,10 @@ impl Parser {
         when (t.kind) {
             Identifier(name) => {
                 unsafe { self.advance() }
+                if name.as_str() == "Array" && is_op(self.peek(), Operator.Lt) {
+                    unsafe { *ptr = self.parse_array_arguments(t.span) }
+                    return self.parse_type_suffixes(ptr)
+                }
                 val args = self.parse_type_arguments()
                 var tr = new_type_ref(t.span, TypeRefKind.Named(intern(name.as_str()), args))
                 // `C.Iter`, `Self.Item`: a `.` in type position is a
@@ -115,14 +119,26 @@ impl Parser {
                 unsafe { *ptr = type_ref_poison(t.span) }
             }
         }
-        // `T?` is `Option<T>`, an ordinary generic enum.
-        if is_op(self.peek(), Operator.Question) {
-            unsafe { self.advance() }
-            val base: TypeRef = unsafe { *ptr }
-            var oargs = List.new<TypeRef>()
-            oargs.push(base)
-            unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs)) }
+        return self.parse_type_suffixes(ptr)
+    }
+
+    /// `T?` is `Option<T>`, an ordinary generic enum; `T[N]` and `T[]` are
+    /// arrays. They apply left to right: `int32?[2]` holds two options.
+    mutating fun parse_type_suffixes(ptr: Ptr<TypeRef>): Ptr<TypeRef> {
+        var ty: TypeRef = unsafe { *ptr }
+        while true {
+            if is_op(self.peek(), Operator.Question) {
+                self.advance()
+                var oargs = List.new<TypeRef>()
+                oargs.push(ty.clone())
+                ty = new_type_ref(ty.span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs))
+            } else if is_op(self.peek(), Operator.LBracket) {
+                ty = self.parse_array_suffix(ty.clone())
+            } else {
+                break
+            }
         }
+        unsafe { *ptr = ty }
         return ptr
     }
 

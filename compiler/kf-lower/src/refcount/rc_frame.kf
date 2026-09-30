@@ -203,6 +203,7 @@ fun is_heap_ty_rc(ty: Type): bool {
         Generic(_) => false
         PtrTo(_) => false
         BoxOf(_) => true
+        ArrayOf(_, _) => is_heap_ty_rc(ty.array_element())
         RefTo(_, _) => false
         FnTy(_) => false
         // Mono resolves every projection.

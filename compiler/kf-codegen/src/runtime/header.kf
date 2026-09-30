@@ -26,6 +26,13 @@ typedef struct kf_unit { uint8_t _u; } kf_unit;
 
 """)
     out.append(runtime_header_prototypes().as_str())
+    out.append("""
+// An array index, checked against the array's length.
+static inline uint64_t kf_array_index(uint64_t i, uint64_t length) {
+    if (i >= length) { panic("array index out of range"); }
+    return i;
+}
+""")
     out.append("\n#endif\n")
     return out
 }

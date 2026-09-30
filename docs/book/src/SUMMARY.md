@@ -12,6 +12,7 @@
 
 - [Values, bindings, and mutability](lang/bindings.md)
 - [Primitive types and literals](lang/types.md)
+- [Arrays](lang/arrays.md)
 - [Operators](lang/operators.md)
 - [Control flow](lang/control-flow.md)
 - [when](lang/when.md)

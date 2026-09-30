@@ -213,6 +213,7 @@ fun Type.mc_is_move_only(names: &List<String>): bool {
             }
             return false
         }
+        ArrayOf(_element, _length) => return self.array_element().mc_is_move_only(names)
         _ => return false
     }
 }

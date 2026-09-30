@@ -1,0 +1,42 @@
+// `Array<T, N>`, `T[N]` and `T[]`, all one `TypeRefKind.Array`.
+
+import kf_core.span.Span
+import kf_core.ast.*
+
+impl Parser {
+    /// `<T, N>` after `Array`.
+    mutating fun parse_array_arguments(span: Span): TypeRef {
+        val _open = self.expect_op(Operator.Lt, "after `Array`")
+        val element = self.parse_type_ref_ptr()
+        val _comma = self.expect_op(Operator.Comma, "between an array's element type and its length")
+        val length = self.parse_array_length()
+        val _close = self.expect_op(Operator.Gt, "to close `Array<T, N>`")
+        return new_type_ref(span, TypeRefKind.Array(element, length))
+    }
+
+    /// `[N]` or `[]` after `element`.
+    mutating fun parse_array_suffix(element: TypeRef): TypeRef {
+        self.advance() // consume `[`
+        var length: uint64? = null
+        if !is_op(self.peek(), Operator.RBracket) { length = self.parse_array_length() }
+        val _close = self.expect_op(Operator.RBracket, "to close the array length")
+        val span = element.span
+        return new_type_ref(span, TypeRefKind.Array(Box.new(element), length))
+    }
+
+    mutating fun parse_array_length(): uint64? {
+        val t = self.peek()
+        when (t.kind) {
+            IntLiteral(n) => {
+                self.advance()
+                return n as uint64
+            }
+            _ => {
+                self.parse_err(t.span, "an array's length is an integer literal, found ${tok_str(t)}")
+                // Past it, so the closing token is not reported too.
+                if !is_op(t, Operator.RBracket) && !is_op(t, Operator.Gt) { self.advance() }
+                return null
+            }
+        }
+    }
+}

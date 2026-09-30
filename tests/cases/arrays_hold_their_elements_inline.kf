@@ -1,0 +1,40 @@
+//! run: exit 42
+//! deps: core, alloc
+// An array's length is part of its type, and its elements live in it: built
+// from a literal, indexed and written through, copied when its element is,
+// walked by a loop, nested, and held in a struct field.
+
+struct Rgb {
+    val channels: uint8[3]
+}
+
+fun make(): int32[3] {
+    return [1, 2, 3]
+}
+
+fun total(xs: &int32[3]): int32 {
+    var sum = 0
+    while x in xs { sum = sum + x }
+    return sum
+}
+
+fun fill(xs: &var Array<int32, 3>, v: int32): void {
+    while i in 0..xs.size() { xs[i] = v }
+}
+
+fun main(): int32 {
+    var a = make()
+    val copy = a
+    a[0] = 10
+    val inferred: uint8[] = [4, 5]
+    var grid: int32[2][2] = [[1, 2], [3, 4]]
+    grid[1][0] = 7
+    var corner = 0
+    while row in &grid { corner = corner + row[0] }
+    var filled: int32[3] = [0, 0, 0]
+    fill(&var filled, 2)
+    val c = Rgb { channels: [0, 0, inferred[1]] }
+    // 15 + 1 + 3 + 8 + 6 + 5 + 2 + 2
+    return total(&a) + copy[0] + a.size() as int32 + corner + total(&filled) + c.channels[2] as int32 +
+        inferred.size() as int32 + filled[1]
+}

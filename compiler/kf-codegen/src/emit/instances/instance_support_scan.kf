@@ -3,6 +3,7 @@ import alloc.list.*
 import kf_core.ast.*
 
 import kf_codegen.emit.mangle_named
+import kf_codegen.emit.tyref_mangle
 
 fun TopDecl.scan_decl_references(callees: &var NameSet, type_refs: &var NameSet): void {
     when (self.kind) {
@@ -52,6 +53,10 @@ fun TypeRef.scan_tyref(type_refs: &var NameSet): void {
             }
         }
         Reference(_m, inner) => scan_tyref_ptr(unsafe { inner as Ptr<TypeRef> }, type_refs)
+        Array(element, length) => {
+            type_refs.add(array_mangle_frag(element.tyref_mangle().as_str(), length ?: 0))
+            element.scan_tyref(type_refs)
+        }
         _ => {}
     }
 }
@@ -63,6 +68,7 @@ fun Type.scan_type(type_refs: &var NameSet): void {
         PtrTo(p) => scan_type(unsafe { &*p }, type_refs)
         BoxOf(p) => scan_type(unsafe { &*p }, type_refs)
         RefTo(_m, p) => scan_type(unsafe { &*p }, type_refs)
+        ArrayOf(_p, _length) => self.array_element().scan_type(type_refs)
         _ => {}
     }
 }
@@ -214,4 +220,26 @@ fun callee_prefix_matches(callees: &NameSet, type_name: str): bool {
         }
     }
     return false
+}
+
+/// Each array type the module's code names and `out` lacks, by C name, an
+/// element before any array holding it.
+pub fun Module.collect_array_types(out: &var List<String>): void {
+    var callees = NameSet.new()
+    var type_refs = NameSet.new()
+    while decl in &self.decls {
+        decl.scan_decl_references(&var callees, &var type_refs)
+    }
+    while name in &type_refs.names {
+        add_array_type(name.as_str(), out)
+    }
+}
+
+fun add_array_type(name: str, out: &var List<String>): void {
+    val parts = array_frag_parts(name) ?: return
+    add_array_type(parts.element.as_str(), out)
+    while seen in &out {
+        if seen.as_str() == name { return }
+    }
+    out.push(String.from(name))
 }

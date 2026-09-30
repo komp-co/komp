@@ -41,6 +41,8 @@ pub enum TypeKind {
     PtrTo(Ptr<Type>) // Ptr<T>
     BoxOf(Ptr<Type>) // Box<T> — owning, auto-deref, C `T*`
     RefTo(bool, Ptr<Type>) // &var T (true) or &T (false)
+    /// `T[N]`: N elements inline, emitted as a struct wrapping `T items[N]`.
+    ArrayOf(Ptr<Type>, uint64)
     FnTy(Ptr<FnSig>) // owns a heap FnSig
     /// `C.Out` whose owner is not yet concrete. An inferred type (`c.make()`
     /// through a `C: Producer` bound) has no TypeRef to substitute; Mono
@@ -211,6 +213,22 @@ pub fun box_ty(inner: Type, span: Span): Type {
     return Type { kind: TypeKind.BoxOf(p), provenance: Provenance.Inferred(span) }
 }
 
+pub fun array_ty(element: Type, length: uint64, span: Span): Type {
+    // The element's cell, allocated as a pointer's is.
+    return when (ptr_ty(element, span).kind) {
+        PtrTo(p) => Type { kind: TypeKind.ArrayOf(p, length), provenance: Provenance.Inferred(span) }
+        _ => poison_ty()
+    }
+}
+
+/// An array type's element; poison for anything else.
+pub fun Type.array_element(): Type {
+    return when (self.kind) {
+        ArrayOf(p, _length) => unsafe { *p }
+        _ => poison_ty()
+    }
+}
+
 impl Type {
     pub fun is_poison(): bool {
         return when (self.kind) {
@@ -240,6 +258,7 @@ impl Type {
             PtrTo(_) => false
             BoxOf(_) => false
             RefTo(_, _) => false
+            ArrayOf(_, _) => false
             FnTy(_) => false
         }
     }

@@ -1,0 +1,62 @@
+// An array's C type, a struct wrapping `T items[N]`, and its glue, which runs
+// the element's once per element. Each is guarded: every crate whose code
+// names the type emits its own copy.
+
+import alloc.list.*
+
+import kf_core.ast.*
+
+import kf_codegen.concat_all
+import kf_codegen.emit.release_fn_for_ctype
+import kf_codegen.emit.clone_fn_for_ctype
+import kf_codegen.emit.instances.cname_of_mangle
+import kf_codegen.emit.instances.collect_array_types
+
+/// The layout alone, which a struct holding the array by value needs first.
+pub fun array_layout(name: str): String {
+    val parts = array_frag_parts(name) ?: return String.from("")
+    val element = cname_of_mangle(parts.element.as_str())
+    val body = "typedef struct ${name} { ${element} items[${parts.length}]; } ${name};\n"
+    return guarded("KF_ARRAY_LAYOUT_${name}", body)
+}
+
+/// Every array type a module's code and its instances name: layout, then
+/// drop, clone and retain.
+pub fun Module.emit_array_types(instances: &Module): String {
+    var parts = List.new<String>()
+    var names = List.new<String>()
+    self.collect_array_types(&var names)
+    instances.collect_array_types(&var names)
+    while name in &names {
+        parts.push(array_layout(name.as_str()))
+        parts.push(array_glue(name.as_str()))
+    }
+    if parts.size() > 0 { parts.push(String.from("\n")) }
+    return concat_all(parts)
+}
+
+fun array_glue(name: str): String {
+    val parts = array_frag_parts(name) ?: return String.from("")
+    val element = cname_of_mangle(parts.element.as_str())
+    val each = "for (uint64_t i = 0; i < ${parts.length}; i++)"
+    val drop = release_fn_for_ctype(element.as_str())
+    val clone = clone_fn_for_ctype(element.as_str())
+    var out = List.new<String>()
+    out.push("static inline void ${name}__glue_drop(${name} v) {\n")
+    if drop.byte_len() > 0 { out.push("    ${each} { ${drop}(v.items[i]); }\n") }
+    out.push("    (void)v;\n}\n")
+    out.push("static inline ${name} ${name}__glue_clone(${name} v) {\n    ${name} r = v;\n")
+    if clone.byte_len() > 0 { out.push("    ${each} { r.items[i] = ${clone}(v.items[i]); }\n") }
+    out.push("    return r;\n}\n")
+    out.push("static inline ${name} ${name}_clone(${name}* __self) { return ${name}__glue_clone(*__self); }\n")
+    out.push("static inline ${name} ${type_retain_fn(name)}(${name} v) {\n")
+    if drop.byte_len() > 0 {
+        out.push("    ${each} { v.items[i] = ${type_retain_fn(element.as_str())}(v.items[i]); }\n")
+    }
+    out.push("    return v;\n}\n")
+    return guarded("KF_ARRAY_GLUE_${name}", concat_all(out))
+}
+
+fun guarded(guard: String, body: String): String {
+    return "#ifndef ${guard}\n#define ${guard}\n${body}#endif\n"
+}

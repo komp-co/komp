@@ -238,6 +238,9 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         ctx.emit(new_diagnostic(Severity.Error, new_label(_span, msg)))
         return poison_ty()
     }
+    if recv_ty.kind.kind_tag() == TAG_ARRAY() {
+        return recv_ty.check_array_method(method_name, args, &arg_tys, _span, call, ctx)
+    }
     if recv_ty.kind.kind_tag() == TAG_GENERIC() {
         // A bounded type parameter offers its bounds' methods; Mono dispatches
         // by name later.

@@ -108,8 +108,9 @@ later.push(7)                        // a List<int32>
 
 A literal is not tied to `List`. Written where another collection is
 expected, it builds that one instead, through core's `FromElements`: the
-type's `new()`, then one `push` per element. Your own collection opts in by
-implementing it:
+type's `new()`, then one `push` per element. Where an
+[array](../lang/arrays.md) is expected, it builds the array in place. Your own
+collection opts in by implementing `FromElements`:
 
 ```kflat
 struct Bag {

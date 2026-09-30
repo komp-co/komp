@@ -54,3 +54,21 @@ fun display_test_ref_type(mutable: bool): Type {
     val ty = display_test_ref_type(true)
     assert_eq(ty.display_type(&ctx).as_str(), "&var int32", "mutable borrows use source syntax")
 }
+
+@test fun an_array_type_shows_its_length(): void {
+    val ctx = mk_ctx()
+    val ty = array_ty(int32_ty(no_span()), 3, no_span())
+    assert_eq(ty.display_type(&ctx).as_str(), "int32[3]", "the suffix spelling")
+}
+
+@test fun an_array_of_borrows_groups_its_element(): void {
+    val ctx = mk_ctx()
+    val ty = array_ty(display_test_ref_type(false), 2, no_span())
+    assert_eq(ty.display_type(&ctx).as_str(), "(&int32)[2]", "not a borrow of an array")
+}
+
+@test fun arrays_of_different_lengths_differ(): void {
+    val three = array_ty(int32_ty(no_span()), 3, no_span())
+    val four = array_ty(int32_ty(no_span()), 4, no_span())
+    assert_eq(three.type_eq(&four), false, "the length is part of the type")
+}

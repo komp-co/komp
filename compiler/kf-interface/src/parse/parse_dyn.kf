@@ -165,6 +165,11 @@ fun dyn_type_from_ref(reference: TypeRef): Type {
         }
         Reference(mutable, inner) => return dyn_reference_type(mutable, dyn_type_from_ref(unsafe { *inner }))
         Function(params, ret) => return dyn_function_type(&params, unsafe { *ret })
+        Array(element, length) => {
+            val inner = dyn_type_from_ref(*element)
+            if inner.is_poison() || length == null { return poison_ty() }
+            return array_ty(inner, length ?: 0, no_span())
+        }
         _ => return poison_ty()
     }
 }

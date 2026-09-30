@@ -1,0 +1,129 @@
+// `[a, b, c]` where an array is expected: the elements in place, as many as
+// the array holds.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.types.display_type
+import kf_typecheck.types.type_eq
+import kf_typecheck.types.kind_tag
+import kf_typecheck.types.array_length
+import kf_typecheck.types.TAG_ARRAY
+import kf_typecheck.types.resolve_type_ref
+
+/// True when `self` is a literal and `expected` an array, whether or not
+/// the literal fits.
+mutating fun Expr.retarget_array_literal(expected: Type, ctx: &var TypeCtx): bool {
+    if !self.is_list_literal(ctx) && !self.is_array_literal() { return false }
+    if expected.type_is_option(ctx) { return self.retarget_optional_array_literal(expected, ctx) }
+    if expected.kind.kind_tag() != TAG_ARRAY() { return false }
+    val length = expected.kind.array_length()
+    if self.is_array_literal() && self.ty.type_eq(expected) { return true }
+    var elements = self.literal_elements()
+    if elements.size() != length {
+        val shown = expected.display_type(ctx)
+        val message = "this literal has ${elements.size()} elements, but `${shown}` holds ${length}"
+        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        self.ty = poison_ty()
+        return true
+    }
+    val element = expected.array_element()
+    var fits = true
+    while i in 0..elements.size() {
+        if !check_array_element(&var elements, i, element.clone(), ctx) { fits = false }
+    }
+    val span = self.span
+    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    self.ty = if fits { expected } else { poison_ty() }
+    return true
+}
+
+/// `[a, b]` where `T[N]?` is expected: the array, in `Some`.
+mutating fun Expr.retarget_optional_array_literal(expected: Type, ctx: &var TypeCtx): bool {
+    val option = expected.expected_inst(ctx) ?: return false
+    if option.args.size() != 1 { return false }
+    val payload = option.args.at(0).resolve_type_ref(ctx)
+    if payload.kind.kind_tag() != TAG_ARRAY() || !self.retarget_array_literal(payload, ctx) { return false }
+    if !self.ty.is_poison() { self.wrap_in_some(&option, ctx) }
+    return true
+}
+
+fun check_array_element(elements: &var List<Expr>, i: uint64, expected: Type, ctx: &var TypeCtx): bool {
+    val before = elements.at(i).ty.clone()
+    val outcome = coerce_call_arg(elements, i, expected.clone(), ctx)
+    if !outcome.valid { return false }
+    val actual = if before.is_poison() { poison_ty() } else { elements.at(i).ty.clone() }
+    if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
+    // Checked first as a list's, whose elements must agree too.
+    if ctx.reported_at(elements.at(i).span) { return false }
+    val message = "this element is `${actual.display_type(ctx)}`, but the array holds `${expected.display_type(ctx)}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(elements.at(i).span, message)))
+    return false
+}
+
+fun TypeCtx.reported_at(span: Span): bool {
+    while diag in &*self.diags {
+        val at = diag.primary.span
+        if at.file_id == span.file_id && at.start == span.start && at.end == span.end { return true }
+    }
+    return false
+}
+
+/// `T[]` given the length of what initializes it: a literal's element count,
+/// or the length of the array it copies. Left as written otherwise, for
+/// resolution to report.
+fun TypeRef.with_initializer_length(init: &Expr, ctx: &TypeCtx): TypeRef {
+    when (self.kind) {
+        Array(element, length) => {
+            if length != null { return self.clone() }
+            var count: uint64? = null
+            if init.is_list_literal(ctx) {
+                count = init.list_literal_elements().size()
+            } else if init.ty.kind.kind_tag() == TAG_ARRAY() {
+                count = init.ty.kind.array_length()
+            }
+            if count == null { return self.clone() }
+            return new_type_ref(self.span, TypeRefKind.Array(Box.new((*element).clone()), count))
+        }
+        _ => return self.clone()
+    }
+}
+
+fun Expr.is_array_literal(): bool {
+    return when (self.kind) {
+        Call(name, _args) => name.as_str() == array_literal_callee()
+        _ => false
+    }
+}
+
+/// A list literal's elements, or an array literal's.
+fun Expr.literal_elements(): List<Expr> {
+    return when (self.kind) {
+        Call(_name, args) => args.clone()
+        _ => self.list_literal_elements()
+    }
+}
+
+/// Without alloc there is no list to build, so a literal is an array of its
+/// first element's type; a slot may still retarget it.
+mutating fun Expr.builds_array_without_list(ctx: &var TypeCtx): bool {
+    if ctx.list_name().as_str() != "" || self.list_literal_binder().byte_len() == 0 { return false }
+    var elements = self.list_literal_elements()
+    while i in 0..elements.size() {
+        check_expr(elements.at_mut(i), ctx)
+    }
+    val first = elements.at(0).ty.clone()
+    var fits = !first.is_poison()
+    while i in 1..elements.size() {
+        if !check_array_element(&var elements, i, first.clone(), ctx) { fits = false }
+    }
+    val span = self.span
+    val count = elements.size()
+    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    self.ty = if fits { array_ty(first, count, span) } else { poison_ty() }
+    return true
+}

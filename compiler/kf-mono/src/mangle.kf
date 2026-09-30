@@ -91,6 +91,7 @@ pub fun ty_to_mangle(t: Type): String {
             result.append(inner_name.as_str())
             return result
         }
+        ArrayOf(_p, length) => return array_mangle_frag(ty_to_mangle(t.array_element()).as_str(), length)
         RefTo(is_mut, p) => {
             val inner = unsafe { *p }
             val inner_name = ty_to_mangle(inner)

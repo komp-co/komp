@@ -24,6 +24,13 @@ pub fun emit_missing_operator_impl(ty: Type, trait_name: str, span: Span, ctx: &
             ctx.emit(new_diagnostic(Severity.Error, new_label(span, fix)))
             return
         }
+        ArrayOf(_element, _length) => {
+            val shown = ty.display_type(ctx)
+            val why = "an array implements no traits: compare `${shown}` element by element"
+            val message = "operator requires `${trait_name}`, and ${why}"
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+            return
+        }
         _ => { }
     }
     val base = ty.source_type_name()

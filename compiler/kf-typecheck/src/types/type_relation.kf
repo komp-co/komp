@@ -29,6 +29,7 @@ fun TAG_POISON(): uint64 { return 24 }
 fun TAG_BOX(): uint64 { return 25 }
 pub fun TAG_PROJECTION(): uint64 { return 26 }
 fun TAG_DYN_TRAIT(): uint64 { return 27 }
+pub fun TAG_ARRAY(): uint64 { return 28 }
 
 pub fun Type.type_eq(b: &Type): bool {
     if self.is_poison() || b.is_poison() {
@@ -83,6 +84,9 @@ fun TypeKind.kind_eq_flat(b: TypeKind): bool {
         val bi: Type = b.box_inner()
         return ai.type_eq(bi)
     }
+    if tag == TAG_ARRAY() {
+        return self.array_length() == b.array_length() && self.array_item().type_eq(b.array_item())
+    }
     if tag == TAG_FN() { return fn_types_eq(*self, b) }
     if tag == TAG_REF() {
         val am: bool = self.ref_mut()
@@ -129,6 +133,7 @@ pub fun TypeKind.kind_tag(): uint64 {
         Generic(_) => return TAG_GENERIC()
         PtrTo(_) => return TAG_PTR()
         BoxOf(_) => return TAG_BOX()
+        ArrayOf(_, _) => return TAG_ARRAY()
         RefTo(_, _) => return TAG_REF()
         FnTy(_) => return TAG_FN()
         Projection(_, _) => return TAG_PROJECTION()
@@ -205,6 +210,15 @@ fun TypeKind.box_inner(): Type {
     return when (self) {
         BoxOf(p) => unsafe { *p }
         _ => poison_ty()
+    }
+}
+fun TypeKind.array_item(): Type {
+    return Type { kind: *self, provenance: Provenance.Inferred(no_span()) }.array_element()
+}
+pub fun TypeKind.array_length(): uint64 {
+    return when (self) {
+        ArrayOf(_p, length) => length
+        _ => 0
     }
 }
 fun TypeKind.ref_mut(): bool {

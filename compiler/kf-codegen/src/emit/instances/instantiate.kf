@@ -75,6 +75,7 @@ pub fun type_mangle(t: Type): String {
             result.append(inner.as_str())
             return result
         }
+        ArrayOf(_p, length) => return array_mangle_frag(type_mangle(t.array_element()).as_str(), length)
         RefTo(is_mut, p) => {
             val borrowed = unsafe { *p }
             when (borrowed.kind) {

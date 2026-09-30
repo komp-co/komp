@@ -17,6 +17,7 @@ import kf_typecheck.check.control.yield_ref_binder_value
 pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.yield_ref_binder_value(&expected, ctx) { return true }
     if self.pin_at_first_use(expected.clone(), ctx) { return true }
+    if self.retarget_array_literal(expected.clone(), ctx) { return true }
     if self.retarget_list_literal(expected.clone(), ctx) { return true }
     val _typed_by_slot = self.pin_open_binding(expected.clone(), ctx)
     // Each branch independently.

@@ -161,6 +161,8 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     var ty = init.ty.clone()
     when (ann) {
         Some(ty_ref_ptr) => {
+            // Later passes read the annotation, so `T[]` takes its length there.
+            unsafe { *ty_ref_ptr = (*ty_ref_ptr).with_initializer_length(init, ctx) }
             val tr = unsafe { *ty_ref_ptr }
             val declared = tr.resolve_type_ref(ctx)
             declared.validate_dyn_placement(tr.span, ctx)

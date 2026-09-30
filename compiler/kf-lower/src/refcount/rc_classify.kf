@@ -242,6 +242,7 @@ fun Type.is_move_only(ctx: &var RcCtx): bool {
             return names_contains(ctx.move_only_names, name.as_str())
         }
         EnumTy(n) => return names_contains(ctx.move_only_names, type_identity_display(n).as_str())
+        ArrayOf(_element, _length) => return self.array_element().is_move_only(ctx)
         _ => return false
     }
 }

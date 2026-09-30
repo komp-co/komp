@@ -48,12 +48,7 @@ pub fun TypeRef.mangle_tyref(): String {
             }
             return fn_frag(&frags, mangle_tyref(&*ret).as_str())
         }
-        Array(elem, _n) => {
-            var result = String.from("Array__")
-            val item = mangle_tyref(unsafe { &*elem })
-            result.append(item.as_str())
-            return result
-        }
+        Array(elem, length) => return array_mangle_frag(mangle_tyref(&*elem).as_str(), length ?: 0)
         // Named by owner and member so substitution can rewrite the owner.
         Projection(owner, member) => {
             val inner = mangle_tyref(unsafe { &*owner })
@@ -117,7 +112,9 @@ pub fun TypeRef.subst_type_ref(names: &var List<String>, repls: &var List<TypeRe
             val result = Box.new(subst_type_ref(&*ret, names, repls))
             return new_type_ref(self.span, TypeRefKind.Function(subst_tref_list(&params, names, repls), result))
         }
-        Array(_elem, _n) => return self.clone_type_ref()
+        Array(elem, length) => {
+            return new_type_ref(self.span, TypeRefKind.Array(Box.new(elem.subst_type_ref(names, repls)), length))
+        }
         // Only the owner is substituted; the impl chooses the member.
         Projection(owner, member) => {
             val osub = subst_type_ref(unsafe { &*owner }, names, repls)

@@ -23,6 +23,7 @@ fun Type.trait_arg_type_key(): String {
         PtrTo(p) => "Ptr__${trait_arg_type_key(unsafe { &*p })}"
         BoxOf(p) => "Box__${trait_arg_type_key(unsafe { &*p })}"
         RefTo(is_mut, p) => borrow_frag(is_mut, trait_arg_type_key(unsafe { &*p }).as_str())
+        ArrayOf(_p, length) => array_mangle_frag(self.array_element().trait_arg_type_key().as_str(), length)
         _ => ""
     }
 }

@@ -151,6 +151,10 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
             unsafe { *np = inner }
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
+        ArrayOf(_p, length) => {
+            val element = self.array_element().subst_type(names, repls)
+            return Type { kind: array_ty(element, length, no_span()).kind, provenance: self.provenance }
+        }
         RefTo(m, p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
             val np: Ptr<Type> = unsafe { alloc<Type>() }

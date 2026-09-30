@@ -22,6 +22,11 @@ pub fun Type.ty_written_ref(span: Span, sigs: Ptr<SigTable>): TypeRef {
         }
         Struct(n) => return n.written_named_ref(span, sigs)
         EnumTy(n) => return n.written_named_ref(span, sigs)
+        ArrayOf(_inner, length) => {
+            val element = self.array_element().ty_written_ref(span, sigs)
+            if element.type_ref_is_poison() { return element }
+            return new_type_ref(span, TypeRefKind.Array(Box.new(element), length))
+        }
         _ => { }
     }
     val flat = self.ty_flat_ref_name()

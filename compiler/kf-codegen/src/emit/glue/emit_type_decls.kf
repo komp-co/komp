@@ -10,6 +10,8 @@ import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
 import kf_codegen.emit.type_has_user_drop
 import kf_codegen.emit.type_has_user_clone
+import kf_codegen.emit.tyref_mangle
+import kf_codegen.emit.instances.collect_array_types
 
 pub fun Module.emit_type_forward_decls(): String {
     var parts = List.new<String>()
@@ -21,6 +23,12 @@ pub fun Module.emit_type_forward_decls(): String {
             EnumDecl(_v, _p) => parts.push(forward_decl(td.name.as_string()))
             _ => {}
         }
+    }
+    // A field may point at an array before its layout is emitted.
+    var arrays = List.new<String>()
+    self.collect_array_types(&var arrays)
+    while name in &arrays {
+        parts.push(forward_decl(name.clone()))
     }
     if parts.size() > 0 { parts.push(String.from("\n")) }
     return concat_all(parts)
@@ -56,6 +64,12 @@ pub fun Module.emit_type_bodies_ordered(): String {
 fun visit_type_body(name: String, m: &Module, visited: &var List<String>, parts: &var List<String>): void {
     if list_contains_str(visited, name) { return }
     visited.push(name.clone())
+    val array = array_frag_parts(name.as_str())
+    if array != null {
+        visit_type_body(array!!.element, m, visited, parts)
+        parts.push(array_layout(name.as_str()))
+        return
+    }
     val deps = by_value_type_deps(name, m)
     while dep in &deps {
         visit_type_body(dep, m, visited, parts)
@@ -103,6 +117,7 @@ pub fun by_value_type_deps(name: String, m: &Module): List<String> {
 // user decl and add none.
 fun add_byval_dep(deps: &var List<String>, tr: TypeRef, m: &Module): void {
     when (tr.kind) {
+        Array(element, length) => deps.push(array_mangle_frag(element.tyref_mangle().as_str(), length ?: 0))
         Named(n, args) => {
             if args.size() == 0 {
                 if is_user_type_name(n.as_string(), m) { deps.push(n.as_string()) }

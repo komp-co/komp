@@ -1,0 +1,22 @@
+import core.assert.assert_eq
+
+@test fun an_array_is_a_struct_around_its_elements(): void {
+    val layout = array_layout("kf__array__3__int32")
+    val body = "typedef struct kf__array__3__int32 { int32_t items[3]; }"
+    assert_eq(layout.as_str().contains(body), true, "C array inside")
+}
+
+@test fun an_array_layout_is_guarded(): void {
+    val layout = array_layout("kf__array__3__int32")
+    assert_eq(layout.as_str().starts_with("#ifndef KF_ARRAY_LAYOUT_kf__array__3__int32"), true, "every crate emits it")
+}
+
+@test fun an_array_drops_each_element(): void {
+    val glue = array_glue("kf__array__2__String")
+    assert_eq(glue.as_str().contains("{ String__glue_drop(v.items[i]); }"), true, "the element's drop per element")
+}
+
+@test fun an_array_of_scalars_drops_nothing(): void {
+    val glue = array_glue("kf__array__2__int32")
+    assert_eq(glue.as_str().contains("items[i]"), false, "no loop for scalars")
+}

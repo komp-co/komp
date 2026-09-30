@@ -80,6 +80,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     // CONSTRAINT: gated on the parser's flag, not the shape, which a
     // crate-qualified free function in `alloc` shares.
     if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
+    if name.as_str() == array_data_callee() { return check_array_data(args, span, ctx) }
     // Taken before the arguments, whose own calls are not through the alias.
     val through = ctx.through_module
     ctx.through_module = Sym { id: 0 }

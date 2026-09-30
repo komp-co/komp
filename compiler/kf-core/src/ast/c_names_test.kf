@@ -81,3 +81,18 @@ fun frag_list(a: str, b: str): List<String> {
 @test fun an_ordinary_name_is_not_a_function_fragment(): void {
     assert_eq(fn_frag_parts("List__int32") == null, true, "only the reserved prefix opens one")
 }
+
+@test fun an_array_fragment_splits_back_into_its_element(): void {
+    val frag = array_mangle_frag("kf__array__2__int32", 3)
+    val parts = array_frag_parts(frag.as_str()) ?: return
+    assert_eq(parts.element.as_str(), "kf__array__2__int32", "the inner array is the element")
+}
+
+@test fun an_array_fragment_splits_back_into_its_length(): void {
+    val parts = array_frag_parts("kf__array__12__String") ?: return
+    assert_eq(parts.length, 12, "the digits after the prefix")
+}
+
+@test fun a_name_that_only_starts_like_an_array_is_not_one(): void {
+    assert_eq(array_frag_parts("kf__array__x").is_none(), true, "no length")
+}

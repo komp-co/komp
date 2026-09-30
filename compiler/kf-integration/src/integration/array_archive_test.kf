@@ -1,0 +1,83 @@
+// Arrays across a crate boundary: in a public struct, a generic's field and a
+// function's signature, used by a consumer built from the dependency's
+// interface alone. Needs two crates, so not a tests/cases file.
+
+import core.assert.assert_eq
+
+import kf_tool.build.build_project_separate
+import std.fs.scratch_path
+
+extern "C" fun system(cmd: str): int32
+
+fun prepare_array_fixture(): int32 {
+    val dep = scratch_path("kf_arr_dep")
+    val app = scratch_path("kf_arr_app")
+    val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src ${app}/src") }
+    if prep != 0 { return prep }
+    write_file(scratch_path("kf_arr_dep/kf.toml"), "[project]\nname = \"arr_dep\"\nkind = \"lib\"\n")
+    write_file(scratch_path("kf_arr_dep/src/lib.kf"), """pub struct Rgb {
+    pub val channels: uint8[3]
+}
+
+pub struct Slots<T> {
+    pub var items: T[2]
+}
+
+pub fun grey(level: uint8): Rgb {
+    return Rgb { channels: [level, level, level] }
+}
+
+pub fun names(): String[2] {
+    return [String.from("a"), String.from("bc")]
+}
+
+pub fun sum(xs: &int32[3]): int32 {
+    var total = 0
+    while x in xs { total = total + x }
+    return total
+}
+""")
+    write_file(scratch_path("kf_arr_app/kf.toml"), """[project]
+name = "arr_app"
+kind = "bin"
+
+[dependencies]
+arr_dep = { path = "../kf_arr_dep" }
+""")
+    write_file(scratch_path("kf_arr_app/src/main.kf"), """import arr_dep.*
+
+fun main(): int32 {
+    val g = grey(4)
+    var slots = Slots<String> { items: names() }
+    slots.items[1] = String.from("xyz")
+    val xs: int32[] = [1, 2, 3]
+    val total = g.channels[0] as int32 + slots.items[1].byte_len() as int32 + sum(&xs)
+    if total == 13 { return 0 }
+    return 1
+}
+""")
+    return 0
+}
+
+@test
+fun an_array_crosses_a_crate_boundary(): void {
+    val prep = prepare_array_fixture()
+    val built = build_project_separate(scratch_path("kf_arr_app"), "-fsanitize=address")
+    val binary = scratch_path("kf_arr_app/target/kflat/arr_app")
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${binary}") }
+    assert_eq(prep == 0 && built == 0 && ran == 0, true, "layouts, glue and signatures agree across crates")
+}
+
+@test
+fun an_array_signature_is_read_back_from_the_interface(): void {
+    val prep = prepare_array_fixture()
+    val first = build_project_separate(scratch_path("kf_arr_app"), "")
+    val source = scratch_path("kf_arr_dep/src")
+    val hidden = unsafe { system("mv ${source} ${source}.hidden") }
+    val _fresh = unsafe { system("rm -f ${scratch_path("kf_arr_app/target/kflat/arr_app.artifact.toml")}") }
+    val rebuilt = build_project_separate(scratch_path("kf_arr_app"), "")
+    val ran = unsafe { system(scratch_path("kf_arr_app/target/kflat/arr_app").as_str()) }
+    val restored = unsafe { system("mv ${source}.hidden ${source}") }
+    val ok = prep == 0 && first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0
+    assert_eq(ok, true, "`int32[3]` and `T[2]` survive arr_dep.kfi")
+}

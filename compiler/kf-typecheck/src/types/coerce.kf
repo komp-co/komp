@@ -46,6 +46,10 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
         return pinner.bind_generic_from_param(&ainner, gname, ctx)
     }
     if ptag == TAG_FN() && atag == TAG_FN() { return self.bind_generic_through_fn(arg, gname, ctx) }
+    if ptag == TAG_ARRAY() && atag == TAG_ARRAY() {
+        if pk.array_length() != ak.array_length() { return poison_ty() }
+        return self.array_element().bind_generic_from_param(&arg.array_element(), gname, ctx)
+    }
     // `List__T` against `List__int32` binds T. Otherwise one unbound self
     // voids check_call's all-or-nothing write-back.
     if ptag == TAG_STRUCT() || ptag == TAG_ENUM() {
@@ -133,6 +137,10 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
             val np: Ptr<Type> = unsafe { alloc<Type>() }
             unsafe { *np = inner }
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
+        }
+        ArrayOf(_p, length) => {
+            val element = self.array_element().subst_generic(name, with_ty)
+            return Type { kind: array_ty(element, length, no_span()).kind, provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)

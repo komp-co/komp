@@ -1,0 +1,8 @@
+//! build: fail
+//! deps: core
+// `int32[3]` holds three elements; a literal of two does not fill it.
+
+fun main(): int32 {
+    val xs: int32[3] = [1, 2]
+    return xs[0]
+}

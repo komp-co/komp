@@ -638,6 +638,14 @@ spelling compiles and then hands back an untyped element. For the same reason
 `chain` widens and the nesting above gets a method form, without changing what
 any existing caller wrote.
 
+## ArrayIter
+
+`ArrayIter<T>` is what an [array](../lang/arrays.md)'s `iter()` returns: a
+cursor holding the address of the first element, the length and a position.
+It implements `Iterator<T>` and `Iterable<T>`, and has `next_ptr()` for the
+borrowing loop. It does not own the elements, so it is valid only while the
+array is alive and unmoved.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in

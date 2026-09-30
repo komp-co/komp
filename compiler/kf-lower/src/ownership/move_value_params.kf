@@ -25,6 +25,7 @@ fun TypeRef.mc_tref_is_move_only(ctx: &var MoveCtx): bool {
             if n.as_str().equals("Box") { return true }
             return names_contains(&ctx.move_only_names, mangle_tyref(self).as_str())
         }
+        Array(element, _length) => return element.mc_tref_is_move_only(ctx)
         _ => { }
     }
     return false

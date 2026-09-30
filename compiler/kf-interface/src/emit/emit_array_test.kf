@@ -1,0 +1,19 @@
+import core.assert.assert_eq
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun int32_ref(): TypeRef {
+    return new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>()))
+}
+
+@test fun an_array_is_written_with_its_length(): void {
+    val ty = new_type_ref(no_span(), TypeRefKind.Array(Box.new(int32_ref()), 3))
+    assert_eq(ty.tyref_to_source().as_str(), "int32[3]", "reads back as the same type")
+}
+
+@test fun an_array_of_borrows_groups_the_element(): void {
+    val borrow = new_type_ref(no_span(), TypeRefKind.Reference(false, Box.new(int32_ref())))
+    val ty = new_type_ref(no_span(), TypeRefKind.Array(Box.new(borrow), 2))
+    assert_eq(ty.tyref_to_source().as_str(), "(&int32)[2]", "not a borrow of an array")
+}

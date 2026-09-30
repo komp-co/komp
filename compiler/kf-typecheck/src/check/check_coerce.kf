@@ -106,6 +106,8 @@ pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type
     }
     val function = ctx.fn_type_for(frag.as_str())
     if function != null { return function!! }
+    val array = array_frag_parts(frag.as_str())
+    if array != null { return array_ty(ty_from_frag_in_scope(array!!.element, span, ctx), array!!.length, span) }
     return ty_from_mangle_frag(frag, span, ctx.string_name())
 }
 
@@ -115,6 +117,8 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     if borrowed.byte_len() > 0 {
         return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), borrow_frag_is_mut(s), span)
     }
+    val array = array_frag_parts(s)
+    if array != null { return array_ty(ty_from_mangle_frag(array!!.element, span, string_name), array!!.length, span) }
     when s {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
         "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }

@@ -8,6 +8,8 @@ import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.Span
 import kf_typecheck.types.display_type
+import kf_typecheck.types.kind_tag
+import kf_typecheck.types.TAG_ARRAY
 
 /// The subject must implement `Iterable`, or it reaches cc as an undeclared
 /// call. Expanded here, not in Lower, because the synthesized `iter()` and
@@ -35,7 +37,10 @@ mutating fun Stmt.check_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stm
         val base = subject.ty_base_name()
         val sp = ctx.sigs
         val iterable = ctx.lang_trait_name(lang_iterable_key()).as_str()
-        if !unsafe { sp.type_implements_any(base.as_str(), iterable) } && !subject.bounded_by_iterable(ctx) {
+        // An array's `iter()` is its own.
+        val is_array = subject.kind.kind_tag() == TAG_ARRAY()
+        val implements = is_array || unsafe { sp.type_implements_any(base.as_str(), iterable) }
+        if !implements && !subject.bounded_by_iterable(ctx) {
             // Names the type as written: `&List<int32>`, not `List__int32`.
             var msg = String.from("type `")
             msg.append(subj.ty.display_type(ctx).as_str())

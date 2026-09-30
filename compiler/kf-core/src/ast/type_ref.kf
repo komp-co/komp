@@ -21,8 +21,9 @@ pub enum TypeRefKind {
     Function(List<TypeRef>, Box<TypeRef>)
     /// `&T` or `&var T` — mutable flag + inner.
     Reference(bool, Box<TypeRef>)
-    /// `[T; N]`.
-    Array(Box<TypeRef>, uint64)
+    /// `Array<T, N>`, `T[N]`; `T[]` has no length until its initializer
+    /// gives one.
+    Array(Box<TypeRef>, uint64?)
     /// `C.Iter`: an associated type of a type or parameter (`Self` inside a
     /// trait). Typecheck resolves it to the impl's choice.
     Projection(Box<TypeRef>, Sym)

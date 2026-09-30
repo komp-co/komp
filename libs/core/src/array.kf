@@ -1,0 +1,38 @@
+// A forward cursor over an array's elements, which `xs.iter()` answers. Not
+// owning: valid only while the array is alive and unmoved.
+//
+// CONSTRAINT: the compiler builds one with its fields in this order.
+pub struct ArrayIter<T> {
+    var data: Ptr<T>
+    var len: uint64
+    var index: uint64
+}
+
+impl ArrayIter<T> {
+    /// The next element's address, or null once exhausted; what
+    /// `while x in &xs` desugars against.
+    pub mutating fun next_ptr(): Ptr<T> {
+        if self.index >= self.len { return ptr_null<T>() }
+        val p: Ptr<T> = self.data + self.index
+        self.index = self.index + 1
+        return p
+    }
+}
+
+impl Iterator<T> for ArrayIter<T> {
+    /// An owned copy of the next element, deep for one that owns heap.
+    mutating fun next(): T? {
+        if self.index >= self.len { return null }
+        val item: T = unsafe { clone_place<T>(self.data + self.index) }
+        self.index = self.index + 1
+        return item
+    }
+}
+
+/// Its own cursor, so `while x in xs.iter()` works.
+impl Iterable<T> for ArrayIter<T> {
+    type Iter = ArrayIter<T>
+    fun iter(): ArrayIter<T> {
+        return ArrayIter<T> { data: self.data, len: self.len, index: self.index }
+    }
+}

@@ -185,7 +185,21 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 provenance: Provenance.Declared(self.span)
             }
         }
-        Array(_, _) => return poison_ty()
+        Array(element, length) => {
+            val inner = element.resolve_type_ref(ctx)
+            if length == null {
+                val why = "`T[]` is for a `val` or `var` initialized with an array"
+                val message = "an array type needs its length here, `T[N]`: ${why}"
+                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                return poison_ty()
+            }
+            if length == 0 {
+                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, "an array holds at least one element")))
+                return poison_ty()
+            }
+            if inner.is_poison() { return poison_ty() }
+            return Type { kind: array_ty(inner, length ?: 0, self.span).kind, provenance: Provenance.Declared(self.span) }
+        }
         Projection(owner_ptr, member) => {
             val owner_tr: TypeRef = unsafe { *owner_ptr }
             val owner_ty = owner_tr.resolve_type_ref(ctx)

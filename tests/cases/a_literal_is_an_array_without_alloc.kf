@@ -1,0 +1,14 @@
+//! run: exit 16
+//! deps: core
+// With no alloc there is no list to build, so a literal is an array: of the
+// type its slot expects, or of its first element's type.
+
+struct Rgb { val c: uint8[3] }
+
+fun main(): int32 {
+    val xs: int32[2] = [1, 2]
+    val bytes: uint8[] = [1, 2, 3]
+    val bare = [4, 5]
+    val rgb = Rgb { c: [7, 8, 9] }
+    return xs[1] + bytes[2] as int32 + bare[0] + rgb.c[0] as int32
+}

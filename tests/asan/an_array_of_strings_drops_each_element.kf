@@ -1,0 +1,16 @@
+//! asan: clean
+fun make(): String[2] {
+    return [String.from("a"), String.from("bc")]
+}
+
+fun consume(xs: String[2]): void {}
+
+fun main(): int32 {
+    var kept = make()
+    kept[0] = String.from("replaced")
+    val moved = make()
+    consume(moved)
+    val walked = make()
+    while s in walked { val _n = s.byte_len() }
+    return 0
+}

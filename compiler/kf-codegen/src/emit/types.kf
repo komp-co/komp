@@ -27,7 +27,7 @@ pub fun TypeRef.c_type(): String {
             }
             return fn_pointer_c_type(&c_params, ret.c_type().as_str())
         }
-        Array(_e, _n) => return String.from("/* array */ void*")
+        Array(_element, _length) => return self.tyref_mangle()
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("/* poison */ void")
         Poison => return String.from("/* poison */ void")
@@ -142,7 +142,7 @@ pub fun TypeRef.tyref_mangle(): String {
             }
             return fn_frag(&frags, ret.tyref_mangle().as_str())
         }
-        Array(_e, _n) => return String.from("array")
+        Array(element, length) => return array_mangle_frag(element.tyref_mangle().as_str(), length ?: 0)
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("poison")
         Poison => return String.from("poison")
@@ -177,6 +177,7 @@ pub fun Type.c_type_of_type(): String {
         Generic(n) => return n.as_string()
         PtrTo(p) => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
         BoxOf(p) => return concat(c_type_of_type(unsafe { *p }), String.from("*"))
+        ArrayOf(_p, _length) => return self.mangle_frag()
         RefTo(_m, p) => {
             val inner = unsafe { *p }
             when (inner.kind) {
@@ -270,6 +271,7 @@ pub fun ty_needs_drop_deep(t: TypeRef, m: &Module): bool {
             if type_has_user_drop(inst.clone(), m) { return true }
             return declared_type_owns_heap(inst.as_str(), m)
         }
+        Array(element, _length) => return member_owns_heap(*element, m)
         _ => return false
     }
 }

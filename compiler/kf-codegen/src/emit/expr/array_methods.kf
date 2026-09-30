@@ -1,0 +1,36 @@
+// An array's accessors have no function behind them: `size()` is the length,
+// `index` and `index_mut` a checked element address, and `iter()`'s data the
+// first element's.
+
+import alloc.list.*
+
+import kf_core.ast.*
+
+/// `self` is the receiver; "" when it is not an array.
+fun Expr.emit_array_method(mname: str, margs: &List<Expr>): String {
+    val length = self.ty.array_length_through()
+    if length == 0 { return String.from("") }
+    if mname == "size" { return "((uint64_t)${length})" }
+    if mname != "index" && mname != "index_mut" { return String.from("") }
+    return "(&${self.array_place()}.items[kf_array_index(${margs.at(0).emit_expr()}, ${length})])"
+}
+
+/// `kf__array_data(xs)`: the array's elements, which C reads as the first's
+/// address.
+fun Expr.emit_array_data(args: &List<Expr>): String {
+    return "(${args.at(0).array_place()}.items)"
+}
+
+/// The array itself, through a borrow of it.
+fun Expr.array_place(): String {
+    if ty_is_pointer(self.ty) { return "(*${self.emit_expr()})" }
+    return "(${self.emit_expr()})"
+}
+
+/// An array's length, through borrows; 0 for anything else.
+fun Type.array_length_through(): uint64 {
+    return when (unwrap_receiver_ty(*self).kind) {
+        ArrayOf(_element, n) => n
+        _ => 0
+    }
+}

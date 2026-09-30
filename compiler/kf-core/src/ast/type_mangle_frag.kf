@@ -31,6 +31,7 @@ impl Type {
             Generic(n) => return String.from(n.as_str())
             PtrTo(p) => return wrapped_type_frag("Ptr__", p)
             BoxOf(p) => return wrapped_type_frag("Box__", p)
+            ArrayOf(_p, length) => return array_mangle_frag(self.array_element().mangle_frag().as_str(), length)
             RefTo(is_mut, p) => {
                 // `&dyn Trait` is a fat value already named by its dyn identity.
                 val pointee = unsafe { *p }

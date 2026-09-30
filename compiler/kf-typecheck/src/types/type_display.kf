@@ -45,6 +45,10 @@ pub fun Type.display_type(ctx: &TypeCtx): String {
         Generic(name) => return name.generic_shown(ctx)
         PtrTo(inner) => return display_wrapped_type("Ptr<", unsafe { &*inner }, ">", ctx)
         BoxOf(inner) => return display_wrapped_type("Box<", unsafe { &*inner }, ">", ctx)
+        ArrayOf(_inner, length) => {
+            val element = self.array_element()
+            return array_shown(element.display_type(ctx), element.needs_grouping(), "${length}")
+        }
         RefTo(mutable, inner) => {
             if mutable {
                 return display_wrapped_type("&var ", unsafe { &*inner }, "", ctx)
@@ -152,7 +156,11 @@ pub fun TypeRef.display_type_ref(): String {
             result.append(rendered.as_str())
             return result
         }
-        Array(_, _) => return String.from("array")
+        Array(element, length) => {
+            val n = length ?: 0
+            val count = if length == null { String.from("") } else { "${n}" }
+            return array_shown(element.display_type_ref(), element.needs_grouping(), count)
+        }
         Projection(owner, member) => {
             var result = (unsafe { &*owner }).display_type_ref()
             result.append(".")
@@ -176,4 +184,29 @@ fun Sym.generic_shown(ctx: &TypeCtx): String {
         }
     }
     return self.as_string()
+}
+
+/// `int32[3]`; `(&int32)[3]` when the element would otherwise take the
+/// suffix as its own.
+fun array_shown(element: String, grouped: bool, length: String): String {
+    if grouped { return "(${element.as_str()})[${length.as_str()}]" }
+    return "${element.as_str()}[${length.as_str()}]"
+}
+
+/// A borrow or function type, which an array suffix would otherwise bind
+/// inside.
+fun TypeRef.needs_grouping(): bool {
+    return when (self.kind) {
+        Reference(_mutable, _inner) => true
+        Function(_params, _ret) => true
+        _ => false
+    }
+}
+
+fun Type.needs_grouping(): bool {
+    return when (self.kind) {
+        RefTo(_mutable, _inner) => true
+        FnTy(_signature) => true
+        _ => false
+    }
 }

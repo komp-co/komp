@@ -1,0 +1,85 @@
+// The methods every array has: `size()`, `index` and `index_mut`, which
+// `xs[i]` calls, and `iter()`, a cursor from core.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.*
+import kf_typecheck.types.array_length
+import kf_typecheck.types.kind_tag
+import kf_typecheck.types.TAG_ARRAY
+import kf_typecheck.types.display_type
+import kf_typecheck.types.type_to_type_ref
+import kf_typecheck.types.resolve_type_ref
+
+/// CONSTRAINT: by name until a release's seed knows a lang key for it.
+fun array_iter_name(): str { return "ArrayIter" }
+
+/// What `method` answers on an array, reported when the array has none.
+fun Type.check_array_method(method: String, args: &var List<Expr>, arg_tys: &List<Type>, span: Span,
+    call: &var Expr, ctx: &var TypeCtx): Type {
+    val element = self.array_element()
+    when method.as_str() {
+        "size" => {
+            if args.size() != 0 { emit_method_arity(method, 0, args.size(), span, ctx); return poison_ty() }
+            return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        }
+        "index" => return self.check_array_index(method, args, arg_tys, false, span, ctx)
+        "index_mut" => return self.check_array_index(method, args, arg_tys, true, span, ctx)
+        "iter" => {
+            if args.size() != 0 { emit_method_arity(method, 0, args.size(), span, ctx); return poison_ty() }
+            return call.become_array_iter(self.kind.array_length(), element, ctx)
+        }
+        _ => {}
+    }
+    emit_no_such_method(self.display_type(ctx), method, span, call.name_span, ctx)
+    return poison_ty()
+}
+
+fun Type.check_array_index(method: String, args: &var List<Expr>, arg_tys: &List<Type>, mutable: bool, span: Span,
+    ctx: &var TypeCtx): Type {
+    if args.size() != 1 { emit_method_arity(method, 1, args.size(), span, ctx); return poison_ty() }
+    val index_ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+    if !check_method_arg(args, arg_tys, 0, index_ty, method, span, ctx) { return poison_ty() }
+    return borrow_of(self.array_element(), mutable, span)
+}
+
+/// `xs.iter()` is `ArrayIter<T> { data: <xs's first element>, len: N,
+/// index: 0 }`, an ordinary literal from here on.
+mutating fun Expr.become_array_iter(length: uint64, element: Type, ctx: &var TypeCtx): Type {
+    val span = self.span
+    var receiver = self.method_receiver() ?: return poison_ty()
+    // Borrowed, so the array outlives its cursor rather than moving into it.
+    if receiver.ty.kind.kind_tag() == TAG_ARRAY() {
+        receiver.ty = borrow_of(receiver.ty.clone(), false, span)
+        receiver.coerce = coerce_addr_of()
+    }
+    var data_args = List.new<Expr>()
+    data_args.push(receiver)
+    val data = new_expr(span, ExprKind.Call(intern(array_data_callee()), data_args))
+    var fields = List.new<FieldInit>()
+    fields.push(new_field_init(span, String.from("data"), Box.new(data)))
+    fields.push(new_field_init(span, String.from("len"), Box.new(new_expr(span, ExprKind.LitInt(length as int64)))))
+    fields.push(new_field_init(span, String.from("index"), Box.new(new_expr(span, ExprKind.LitInt(0)))))
+    var literal = new_expr(span, ExprKind.StructLit(intern(array_iter_name()), fields))
+    literal.type_args.push(element.type_to_type_ref(span))
+    *self = literal
+    check_expr(self, ctx)
+    return self.ty.clone()
+}
+
+fun Expr.method_receiver(): Expr? {
+    when (self.kind) {
+        MethodCall(recv, _method, _args) => return (*recv).clone()
+        _ => return null
+    }
+}
+
+/// `kf__array_data(xs)`: the address of an array's first element, from a
+/// borrow of it. Only `become_array_iter` writes one, its argument checked.
+fun check_array_data(args: &var List<Expr>, span: Span, ctx: &var TypeCtx): Type {
+    if args.size() != 1 { return poison_ty() }
+    val array = autoderef_ty(args.at(0).ty.clone())
+    if array.kind.kind_tag() != TAG_ARRAY() { return poison_ty() }
+    return ptr_ty(array.array_element(), span)
+}

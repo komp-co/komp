@@ -130,6 +130,7 @@ fun Type.collect_resolved_type_names(out: &var List<String>): void {
         }
         PtrTo(inner) => collect_resolved_type_names(unsafe { &*inner }, out)
         BoxOf(inner) => collect_resolved_type_names(unsafe { &*inner }, out)
+        ArrayOf(_inner, _length) => self.array_element().collect_resolved_type_names(out)
         RefTo(_mutable, inner) => collect_resolved_type_names(unsafe { &*inner }, out)
         FnTy(signature) => {
             var i = 0

@@ -15,6 +15,7 @@ import kf_typecheck.check.borrow.borrow_written_deref
 
 pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     e.name_empty_list_literal(ctx)
+    if e.builds_array_without_list(ctx) { return }
     // The parser's written-`&` tag is cleared here: Lower reads
     // `coerce == none` before inserting an auto-clone.
     val written = e.coerce

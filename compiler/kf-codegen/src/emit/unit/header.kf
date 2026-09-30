@@ -9,6 +9,7 @@ import kf_core.ast.*
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
+import kf_codegen.emit.tyref_mangle
 import kf_codegen.emit.dyn_traits.*
 import kf_codegen.emit.glue.*
 
@@ -32,6 +33,7 @@ pub fun Module.emit_crate_header_supported(m: &Module, crate_name: String, deps:
     parts.push(self.emit_owned_dyn_layouts())
     parts.push(self.emit_owned_dyn_vtable_declarations())
     parts.push(layouts.emit_type_bodies_ordered())
+    parts.push(self.public_signature_array_layouts(m))
     parts.push(hview.emit_public_glue_declarations())
     parts.push(hview.emit_struct_news())
     parts.push(self.public_fn_protos())
@@ -140,8 +142,26 @@ fun collect_layout_tyref(ty: TypeRef, m: &Module, crate: CrateId, names: &var Li
             }
             collect_layout_tyref(unsafe { *ret }, m, crate, names)
         }
+        // After its element, which must be complete first.
+        Array(element, _length) => {
+            collect_layout_tyref(*element, m, crate, names)
+            val name = ty.tyref_mangle()
+            if !name_list_contains(names, name.as_str()) { names.push(name) }
+        }
         _ => {}
     }
+}
+
+/// The layout of every array a public signature names; no declaration
+/// carries one.
+fun Module.public_signature_array_layouts(m: &Module): String {
+    var names = List.new<String>()
+    self.collect_public_signature_layouts(m, &var names)
+    var parts = List.new<String>()
+    while name in &names {
+        if array_frag_parts(name.as_str()) != null { parts.push(array_layout(name.as_str())) }
+    }
+    return concat_all(parts)
 }
 
 pub fun header_guard_open(crate_name: String): String {

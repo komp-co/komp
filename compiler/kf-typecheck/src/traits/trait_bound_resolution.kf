@@ -147,6 +147,7 @@ fun Type.ty_arg_key(): String {
     return when (self.kind) {
         Struct(n) => type_identity_display(n)
         EnumTy(n) => type_identity_display(n)
+        ArrayOf(_element, _length) => self.mangle_frag()
         _ => self.ty_base_name()
     }
 }
