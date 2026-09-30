@@ -1,5 +1,6 @@
 // `xs[i]` is `*(xs.index(i))`, a shared borrow. Written through (a store, a
-// `mutating` method, `&var`), it becomes `index_mut` and is checked again.
+// `mutating` method, `&var`), it becomes `index_mut` and is checked again,
+// and so does each subscript it is taken through.
 
 import kf_core.ast.*
 import kf_core.span.Span
@@ -15,8 +16,11 @@ pub mutating fun Expr.promote_subscript_to_mut(ctx: &var TypeCtx): bool {
             if !is_shared_subscript(unsafe { &*call }) { return false }
             when (unsafe { call.kind }) {
                 MethodCall(recv, _name, args) => {
-                    if !place_is_mutable(unsafe { *recv }, ctx) {
-                        emit_immutable_container(unsafe { &*recv }, self.span, ctx)
+                    val container: &var Expr = unsafe { &var *recv }
+                    // `xs[i][j]` writes through `xs[i]`, promoted first.
+                    val promoted = !place_is_mutable(*container, ctx) && container.promote_subscript_to_mut(ctx)
+                    if !place_is_mutable(*container, ctx) {
+                        if !promoted { emit_immutable_container(container, self.span, ctx) }
                         return true
                     }
                     unsafe { call.kind = ExprKind.MethodCall(recv, intern("index_mut"), args) }

@@ -1,0 +1,11 @@
+//! run: exit 60
+//! deps: core, alloc
+// `grid[i][j] = v` writes through `grid[i]`, which is borrowed mutably too.
+
+import alloc.list.*
+
+fun main(): int32 {
+    var grid = [[1, 2], [3, 4]]
+    grid[1][1] = 60
+    return grid[1][1]
+}
