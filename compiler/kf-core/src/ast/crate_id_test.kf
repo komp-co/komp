@@ -1,7 +1,5 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
-
 @test
 fun crate_id_poison_is_invalid(): void {
     assert_eq(crate_id_poison().is_poison(), true, "poison crate id is invalid")

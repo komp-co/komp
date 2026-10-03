@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.declaration.TopDecl
 
 /// `import foo.bar.*`, `import foo.bar.Baz` or `import foo.bar as fb`.
 pub struct Import {

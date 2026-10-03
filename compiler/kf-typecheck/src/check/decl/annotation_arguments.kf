@@ -3,7 +3,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.Param
 import kf_core.diagnostic.*
 import kf_typecheck.*
 import kf_typecheck.types.display_type_ref

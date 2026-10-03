@@ -2,11 +2,14 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.TypeParam
 
 fun param_bounded_by(trait_name: str): TypeParam {
     var bounds = List.new<TypeRef>()
-    bounds.push(new_type_ref(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())))
+    bounds.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())))
     return TypeParam { span: no_span(), name: intern("T"), bounds: bounds }
 }
 

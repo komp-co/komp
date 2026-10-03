@@ -1,7 +1,8 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 import kf_core.span.no_span
 import kf_parse.parser.parser_for
 
@@ -27,7 +28,7 @@ fun index_accessor(src: str): String {
         Function(_ps, _r, b, _p, _u, _mu, _st) => { body = b }
         _ => return ""
     }
-    var subscript = expr_poison(no_span())
+    var subscript = Expr.new_poison(no_span())
     when (body.at(0).kind) {
         AssignTo(place, _rhs) => { subscript = unsafe { *place } }
         Return(value) => {

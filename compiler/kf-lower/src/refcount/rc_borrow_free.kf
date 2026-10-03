@@ -3,7 +3,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.lang_list_key
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.declaration.TopDecl
 import kf_lower.ownership.names_contains
 
 /// Every struct and enum whose fields, transitively, are scalars, the lang

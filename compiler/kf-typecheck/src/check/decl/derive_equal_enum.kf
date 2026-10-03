@@ -2,13 +2,21 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_named = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
     val other_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_type = new_type_ref(span, TypeRefKind.Reference(false, other_named)) }
+    unsafe { *other_type = TypeRef.new(span, TypeRefKind.Reference(false, other_named)) }
     params.push(new_param(span, String.from("other"), other_type))
 
     var outer_arms = List.new<Arm>()
@@ -17,26 +25,26 @@ fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, ow
         var matching_body = List.new<Stmt>()
         val comparison: Ptr<Expr> = variant.enum_payload_comparison(span)
         val comparison_operand: Box<Expr>? = comparison
-        matching_body.push(new_stmt(span, StmtKind.Return(comparison_operand)))
+        matching_body.push(Stmt.new(span, StmtKind.Return(comparison_operand)))
         inner_arms.push(new_arm(span, variant.enum_variant_pattern("right", span), null, matching_body))
         var different_body = List.new<Stmt>()
         val false_expr: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *false_expr = new_expr(span, ExprKind.LitBool(false)) }
+        unsafe { *false_expr = Expr.new(span, ExprKind.LitBool(false)) }
         val false_operand: Box<Expr>? = false_expr
-        different_body.push(new_stmt(span, StmtKind.Return(false_operand)))
+        different_body.push(Stmt.new(span, StmtKind.Return(false_operand)))
         inner_arms.push(new_arm(span, enum_wildcard_pattern(span), null, different_body))
 
         val other_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *other_value = new_expr(span, ExprKind.Variable(intern("other"))) }
+        unsafe { *other_value = Expr.new(span, ExprKind.Variable(intern("other"))) }
         var inner_body = List.new<Stmt>()
-        inner_body.push(new_stmt(span, StmtKind.When(other_value, inner_arms)))
+        inner_body.push(Stmt.new(span, StmtKind.When(other_value, inner_arms)))
         outer_arms.push(new_arm(span, variant.enum_variant_pattern("left", span), null, inner_body))
     }
 
     val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *self_value = new_expr(span, ExprKind.Variable(intern("self"))) }
+    unsafe { *self_value = Expr.new(span, ExprKind.Variable(intern("self"))) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(span, StmtKind.When(self_value, outer_arms)))
+    body.push(Stmt.new(span, StmtKind.When(self_value, outer_arms)))
     return synth_equal_trait_impl(name, params, body, span, owner, module_path, trait_sym)
 }
 
@@ -58,17 +66,17 @@ fun enum_wildcard_pattern(span: Span): Ptr<Pattern> {
 
 fun Variant.enum_payload_comparison(span: Span): Ptr<Expr> {
     var comparison: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *comparison = new_expr(span, ExprKind.LitBool(true)) }
+    unsafe { *comparison = Expr.new(span, ExprKind.LitBool(true)) }
     while i in 0..self.payloads.size() {
         val left: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *left = new_expr(span, ExprKind.Variable(intern(enum_binder_name("left", i).as_str()))) }
+        unsafe { *left = Expr.new(span, ExprKind.Variable(intern(enum_binder_name("left", i).as_str()))) }
         val right: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *right = new_expr(span, ExprKind.Variable(intern(enum_binder_name("right", i).as_str()))) }
+        unsafe { *right = Expr.new(span, ExprKind.Variable(intern(enum_binder_name("right", i).as_str()))) }
         val equal: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *equal = new_expr(span, ExprKind.Binary(left, BinOp.Eq, right)) }
+        unsafe { *equal = Expr.new(span, ExprKind.Binary(left, BinOp.Eq, right)) }
         val prior = comparison
         comparison = unsafe { alloc<Expr>() }
-        unsafe { *comparison = new_expr(span, ExprKind.Binary(prior, BinOp.AndAnd, equal)) }
+        unsafe { *comparison = Expr.new(span, ExprKind.Binary(prior, BinOp.AndAnd, equal)) }
     }
     return comparison
 }

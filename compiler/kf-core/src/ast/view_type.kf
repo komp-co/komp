@@ -2,6 +2,7 @@
 // and `&T` do, so the borrow rules treat its values as borrows.
 
 import alloc.list.*
+import kf_core.ast.declaration.TopDecl
 
 impl TopDecl {
     /// Its values borrow, and its own fields may hold borrows.

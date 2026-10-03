@@ -6,6 +6,13 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
@@ -25,15 +32,15 @@ fun mk_bag_decl(): TopDecl {
 // No value argument to infer from.
 fun mk_bag_impl(): TopDecl {
     var finits = List.new<FieldInit>()
-    finits.push(new_field_init(no_span(), String.from("n"), ep(ExprKind.LitInt(0))))
-    var slit = new_expr(no_span(), ExprKind.StructLit(intern("Bag"), finits))
+    finits.push(FieldInit.new(no_span(), String.from("n"), ep(ExprKind.LitInt(0))))
+    var slit = Expr.new(no_span(), ExprKind.StructLit(intern("Bag"), finits))
     var slit_targs = List.new<TypeRef>()
     slit_targs.push(tref_v("T"))
     slit.type_args = slit_targs
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var mbody = List.new<Stmt>()
-    mbody.push(new_stmt(no_span(), StmtKind.Return(ret_op(slit_p))))
+    mbody.push(Stmt.new(no_span(), StmtKind.Return(ret_op(slit_p))))
     val mk = new_top_decl(no_span(), String.from("make"), TopDeclKind.Function(List.new<Param>(), tref_p_generic("Bag", "T"), mbody, true, false, false, true))
     var methods = List.new<TopDecl>()
     methods.push(mk)
@@ -60,7 +67,7 @@ fun bag_make_call(): Ptr<Expr> {
 // `val b = Bag.make()` is reported.
 @test fun an_open_generic_static_call_is_reported(): void {
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, bag_make_call())))
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("b"), null, bag_make_call())))
     var m = bag_module(body)
     var table = new_decl_table()
     resolve_module(&var m, &var table)
@@ -73,7 +80,7 @@ fun bag_make_call(): Ptr<Expr> {
 // `val b: Bag<int32> = Bag.make()` takes the slot's arguments.
 @test fun a_slot_types_an_open_generic_static_call(): void {
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), tref_p_generic("Bag", "int32"), bag_make_call())))
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("b"), tref_p_generic("Bag", "int32"), bag_make_call())))
     var m = bag_module(body)
     var table = new_decl_table()
     resolve_module(&var m, &var table)

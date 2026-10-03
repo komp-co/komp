@@ -10,6 +10,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_typecheck.types.type_to_type_ref
 
 /// The node at `ep` is rewritten in place to read the temporary.
@@ -33,6 +38,7 @@ fun hoist_in_children(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>
         Retain(i) => hoist_when_values(i, temps, out)
         FieldAccess(o, _f) => hoist_when_values(o, temps, out)
         Call(_n, args) => hoist_in_arg_list(ep, temps, out)
+        Intrinsic(_i, _args) => hoist_in_arg_list(ep, temps, out)
         CallValue(callee, _args) => {
             hoist_when_values(callee, temps, out)
             hoist_in_arg_list(ep, temps, out)
@@ -68,6 +74,11 @@ fun hoist_in_arg_list(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>
         // A binder shares the arguments' storage, and none is added or
         // removed, so each is rewritten where it lies.
         Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_in_place(args.at_mut(i), temps, out)
+            }
+        }
+        Intrinsic(_i, args) => {
             while i in 0..args.size() {
                 hoist_in_place(args.at_mut(i), temps, out)
             }
@@ -130,16 +141,16 @@ fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void
     val temp = temps.fresh_when_temp()
 
     val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
-    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+    out.push(Stmt.new(span, StmtKind.LetVar(temp, ann, null)))
 
     when (node.kind) {
         WhenExpr(subj, arms) => {
-            out.push(new_stmt(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
+            out.push(Stmt.new(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
         }
         _ => { }
     }
 
-    var v = new_expr(span, ExprKind.Variable(temp))
+    var v = Expr.new(span, ExprKind.Variable(temp))
     v.ty = value_ty
     // The value's coercion now applies to the temporary: a borrow of it for a
     // trait object, say.

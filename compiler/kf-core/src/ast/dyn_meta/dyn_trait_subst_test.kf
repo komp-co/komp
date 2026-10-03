@@ -3,17 +3,20 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 import kf_core.ast.subst.subst_type
 
 @test fun dyn_trait_substitution_rewrites_arguments(): void {
-    var arguments = new_type_vec()
-    arguments.push(generic_ty(String.from("T"), no_span()))
+    var arguments = List.new<Type>()
+    arguments.push(Type.new_generic(String.from("T"), no_span()))
     val source = dyn_trait_type(intern("sample::api::Sink"), arguments, no_span())
     var names = List.new<String>()
     var replacements = List.new<TypeRef>()
     names.push(String.from("T"))
-    replacements.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    replacements.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val result = source.subst_type(&var names, &var replacements)
     val result_arguments = result.dyn_trait_args()
     val first = unsafe { result_arguments.get(0) }

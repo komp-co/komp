@@ -7,7 +7,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.view
+import kf_core.ast.declaration.TopDecl
 
 import kf_codegen.*
 import kf_codegen.emit.dyn_traits.*
@@ -56,9 +59,11 @@ pub fun Module.emit_crate_source_supported(m: &Module, crate_name: String, is_bi
     parts.push(dynview.emit_dyn_adapters())
     parts.push(dynview.emit_dyn_vtables())
     parts.push(emit_dyn_dispatch_helpers(&dynview))
-    // From the merged self, so monomorphized enum instances are included.
+    // From the merged self, so monomorphized enum instances are included. A
+    // public type's instance (`Option<Widget>`) is laid out only in the header.
     var payloads = self.build_arm_payloads()
     payloads.add_arm_payloads(&sview)
+    payloads.add_arm_payloads(&header_layouts)
     parts.push(self.emit_fn_bodies(&payloads))
     parts.push(support.emit_instance_bodies(&payloads))
     if is_bin {

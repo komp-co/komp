@@ -2,14 +2,18 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.view
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 
 // `struct Window<T> { val start: Ptr<T> }`, a `view struct` when asked.
 fun window_template(view: bool): TopDecl {
     var elem = List.new<TypeRef>()
-    elem.push(new_type_ref(no_span(), TypeRefKind.Named(intern("T"), List.new<TypeRef>())))
+    elem.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("T"), List.new<TypeRef>())))
     val start_ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *start_ty = new_type_ref(no_span(), TypeRefKind.Named(intern("Ptr"), elem)) }
+    unsafe { *start_ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), elem)) }
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("start"), start_ty, false, true))
     var td = new_top_decl(no_span(), String.from("Window"), TopDeclKind.Struct(fields, true))
@@ -20,7 +24,7 @@ fun window_template(view: bool): TopDecl {
 
 fun int32_args(): List<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     return args
 }
 

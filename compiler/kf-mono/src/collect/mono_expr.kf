@@ -2,6 +2,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
 import kf_mono.extract_struct_name
 import kf_mono.mangle_method
 import kf_core.ast.subst.monomorphized_type_name
@@ -60,14 +64,12 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
             // typecheck pinned.
             val n_ta: uint64 = e.type_args.size()
             if n_ta > 0 && name_sym.as_str() != array_literal_callee() {
-                if e.mangled_callee.as_str() == "" {
-                    val base = generic_call_base(name_sym.as_str())
-                    e.apply_generic_mangle(base.as_str(), false)
-                }
+                if e.mangled_callee.as_str() == "" { e.apply_generic_mangle(name_sym.as_str(), false) }
             } else if e.mangled_callee.as_str() == "" {
                 e.mangled_callee = intern(name_sym.as_str())
             }
         }
+        Intrinsic(_intrinsic, args) => mono_args(args, owner)
         FnRef(name_sym) => {
             if e.mangled_callee.as_str() == "" { e.mangled_callee = name_sym }
         }
@@ -158,10 +160,9 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
     }
 }
 
-// Memory intrinsics are already folded to `alloc__T` by the parser; Mono
-// replaces that tail rather than appending to it.
+/// The template an instance name was made from: `Wrap__int32` is `Wrap`.
 fun generic_call_base(name: str): String {
-    // A crate-qualified name keeps its prefix; the fold starts after it.
+    // A crate-qualified name keeps its prefix; the arguments start after it.
     if qualified_generic_crate(name) >= 0 {
         val plain = qualified_generic_name(name)
         val prefix = name.substring(0, name.byte_len() - plain.byte_len())

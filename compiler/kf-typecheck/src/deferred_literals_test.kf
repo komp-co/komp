@@ -2,16 +2,13 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.void_ty
-import kf_core.diagnostic.*
+import kf_core.diagnostic.error_at
 import kf_resolve.*
 
 fun deferring_ctx(): TypeCtx {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
-    return new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, Option.None, signatures)
 }
 
 fun literal_at(offset: uint32): Span {

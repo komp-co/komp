@@ -2,31 +2,39 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_lower.refcount.new_rc_ctx
 import kf_lower.refcount.rc_insert_stmts
 import kf_lower.refcount.push_frame
 
 fun lower_dyn_ref(): Type {
-    val dynamic = dyn_trait_type(intern("Show"), new_type_vec(), no_span())
+    val dynamic = dyn_trait_type(intern("Show"), List.new<Type>(), no_span())
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *inner = dynamic }
     return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Declared(no_span()) }
 }
 
 fun lowered_dyn_body(): List<Stmt> {
-    var source = new_expr(no_span(), ExprKind.Variable(intern("point")))
+    var source = Expr.new(no_span(), ExprKind.Variable(intern("point")))
     source.ty = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
     source.coerce = coerce_addr_of()
     val source_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *source_ptr = source }
-    var coercion = new_expr(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Show")))
+    var coercion = Expr.new(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Show")))
     coercion.ty = lower_dyn_ref()
     val coercion_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *coercion_ptr = coercion }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
     var ctx = new_rc_ctx(String.from("use_show"))
     val _frame = ctx.push_frame(false)
     rc_insert_stmts(&var body, &var ctx)

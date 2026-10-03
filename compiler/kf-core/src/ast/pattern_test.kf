@@ -4,6 +4,8 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 @test fun new_pattern_round_trips_span(): void {
     val sp = Span { file_id: 1, start: 5, end: 9 }

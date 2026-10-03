@@ -5,7 +5,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named

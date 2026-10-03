@@ -10,7 +10,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.rebuilt
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_typecheck.types.*
 
 /// A constructor checked against the template adopts the slot's instance
@@ -116,8 +121,6 @@ fun kind_is_variable_named(k: ExprKind, want: str): bool {
 /// return, substituted with bindings read from the slot, must equal the slot
 /// exactly, or the node is left for the ordinary mismatch report.
 mutating fun Expr.rebind_generic_call(expected: &Type, ctx: &var TypeCtx): bool {
-    // An intrinsic's type argument is in its name.
-    if self.is_intrinsic { return false }
     // Written type arguments outrank the slot.
     if self.type_args_written { return false }
     if self.ty.type_eq(unsafe { *expected }) { return false }
@@ -215,7 +218,6 @@ fun Expr.arg_admits_param(want: &Type, string_name: Sym): bool {
 /// A callee with no generics is never rebound.
 pub fun Expr.rebound_call_bindings(want: &Type, ctx: &var TypeCtx): List<Type> {
     val none = List.new<Type>()
-    if self.is_intrinsic { return none }
     if self.type_args_written { return none }
     var callee = intern("")
     when (self.kind) {

@@ -1,7 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Pattern
+import kf_core.ast.Sym
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 mutating fun MoveCtx.snapshot_moved(): List<MovedEntry> {

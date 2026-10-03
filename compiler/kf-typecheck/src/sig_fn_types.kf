@@ -1,4 +1,4 @@
-import kf_core.ast.*
+import kf_core.ast.types.Type
 
 impl SigTable {
     pub mutating fun note_fn_type(t: &Type): void {

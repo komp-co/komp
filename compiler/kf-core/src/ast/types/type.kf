@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 import kf_core.ast.intern
 
 /// A resolved type with provenance, attached to an Expr after typecheck, as
@@ -79,7 +80,7 @@ pub struct FnParts {
 
 impl Type {
     pub static fun new(kind: TypeKind, provenance: Provenance): Self {
-        return Self {kind: kind, provenance: provenance}
+        return Self { kind: kind, provenance: provenance }
     }
 
     pub static fun new_int32(span: Span): Self {
@@ -123,27 +124,24 @@ impl Type {
     }
 
     pub static fun new_ptr(inner: Type, span: Span): Self {
-        val p: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *p = inner }
+        val p = type_node(inner)
         return Type.new(TypeKind.PtrTo(p), Provenance.Inferred(span))
     }
 
-    pub fun new_fn(params: List<Type>, ret: Type, provenance: Provenance): Self {
-        val signature = Box.new(FnSig { params: Box.new(params), ret: Box.new(ret) })
+    pub static fun new_fn(params: List<Type>, ret: Type, provenance: Provenance): Self {
+        val signature = signature_node(FnSig { params: type_list_node(params), ret: type_node(ret) })
         return Type.new(TypeKind.FnTy(signature), provenance)
     }
 
     /// A projection whose owner names no impl yet (a type parameter, or `Self` in
     /// a trait); Mono pins the owner.
     pub static fun new_projection(owner: Type, member: Sym, span: Span): Self {
-        val p: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *p = owner }
+        val p = type_node(owner)
         return Type { kind: TypeKind.Projection(p, member), provenance: Provenance.Inferred(span) }
     }
 
     pub static fun new_box(inner: Type, span: Span): Self {
-        val p: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *p = inner }
+        val p = type_node(inner)
         return Type { kind: TypeKind.BoxOf(p), provenance: Provenance.Inferred(span) }
     }
 
@@ -158,7 +156,7 @@ impl Type {
 
     /// `&self`, or `&var self` when `is_mutable`.
     pub fun borrowed(is_mutable: bool, span: Span): Type {
-        return Type { kind: TypeKind.RefTo(is_mutable, Box.new(self)), provenance: Provenance.Inferred(span) }
+        return Type { kind: TypeKind.RefTo(is_mutable, type_node(self)), provenance: Provenance.Inferred(span) }
     }
 
     /// None for anything but a function type.
@@ -167,8 +165,8 @@ impl Type {
             FnTy(signature) => {
                 var params = List.new<Type>()
                 val source = unsafe { &*signature.params }
-                while param in source {
-                    params.push(param)
+                while i in 0..source.size() {
+                    params.push(source.get(i))
                 }
                 FnParts { params: params, ret: unsafe { *signature.ret } }
             }

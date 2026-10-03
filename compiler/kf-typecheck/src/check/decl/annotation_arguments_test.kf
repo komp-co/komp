@@ -2,12 +2,19 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.UnaryOp
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
 
 fun typed_param(name: str, ty: str): Param {
-    val tref = new_type_ref(no_span(), TypeRefKind.Named(intern(ty), List.new<TypeRef>()))
+    val tref = TypeRef.new(no_span(), TypeRefKind.Named(intern(ty), List.new<TypeRef>()))
     return new_param(no_span(), String.from(name), Box.new(tref))
 }
 
@@ -26,7 +33,7 @@ fun string_table(): SigTable {
 }
 
 fun arg(name: str, kind: ExprKind): AnnotationArg {
-    return AnnotationArg { name: intern(name), value: Box.new(new_expr(no_span(), kind)) }
+    return AnnotationArg { name: intern(name), value: Box.new(Expr.new(no_span(), kind)) }
 }
 
 fun bench_use(args: List<AnnotationArg>): Annotation {
@@ -82,7 +89,7 @@ fun ordered(args: List<AnnotationArg>): OrderedArguments {
 }
 
 @test fun a_negative_number_fits_a_signed_parameter(): void {
-    val negative = ExprKind.Unary(UnaryOp.Neg, Box.new(new_expr(no_span(), ExprKind.LitInt(3))))
+    val negative = ExprKind.Unary(UnaryOp.Neg, Box.new(Expr.new(no_span(), ExprKind.LitInt(3))))
     assert_eq(ordered([arg("", negative), arg("", ExprKind.LitStr(String.from("a")))]).ok, true, "-3 is an int32")
 }
 
@@ -95,8 +102,8 @@ fun ordered(args: List<AnnotationArg>): OrderedArguments {
     var diags = List.new<Diagnostic>()
     var params = List.new<Param>()
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    val list = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), args))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    val list = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
     params.push(new_param(no_span(), String.from("values"), Box.new(list)))
     check_annotation_params(&params, &string_table(), new_crate_id("app"), &var diags)
     assert_eq(diags.size(), 1, "no literal spells a list")

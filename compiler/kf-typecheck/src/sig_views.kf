@@ -1,6 +1,8 @@
 // Which types are views, asked of the table that recorded them.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.names_view
+import kf_core.ast.types.Type
 
 impl SigTable {
     /// A value of a view type, or of an instance of a generic one.

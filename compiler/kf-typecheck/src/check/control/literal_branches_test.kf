@@ -1,13 +1,15 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.no_span
 
 fun if_of(then_kind: ExprKind, else_kind: ExprKind): Expr {
-    val condition = Box.new(new_expr(no_span(), ExprKind.LitBool(true)))
-    val then_value = Box.new(new_expr(no_span(), then_kind))
-    val else_value = Box.new(new_expr(no_span(), else_kind))
-    return new_expr(no_span(), ExprKind.IfExpr(condition, then_value, else_value))
+    val condition = Box.new(Expr.new(no_span(), ExprKind.LitBool(true)))
+    val then_value = Box.new(Expr.new(no_span(), then_kind))
+    val else_value = Box.new(Expr.new(no_span(), else_kind))
+    return Expr.new(no_span(), ExprKind.IfExpr(condition, then_value, else_value))
 }
 
 @test fun an_if_of_two_numbers_yields_only_literals(): void {
@@ -21,6 +23,6 @@ fun if_of(then_kind: ExprKind, else_kind: ExprKind): Expr {
 }
 
 @test fun a_bare_number_is_not_a_branching_value(): void {
-    val e = new_expr(no_span(), ExprKind.LitInt(1))
+    val e = Expr.new(no_span(), ExprKind.LitInt(1))
     assert_eq(e.yields_only_numeric_literals(), false, "only an if or when qualifies")
 }

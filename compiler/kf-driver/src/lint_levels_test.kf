@@ -4,7 +4,12 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_module
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import kf_core.diagnostic.*
 
 fun a_lint(span: Span): List<Diagnostic> {

@@ -2,7 +2,9 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.*
 import kf_typecheck.types.mangle_type
 import kf_typecheck.types.display_type_ref
 
@@ -10,7 +12,7 @@ fun imported_signature(is_pub: bool): FnSignature {
     return FnSignature {
         name: String.from("helper"),
         params: List.new<Type>(),
-        ret: int32_ty(no_span()),
+        ret: Type.new_int32(no_span()),
         generics: List.new<String>(),
         is_static: false,
         is_mutating: false,
@@ -71,7 +73,7 @@ fun runtime_signature_is_globally_visible(): void {
     sigs.gate_visibility = true
     sigs.caller_files.push(7)
     sigs.imported_targets.push(intern("library"))
-    sigs.insert(FnSignature { name: String.from("runtime_println"), params: List.new<Type>(), ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern("core.assert"), owner_crate: new_crate_id("core"), is_pub: false, borrows: 0 - 1, is_prelude: false, is_extern: false })
+    sigs.insert(FnSignature { name: String.from("runtime_println"), params: List.new<Type>(), ret: Type.new_void(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern("core.assert"), owner_crate: new_crate_id("core"), is_pub: false, borrows: 0 - 1, is_prelude: false, is_extern: false })
     assert_eq(sigs.find_imported_signature("runtime_println", 7, new_crate_id("application"), intern("application")).is_some(), true, "runtime signatures have no visibility boundary")
 }
 
@@ -90,7 +92,7 @@ fun index_binding(trait_args: str, chosen: Type, written: str): AssocBindingInfo
         trait_args: String.from(trait_args),
         assoc_name: String.from("Out"),
         chosen: chosen,
-        chosen_tref: new_type_ref(no_span(), TypeRefKind.Named(intern(written), List.new<TypeRef>()))
+        chosen_tref: TypeRef.new(no_span(), TypeRefKind.Named(intern(written), List.new<TypeRef>()))
     }
 }
 
@@ -98,8 +100,8 @@ fun index_binding(trait_args: str, chosen: Type, written: str): AssocBindingInfo
 /// one shows.
 fun two_instantiations_of_index(): SigTable {
     var sigs = new_sig_table()
-    sigs.insert_assoc_binding(index_binding("uint64", int32_ty(no_span()), "int32"))
-    sigs.insert_assoc_binding(index_binding("Range", bool_ty(no_span()), "bool"))
+    sigs.insert_assoc_binding(index_binding("uint64", Type.new_int32(no_span()), "int32"))
+    sigs.insert_assoc_binding(index_binding("Range", Type.new_bool(no_span()), "bool"))
     return sigs
 }
 
@@ -144,7 +146,7 @@ fun stdout_layout(crate: str, field_count: uint64): StructLayout {
     var fs = List.new<StructFieldInfo>()
     var i: uint64 = 0
     while i < field_count {
-        fs.push(StructFieldInfo { name: String.from("f"), ty: int32_ty(no_span()), is_var: true })
+        fs.push(StructFieldInfo { name: String.from("f"), ty: Type.new_int32(no_span()), is_var: true })
         i = i + 1
     }
     return StructLayout { name: String.from("Stdout"), fields: fs, is_refcounted: false, owner_crate: new_crate_id(crate) }
@@ -153,9 +155,9 @@ fun stdout_layout(crate: str, field_count: uint64): StructLayout {
 /// Core registers a field-less `Stdout` first; the program declares its own.
 fun core_then_program_stdout(): SigTable {
     var sigs = new_sig_table()
-    sigs.insert_type_identity(new_type_identity(new_crate_id("core"), intern("core.display"), intern("Stdout")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("core"), intern("core.display"), intern("Stdout")))
     sigs.insert_struct(stdout_layout("core", 0))
-    sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Stdout")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("program"), intern("program"), intern("Stdout")))
     sigs.insert_struct(stdout_layout("program", 1))
     return sigs
 }
@@ -182,7 +184,7 @@ fun a_crate_declaring_no_such_type_takes_the_first(): void {
 fun a_crates_own_enum_hides_another_crates_struct(): void {
     var sigs = new_sig_table()
     sigs.insert_struct(StructLayout { name: String.from("Duration"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: new_crate_id("core") })
-    sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Duration")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("program"), intern("program"), intern("Duration")))
     sigs.insert_enum(EnumLayout { name: String.from("Duration"), variants: List.new<VariantInfo>(), owner_crate: new_crate_id("program") })
     assert_eq(sigs.find_struct("Duration", new_crate_id("program")).is_none(), true, "the program's enum is not core's struct")
     assert_eq(sigs.find_enum("Duration", new_crate_id("program")).is_some(), true, "the program's enum is found")
@@ -194,7 +196,7 @@ fun a_crates_plain_type_hides_another_crates_generic(): void {
     var params = List.new<String>()
     params.push(String.from("T"))
     sigs.insert_generic_info(GenericInfo { name: String.from("Range"), type_params: params, owner_crate: new_crate_id("core") })
-    sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Range")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("program"), intern("program"), intern("Range")))
     assert_eq(sigs.find_generic_info("Range", new_crate_id("program")).is_none(), true, "the program's plain Range takes no type arguments")
     assert_eq(sigs.find_generic_info("Range", new_crate_id("core")).is_some(), true, "core's Range is still generic to core")
 }
@@ -210,9 +212,9 @@ fun a_crates_own_enum_hides_another_crates_enum(): void {
     var core_variants = List.new<VariantInfo>()
     core_variants.push(VariantInfo { name: String.from("Less"), payloads: List.new<Type>() })
     core_variants.push(VariantInfo { name: String.from("More"), payloads: List.new<Type>() })
-    sigs.insert_type_identity(new_type_identity(new_crate_id("core"), intern("core"), intern("Ordering")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("core"), intern("core"), intern("Ordering")))
     sigs.insert_enum(EnumLayout { name: String.from("Ordering"), variants: core_variants, owner_crate: new_crate_id("core") })
-    sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Ordering")))
+    sigs.insert_type_identity(TypeIdentity.new(new_crate_id("program"), intern("program"), intern("Ordering")))
     sigs.insert_enum(EnumLayout { name: String.from("Ordering"), variants: List.new<VariantInfo>(), owner_crate: new_crate_id("program") })
     assert_eq(sigs.variant_count("Ordering", "program"), 0, "the program's own Ordering")
     assert_eq(sigs.variant_count("Ordering", "core"), 2, "core's own Ordering")

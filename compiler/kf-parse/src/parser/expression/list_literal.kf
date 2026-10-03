@@ -4,7 +4,7 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.expression.Expr
 import kf_parse.parser.*
 
 impl Parser {
@@ -26,6 +26,6 @@ impl Parser {
         }
         val _rb = self.expect_op(Operator.RBracket, "to close the list")
         self.no_struct_lit = saved
-        return list_literal_expr(self.span_through_last(span), &elements)
+        return Expr.new_list_literal(self.span_through_last(span), &elements)
     }
 }

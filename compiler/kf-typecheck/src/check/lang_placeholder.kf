@@ -1,7 +1,9 @@
 // The lexer names the lang string through a placeholder, since it runs
 // before any library is loaded.
 
-import kf_core.ast.*
+import kf_core.ast.lang_option_key
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 

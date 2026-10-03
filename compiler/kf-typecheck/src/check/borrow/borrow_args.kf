@@ -1,6 +1,8 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_addr_of
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.type_eq
@@ -29,6 +31,13 @@ pub fun Expr.borrow_place_is_stable(): bool {
             }
         }
         Call(_, _) => {
+            when (self.ty.kind) {
+                RefTo(_, _) => return true
+                PtrTo(_) => return true
+                _ => return false
+            }
+        }
+        Intrinsic(_, _) => {
             when (self.ty.kind) {
                 RefTo(_, _) => return true
                 PtrTo(_) => return true

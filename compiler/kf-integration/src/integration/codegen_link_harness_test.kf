@@ -12,8 +12,8 @@ import std.process.*
 
 import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
-import kf_driver.*
 import kf_integration.harness.compile_project_separate
+import kf_core.diagnostic.new_diagnostics
 
 /// A directory nothing else writes, so no stray header is resolved.
 fun link_dir(): str {
@@ -34,9 +34,8 @@ pub fun write_core_header_into(dir: str): bool {
 /// The header and the object: public glue is exported from the crate's own
 /// object, so the header alone leaves `<Type>__glue_drop` undefined.
 fun write_crate_artifacts_into(dir: str, project: str, name: str): bool {
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    val outs = compile_project_separate(project, errp)
+    var errors = new_diagnostics()
+    val outs = compile_project_separate(project, &var errors)
     while o in &outs {
         if o.crate_name.as_str() == name {
             val _made = create_dir_all(Path.new(dir))

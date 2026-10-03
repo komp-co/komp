@@ -2,6 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_core.span.no_span
 
@@ -9,7 +12,7 @@ fun guarded_arm(kind: PatternKind, guard: ExprKind): Arm {
     val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *pattern = new_pattern(no_span(), kind) }
     val guard_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *guard_ptr = new_expr(no_span(), guard) }
+    unsafe { *guard_ptr = Expr.new(no_span(), guard) }
     return new_arm(no_span(), pattern, Option.Some<Box<Expr>>(guard_ptr), List.new<Stmt>())
 }
 

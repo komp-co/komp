@@ -2,6 +2,11 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_resolve.new_decl_table
@@ -18,7 +23,7 @@ fun coverage_arm_at(kind: PatternKind, guarded: bool, span: Span): Arm {
     var guard: Box<Expr>? = null
     if guarded {
         val gp: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *gp = new_expr(no_span(), ExprKind.LitBool(true)) }
+        unsafe { *gp = Expr.new(no_span(), ExprKind.LitBool(true)) }
         guard = Option.Some<Box<Expr>>(gp)
     }
     return new_arm(no_span(), pattern, guard, List.new<Stmt>())
@@ -28,7 +33,7 @@ fun coverage_diags(subject_name: str, arms: List<Arm>, include_color: bool): Lis
     var params = List.new<Param>()
     params.push(new_param(no_span(), String.from("subject"), tref_p(subject_name)))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.When(ep(ExprKind.Variable(intern("subject"))), arms)))
+    body.push(Stmt.new(no_span(), StmtKind.When(ep(ExprKind.Variable(intern("subject"))), arms)))
     val kind = TopDeclKind.Function(params, tref_p("void"), body, true, false, false, false)
     var module = Module {
         crate: crate_id_poison(),

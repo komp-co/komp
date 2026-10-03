@@ -159,8 +159,10 @@ declaration, that declaration's signature and documentation:
 ```
 
 `type` is null when `offset` covers no expression: whitespace, a keyword, a
-comment, a binder's name. That is not an error; most of a file is not an
-expression.
+comment, a parameter's name. That is not an error; most of a file is not an
+expression. The name a `val` or `var` binds answers with the type of what
+initializes it. A field after a `.` answers with its declaration as the
+signature (`val x: int32`) and the documentation above it.
 
 **`inlays`** is the types nobody wrote down: one hint per `val` or `var` with
 no annotation, at the byte where its name ends.
@@ -219,6 +221,10 @@ the compiler scans back over the name, expects a `.`, and types what comes
 before it. `prefix` is the partial name; the client filters on it. A
 `static fun` is left out, since it takes no receiver, and a generic's
 members are shown as declared (`push(item: T)`, not `push(item: int32)`).
+Extensions come after the type's own members, and only those a call on the
+receiver would pick: one whose bound the type does not meet is left out, and
+a type's own method hides an extension of the same name. Hover on a method
+call picks the same way.
 
 Anywhere else, the items are the names in scope at `offset`, and
 `receiver_type` is null:

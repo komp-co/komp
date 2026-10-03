@@ -2,11 +2,17 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 fun guard_of(kind: ExprKind, ty: Type): Ptr<Expr>? {
     val guard: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var e = new_expr(no_span(), kind)
+    var e = Expr.new(no_span(), kind)
     e.ty = ty
     unsafe { *guard = e }
     return Option.Some<Ptr<Expr>>(guard)
@@ -19,7 +25,7 @@ fun guard_of(kind: ExprKind, ty: Type): Ptr<Expr>? {
 
 @test fun a_guard_owning_nothing_has_no_prelude(): void {
     var ctx = rc_ctx_for_test("f")
-    val guard = guard_of(ExprKind.LitBool(true), bool_ty(no_span()))
+    val guard = guard_of(ExprKind.LitBool(true), Type.new_bool(no_span()))
     assert_eq(guard_temporaries(guard, &var ctx).size(), 0, "a literal owns nothing")
 }
 
@@ -29,15 +35,15 @@ fun guard_of(kind: ExprKind, ty: Type): Ptr<Expr>? {
     var ctx = rc_ctx_for_test("f")
     val string_ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
     val receiver: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var made = new_expr(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
+    var made = Expr.new(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
     made.ty = string_ty
     unsafe { *receiver = made }
     val length: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var call = new_expr(no_span(), ExprKind.MethodCall(receiver, intern("byte_len"), List.new<Expr>()))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(receiver, intern("byte_len"), List.new<Expr>()))
     call.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
     unsafe { *length = call }
     val three: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *three = new_expr(no_span(), ExprKind.LitInt(3)) }
-    val guard = guard_of(ExprKind.Binary(length, BinOp.Eq, three), bool_ty(no_span()))
+    unsafe { *three = Expr.new(no_span(), ExprKind.LitInt(3)) }
+    val guard = guard_of(ExprKind.Binary(length, BinOp.Eq, three), Type.new_bool(no_span()))
     assert_eq(guard_temporaries(guard, &var ctx).size(), 3, "bind the receiver, bind the value, release")
 }

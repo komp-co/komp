@@ -5,7 +5,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_module
+import kf_core.ast.types.Type
 import kf_assemble.Overlay
 import kf_assemble.no_overlay
 import kf_assemble.overlay_for
@@ -13,11 +15,13 @@ import kf_resolve.*
 import kf_typecheck.*
 import kf_typecheck.types.display_type
 import kf_driver.fresh_source_map
-import kf_driver.build.fresh_diag_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_shared.absolutize
+import kf_core.diagnostic.new_diagnostics
+import kf_core.ast.types.TypingNodes
+import kf_core.ast.types.restore_type_nodes
 
 /// `ok` is false for a file with no crate above it.
 pub struct TypedCrate {
@@ -32,6 +36,8 @@ pub struct TypedCrate {
     pub var root: String
     /// For answers spanning several files.
     pub var smap: Box<SourceMap>
+    /// Where the typing's type children live; they go with the crate.
+    pub var nodes: TypingNodes
 }
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
@@ -51,13 +57,15 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
         val empty: Ptr<SigTable> = typing.sigs
         return TypedCrate {
             ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty, typing: typing, source: "",
-            smap: fresh_source_map(), root: ""
+            smap: fresh_source_map(), root: "", nodes: TypingNodes.new()
         }
     }
+    val nodes = TypingNodes.new()
+    val previous = nodes.enter()
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
+    var pdiags = new_diagnostics()
     // With the root's tests, since the buffer is often a `_test.kf`.
-    var merged = merge_module_list(assemble_crate_list(crates, smap, pdiags, true, overlay))
+    var merged = merge_module_list(assemble_crate_list(crates, smap, &var pdiags, true, overlay))
 
     // Diagnostics are dropped: they would interleave with the answer on
     // stdout, and the editor has them from `komp check`.
@@ -72,8 +80,10 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     val sigs: Ptr<SigTable> = typed.sigs
 
     val root = crates.at(crates.size() - 1).root.clone()
+    restore_type_nodes(previous)
     var crate = TypedCrate {
-        ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root
+        ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root,
+        nodes: nodes
     }
     val _found = crate.focus(file_path)
     return crate
@@ -97,8 +107,8 @@ pub mutating fun TypedCrate.focus(file_path: str): bool {
 
 /// As its author wrote it.
 pub fun Type.written_type(sigs: Ptr<SigTable>): String {
-    val sink = fresh_diag_list()
-    val ctx = new_type_ctx(poison_ty(), sink, null, sigs)
+    var sink = new_diagnostics()
+    val ctx = new_type_ctx(Type.new_poison(), &var sink, null, sigs)
     return display_type(self, &ctx)
 }
 

@@ -10,7 +10,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.intern_string
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 
 import kf_core.ast.subst.subst_dyn_layouts
 import kf_core.ast.subst.subst_dyn_vtables

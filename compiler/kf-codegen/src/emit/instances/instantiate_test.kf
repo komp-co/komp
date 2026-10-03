@@ -1,13 +1,16 @@
 import core.assert.assert_eq
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 
 import kf_codegen.emit.expr.struct_ty_name
 import kf_codegen.emit.stmt.enum_name_of_type
 
 @test fun codegen_type_mangle_returns_owned_str(): void {
-    val name: String = type_mangle(int32_ty(no_span()))
+    val name: String = type_mangle(Type.new_int32(no_span()))
     assert_eq(name.as_str(), "int32", "codegen type mangles are owned String values")
 }
 
@@ -25,7 +28,7 @@ import kf_codegen.emit.stmt.enum_name_of_type
 
 @test fun type_mangle_nests_a_pointer_through_its_pointee(): void {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val ty = Type { kind: TypeKind.PtrTo(inner), provenance: Provenance.Inferred(no_span()) }
     assert_eq(type_mangle(ty).as_str(), "Ptr__int32", "a pointer mangles around its pointee")
 }

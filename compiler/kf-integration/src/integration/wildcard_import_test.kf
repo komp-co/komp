@@ -7,7 +7,6 @@ import kf_core.diagnostic.*
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
 import kf_integration.harness.check_project
-import kf_driver.build.fresh_diag_list
 import kf_integration.harness.assemble_project
 import std.fs.scratch_root
 
@@ -68,8 +67,8 @@ fun check_wildcard_fixture(name: str): int32 {
 fun wildcard_fixture_diags(name: str): List<Diagnostic> {
     val dir = "${scratch_root()}/${name}_app"
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
-    var merged = assemble_project(dir.as_str(), smap, pdiags)
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(dir.as_str(), smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }
 

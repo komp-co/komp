@@ -1,7 +1,10 @@
 // `a[i]` on a type whose elements are computed: through `IndexValue` it is
 // `a.index_value(i)`, the element itself rather than a borrow of one.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
@@ -37,7 +40,7 @@ mutating fun Expr.subscript_by_value(call: Ptr<Expr>, ctx: &var TypeCtx): bool {
                 self.report_two_subscripts(&container, ctx)
                 return true
             }
-            var by_value = new_expr(self.span, ExprKind.MethodCall(recv, intern("index_value"), args))
+            var by_value = Expr.new(self.span, ExprKind.MethodCall(recv, intern("index_value"), args))
             by_value.name_span = subscript.name_span
             *self = by_value
             check_expr(self, ctx)
@@ -52,7 +55,7 @@ mutating fun Expr.report_two_subscripts(container: &Type, ctx: &var TypeCtx): vo
     val message = "`${shown}` implements both `Index` and `${index_value_trait_name()}`, so `[]` on it has two " +
         "meanings; implement one"
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
 }
 
 /// `a[i]` read through `IndexValue`.

@@ -3,7 +3,9 @@
 // operation that changes nothing, a `!` of a `!`, and a number nobody named.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.UnaryOp
 import kf_core.diagnostic.*
 
 /// `bool_comparison`: `x == true` and its kin. `left` and `right` are 1 for

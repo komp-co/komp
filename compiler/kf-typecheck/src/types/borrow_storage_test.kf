@@ -2,23 +2,26 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_resolve.new_decl_table
 import kf_typecheck.typecheck_module
 
 fun plain_ref(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun ref_of(mutable: bool, inner: TypeRef): TypeRef {
     val boxed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *boxed = inner }
-    return new_type_ref(no_span(), TypeRefKind.Reference(mutable, boxed))
+    return TypeRef.new(no_span(), TypeRefKind.Reference(mutable, boxed))
 }
 
 fun inst_ref(name: str, arg: TypeRef): TypeRef {
     var args = List.new<TypeRef>()
     args.push(arg)
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), args))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args))
 }
 
 @test

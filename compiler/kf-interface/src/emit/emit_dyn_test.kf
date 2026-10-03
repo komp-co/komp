@@ -3,6 +3,9 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 
 fun dyn_interface_module(): Module {
     return dyn_interface_module_with(false)

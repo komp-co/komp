@@ -1,0 +1,18 @@
+//! run: exit 10
+//! deps: core, alloc
+// Fields spelled like C keywords are escaped in the struct's clone, retain
+// and drop glue as well as in its layout.
+
+@derive(Clone)
+struct Setting {
+    val default: String
+    val register: String
+    val int: List<int32>
+    val case: String
+}
+
+fun main(): int32 {
+    val s = Setting { default: "abc", register: "de", int: [1, 2], case: "f" }
+    val t = s.clone()
+    return (t.default.byte_len() + s.register.byte_len() + t.int.size() + s.case.byte_len()) as int32 + t.int[1]
+}

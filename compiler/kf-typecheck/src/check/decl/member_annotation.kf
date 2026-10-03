@@ -5,7 +5,10 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.MarkKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.annotation.annotation_is_known
 import kf_core.diagnostic.*
 import kf_typecheck.*
 

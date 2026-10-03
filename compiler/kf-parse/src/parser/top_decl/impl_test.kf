@@ -4,7 +4,9 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 
 @test fun parse_module_impl_empty_body(): void {
@@ -295,7 +297,7 @@ fun is_extern_kind(td: TopDecl): bool {
     }
 }
 
-// `alloc<Expr>()` folds to the callee `alloc__Expr`.
+// `alloc<Expr>()` is an intrinsic whose type argument is a TypeRef.
 @allow(deref_through_temporary)
 @test fun parse_alloc_generic_call(): void {
     var p = parser_for("fun f(): void { val q = unsafe { alloc<Expr>() } }")
@@ -310,11 +312,11 @@ fun is_extern_kind(td: TopDecl): bool {
                 LetVal(_n, _ty, init_p) => {
                     val init = unsafe { *(init_p!!) }
                     when (init.kind) {
-                        Call(cn, cargs) => {
-                            assert_eq(cn.as_str(), "alloc__Expr", "callee folds type arg")
-                            assert_eq(cargs.size(), 0, "no value args")
+                        Intrinsic(intrinsic, _args) => {
+                            assert_eq(intrinsic.name(), "alloc", "the intrinsic named")
+                            assert_eq(init.type_args.size(), 1, "its type argument kept apart")
                         }
-                        _ => assert_eq(false, true, "init should be a Call")
+                        _ => assert_eq(false, true, "init should be an Intrinsic")
                     }
                 }
                 _ => assert_eq(false, true, "stmt should be LetVal")

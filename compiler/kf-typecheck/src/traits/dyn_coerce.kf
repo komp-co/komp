@@ -1,7 +1,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.linkage_source
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.mangle_type
@@ -79,7 +85,7 @@ pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
     if source.needs_borrow { inner.coerce = coerce_addr_of() }
     val inner_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *inner_ptr = inner }
-    var replacement = new_expr(e.span, ExprKind.DynCoerce(inner_ptr, symbol))
+    var replacement = Expr.new(e.span, ExprKind.DynCoerce(inner_ptr, symbol))
     replacement.ty = expected
     *e = replacement
     return true
@@ -93,7 +99,7 @@ pub fun Type.dyn_vtable_symbol(layout: &DynTraitLayout): Sym {
 fun Type.dyn_target_type(): Type {
     return when (self.kind) {
         RefTo(_, inner) => unsafe { inner.clone() }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }
 
@@ -129,7 +135,7 @@ fun Expr.dyn_coerce_source(target_mutable: bool, ctx: &var TypeCtx): DynCoerceSo
 }
 
 fun invalid_dyn_source(): DynCoerceSource {
-    return DynCoerceSource { valid: false, concrete: poison_ty(), needs_borrow: false }
+    return DynCoerceSource { valid: false, concrete: Type.new_poison(), needs_borrow: false }
 }
 
 fun Type.dyn_trait_args_key(): String {

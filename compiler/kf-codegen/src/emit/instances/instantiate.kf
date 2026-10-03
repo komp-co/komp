@@ -4,6 +4,8 @@
 // payloads, signatures, annotations) and from inferred Types.
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
 
 import kf_core.ast.dyn_meta.dyn_trait_identity
 import kf_codegen.emit.c_type_name

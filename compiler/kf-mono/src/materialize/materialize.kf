@@ -5,6 +5,9 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_typecheck.*
 import kf_mono.collect.*
 import kf_mono.mono_dyn_metadata
@@ -358,7 +361,7 @@ mutating fun Module.collect_generic_param_names(): List<String> {
 mutating fun TopDecl.add_array_storage(args: &List<TypeRef>): void {
     if args.size() != 2 { return }
     val length = args.at(1).written_value() ?: return
-    val storage = new_type_ref(self.span, TypeRefKind.Array(Box.new(args.at(0).clone()), length as uint64))
+    val storage = TypeRef.new(self.span, TypeRefKind.Array(Box.new(args.at(0).clone()), length as uint64))
     when (self.kind) {
         Struct(fields, _is_pub) => {
             var with_storage = fields

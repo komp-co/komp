@@ -1,3 +1,6 @@
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+
 // Borrowed views of optional owned nodes, for passes that read or rewrite a
 // node in place through a pointer. The view never owns: the Box does.
 

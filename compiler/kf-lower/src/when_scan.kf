@@ -6,7 +6,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 pub fun stmts_hold_a_when_value(stmts: &List<Stmt>): bool {
     while s in &stmts {
@@ -84,6 +89,7 @@ fun Expr.holds_a_when_value(): bool {
         Unary(_op, inner) => inner.holds_a_when_value()
         Deref(inner) => inner.holds_a_when_value()
         Call(_n, args) => exprs_hold_a_when_value(&args)
+        Intrinsic(_i, args) => exprs_hold_a_when_value(&args)
         CallValue(callee, args) => callee.holds_a_when_value() || exprs_hold_a_when_value(&args)
         MethodCall(recv, _m, args) => recv.holds_a_when_value() || exprs_hold_a_when_value(&args)
         FieldAccess(obj, _f) => obj.holds_a_when_value()

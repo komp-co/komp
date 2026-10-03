@@ -6,7 +6,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Param
 import kf_core.ast.subst.mangle_tyref
 import kf_lower.ownership.tref_is_borrow_sink
 import kf_lower.ownership.names_contains

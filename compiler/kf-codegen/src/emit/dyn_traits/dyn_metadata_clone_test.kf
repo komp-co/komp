@@ -2,7 +2,11 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.Type
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.new_top_decl
 import kf_codegen.emit.glue.deep_clone_top_decl
 
 @test fun dyn_metadata_top_decl_clone_is_independent(): void {

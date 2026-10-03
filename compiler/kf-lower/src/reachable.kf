@@ -14,6 +14,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.binop_method
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.statement.Stmt
 
 /// Indexed by Sym id, which the interner hands out densely.
 pub struct Reached {
@@ -140,6 +145,7 @@ fun Expr.collect_expr(out: &var List<Sym>, dyn_used: &var bool): void {
             out.push(name)
             collect_exprs(&args, out, dyn_used)
         }
+        Intrinsic(_intrinsic, args) => collect_exprs(&args, out, dyn_used)
         FnRef(name) => out.push(name)
         CallValue(callee, args) => {
             collect_expr_at(callee, out, dyn_used)

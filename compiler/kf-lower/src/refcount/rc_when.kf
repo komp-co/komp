@@ -13,7 +13,14 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 import kf_lower.ownership.names_contains
 
 /// "" for a field or deref, which is only borrowed.
@@ -60,6 +67,7 @@ fun Expr.expr_moves_out(name: str): bool {
     if self.expr_is_move_of(name) { return true }
     when (self.kind) {
         Call(_n, args) => return any_arg_moves_out(&args, name)
+        Intrinsic(_i, args) => return any_arg_moves_out(&args, name)
         CallValue(_callee, args) => return any_arg_moves_out(&args, name)
         // The receiver is borrowed; only arguments are searched.
         MethodCall(_recv, _m, args) => return any_arg_moves_out(&args, name)
@@ -192,6 +200,9 @@ pub fun Expr.when_consumes_subject(arms: &List<SwitchArm>, ctx: &var RcCtx): boo
     val ename = self.when_subject_enum()
     if ename.as_str().equals("") { return false }
     if !variant_payloads_knows(unsafe { &*ctx.variants }, ename.as_str()) { return false }
+    // A binder lent to the `when`'s value must outlive the arm, so the
+    // subject stays the enclosing scope's and the binders are views of it.
+    if arms_lend_a_binder(arms, ctx) && !arms_let_a_binder_out(arms, ctx) { return false }
     // CONSTRAINT: the move check gives the binders of a fresh subject its
     // payload, so a hoisted one is always consumed.
     if is_hoisted_subject(sname.as_str()) { return true }
@@ -252,4 +263,38 @@ pub fun SwitchArm.rc_add_binder_views(owned: &List<String>, ctx: &var RcCtx): vo
     while b in &self.binders {
         if !b.as_str().equals("_") && !names_contains(owned, b.as_str()) { ctx.add_view_local(b.as_string()) }
     }
+}
+
+fun arms_let_a_binder_out(arms: &List<SwitchArm>, ctx: &var RcCtx): bool {
+    while arm in &arms {
+        if arm.arm_lets_a_binder_out(ctx) { return true }
+    }
+    return false
+}
+
+fun arms_lend_a_binder(arms: &List<SwitchArm>, ctx: &var RcCtx): bool {
+    while arm in &arms {
+        if arm.arm_lends_a_binder(ctx) { return true }
+    }
+    return false
+}
+
+/// The arm stores a value that may borrow one of its binders in the
+/// `when`'s result (`__whenN = b.as_str()`), which is read after the arm.
+fun SwitchArm.arm_lends_a_binder(ctx: &var RcCtx): bool {
+    while stmt in &self.body {
+        when (stmt.kind) {
+            Assign(target, rhs) => {
+                if target.as_str().starts_with("__when") && !rhs.ty.holds_no_borrow(ctx) {
+                    var named = List.new<String>()
+                    rhs.collect_escaping_names(ctx, &var named)
+                    while b in &self.binders {
+                        if names_contains(&named, b.as_str()) { return true }
+                    }
+                }
+            }
+            _ => { }
+        }
+    }
+    return false
 }

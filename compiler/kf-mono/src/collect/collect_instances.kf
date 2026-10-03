@@ -1,6 +1,12 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.array_literal_callee
+import kf_core.ast.view
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_mono.materialize.*
 import kf_mono.extract_struct_name
 import kf_core.ast.subst.clone_tref_vec
@@ -207,6 +213,7 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
             }
             collect_insts_in_expr_list(args, gps, marities, work)
         }
+        Intrinsic(_intrinsic, args) => collect_insts_in_expr_list(args, gps, marities, work)
         StructLit(name, finits) => {
             if n_ta > 0 && !tref_vec_has_generic(self.type_args, gps) { work.push(free_inst(String.from(name.as_str()), clone_tref_vec(self.type_args))) }
             while fi in &finits {

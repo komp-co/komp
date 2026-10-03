@@ -3,7 +3,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import json.writer.*
 
 /// `{"schema_version":1,"file":..,"tokens":[{"byte_start":..,"byte_end":..,"type":".."}]}`

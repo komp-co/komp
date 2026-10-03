@@ -4,7 +4,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Intrinsic
+import kf_core.ast.view
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 pub mutating fun TopDecl.resolve_decl_body(table: &var DeclTable): void {
     when (self.kind) {
@@ -89,6 +97,7 @@ mutating fun Expr.resolve_expr(table: &var DeclTable): void {
     self.stamp_name(table)
     when (self.kind) {
         Call(_name, args) => resolve_expr_list(&var args, table)
+        Intrinsic(_intrinsic, args) => resolve_expr_list(&var args, table)
         MethodCall(recv, _m, args) => {
             resolve_expr_ptr(recv, table)
             resolve_expr_list(&var args, table)

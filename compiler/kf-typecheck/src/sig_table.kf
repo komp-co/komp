@@ -5,6 +5,11 @@ import alloc.list.*
 import alloc.hash_map.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeIdentity
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.*
 
 @derive(Clone)
 pub struct FnSignature {

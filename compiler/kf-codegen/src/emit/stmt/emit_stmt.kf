@@ -4,11 +4,19 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.c_local_name
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_codegen.emit.expr.emit_expr
+import kf_core.ast.enum_tag_const
 
 pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()

@@ -4,6 +4,9 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.*
 
 pub mutating fun Module.desugar_module(): void {
     while i in 0..self.decls.size() {
@@ -83,7 +86,7 @@ fun desugar_when_arms(arms: &List<Arm>): List<SwitchArm> {
 
 fun Arm.arm_to_switch(): SwitchArm {
     val pat: &Pattern = unsafe { &*self.pattern }
-    var out = new_switch_arm(self.span, pat.pattern_to_tag(), pat.pattern_binders(), self.guard.duplicate(),
+    var out = SwitchArm.new(self.span, pat.pattern_to_tag(), pat.pattern_binders(), self.guard.duplicate(),
         self.body.clone())
     out.ref_binders = self.ref_binders.clone()
     return out

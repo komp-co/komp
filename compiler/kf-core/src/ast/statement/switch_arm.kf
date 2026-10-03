@@ -1,3 +1,6 @@
+import kf_core.ast.Sym
+import kf_core.ast.expression.Expr
+
 @derive(Clone)
 pub enum SwitchTag {
     /// `Some(x) =>`, by variant name.
@@ -33,13 +36,13 @@ pub struct SwitchArm {
 
 impl SwitchArm {
     pub static fun new(
-        span: Span, 
-        tag: SwitchTag, 
-        binders: List<Sym>, 
-        guard: Box<Expr>?, 
+        span: Span,
+        tag: SwitchTag,
+        binders: List<Sym>,
+        guard: Box<Expr>?,
         body: List<Stmt>
     ): Self {
-        return SwitchArm.new_guarded(span, tag, binders, guard, [], body)
+        return SwitchArm.new_guarded(span, tag, binders, guard, List.new<Stmt>(), body)
     }
 
     pub static fun new_guarded(
@@ -51,13 +54,13 @@ impl SwitchArm {
         body: List<Stmt>
     ): Self {
         return SwitchArm {
-            span: span, 
-            tag: tag, 
-            binders: binders, 
-            guard: guard, 
+            span: span,
+            tag: tag,
+            binders: binders,
+            guard: guard,
             guard_prelude: guard_prelude,
-             body: body,
-            ref_binders: []
+            body: body,
+            ref_binders: List.new<Sym>()
         }
     }
 

@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.declaration.Annotation
 import kf_parse.parser.parser_for
 
 fun first_annotation(src: str): Annotation {

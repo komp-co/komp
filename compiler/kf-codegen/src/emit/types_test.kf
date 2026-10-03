@@ -3,18 +3,21 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 
 import kf_codegen.emit.*
 import kf_codegen.emit.glue.deep_clone_top_decl
 
 fun named(s: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
 }
 
 fun generic1(name: str, arg: TypeRef): TypeRef {
     var args = List.new<TypeRef>()
     args.push(arg)
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), args))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args))
 }
 
 fun empty_module(): Module {
@@ -60,7 +63,7 @@ fun empty_module(): Module {
 @test fun c_type_ptr_int32(): void {
     var args = List.new<TypeRef>()
     args.push(named("int32"))
-    val t = new_type_ref(no_span(), TypeRefKind.Named(intern("Ptr"), args))
+    val t = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args))
     val c = t.c_type()
     assert_eq(c.as_str(), "int32_t*", "Ptr<int32> → int32_t*")
 }
@@ -68,7 +71,7 @@ fun empty_module(): Module {
 @test fun c_type_reference(): void {
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner = named("int32") }
-    val t = new_type_ref(no_span(), TypeRefKind.Reference(false, inner))
+    val t = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
     val c = t.c_type()
     assert_eq(c.as_str(), "int32_t*", "&int32 → int32_t*")
 }
@@ -101,15 +104,15 @@ fun empty_module(): Module {
 @test fun c_type_ptr_still_pointer_not_mangled(): void {
     var args = List.new<TypeRef>()
     args.push(named("Expr"))
-    val t = new_type_ref(no_span(), TypeRefKind.Named(intern("Ptr"), args))
+    val t = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args))
     assert_eq(t.c_type().as_str(), "Expr*", "Ptr<Expr> → Expr*")
 }
 
 @test fun c_type_option_dynamic_borrow_uses_fat_value_identity(): void {
-    val dynamic = new_type_ref(no_span(), TypeRefKind.DynTrait(intern("Score"), List.new<TypeRef>()))
+    val dynamic = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Score"), List.new<TypeRef>()))
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner = dynamic }
-    val borrowed = new_type_ref(no_span(), TypeRefKind.Reference(false, inner))
+    val borrowed = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
     val optional = generic1("Option", borrowed)
     assert_eq(optional.c_type().as_str(), "Option__Dyn__Score", "Option<&dyn Score> uses the fat wrapper instance")
 }
@@ -178,7 +181,7 @@ fun empty_module(): Module {
     box_args.push(named("int32"))
     var fields = List.new<Field>()
     val box_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *box_type = new_type_ref(no_span(), TypeRefKind.Named(intern("Box"), box_args)) }
+    unsafe { *box_type = TypeRef.new(no_span(), TypeRefKind.Named(intern("Box"), box_args)) }
     fields.push(new_field(no_span(), String.from("value"), box_type, false, true))
     var decls = List.new<TopDecl>()
     decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
@@ -243,14 +246,14 @@ fun string_drop_impl(): TopDecl {
 }
 
 @test fun a_function_type_is_one_c_type_specifier(): void {
-    var params = new_type_vec()
-    params.push(int32_ty(no_span()))
-    val function = fn_ty(params, bool_ty(no_span()), Provenance.Inferred(no_span()))
+    var params = List.new<Type>()
+    params.push(Type.new_int32(no_span()))
+    val function = Type.new_fn(params, Type.new_bool(no_span()), Provenance.Inferred(no_span()))
     assert_eq(function.c_type_of_type().as_str(), "__typeof__(bool (*)(int32_t))", "a pointer to the function")
 }
 
 @test fun a_function_of_nothing_takes_void_in_c(): void {
-    val function = fn_ty(new_type_vec(), bool_ty(no_span()), Provenance.Inferred(no_span()))
+    val function = Type.new_fn(List.new<Type>(), Type.new_bool(no_span()), Provenance.Inferred(no_span()))
     val expected = "__typeof__(bool (*)(void))"
     assert_eq(function.c_type_of_type().as_str(), expected, "an empty C list would mean any arguments")
 }

@@ -5,25 +5,29 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.*
 
 import kf_codegen.*
 import kf_codegen.emit.expr.emit_expr
 
 fun str_var_ptr(name: str): Ptr<Expr> {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
     return expr_ptr(e)
 }
 
 fun prim_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: k, provenance: Provenance.Inferred(no_span()) }
     return expr_ptr(e)
 }
 
 fun emit_prim_binop(k: TypeKind, op: BinOp): String {
-    val e = new_expr(no_span(), ExprKind.Binary(prim_var_ptr("a", k), op, prim_var_ptr("b", k)))
+    val e = Expr.new(no_span(), ExprKind.Binary(prim_var_ptr("a", k), op, prim_var_ptr("b", k)))
     return e.emit_expr()
 }
 
@@ -57,7 +61,7 @@ fun emit_prim_binop(k: TypeKind, op: BinOp): String {
 
 // `a + b` on String operands dispatches through its `Add` impl.
 @test fun emit_string_add_dispatches_to_trait(): void {
-    val e = new_expr(no_span(), ExprKind.Binary(str_var_ptr("a"), BinOp.Add, str_var_ptr("b")))
+    val e = Expr.new(no_span(), ExprKind.Binary(str_var_ptr("a"), BinOp.Add, str_var_ptr("b")))
     val c = e.emit_expr()
     assert_eq(c.as_str(), "String_add__Add(&(__a), __b)", "String + calls Add")
 }
@@ -65,17 +69,17 @@ fun emit_prim_binop(k: TypeKind, op: BinOp): String {
 @test fun emit_pointer_to_struct_add_uses_pointer_arithmetic(): void {
     val pointee: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *pointee = Type { kind: TypeKind.Struct(intern("Type")), provenance: Provenance.Inferred(no_span()) } }
-    var data = new_expr(no_span(), ExprKind.Variable(intern("data")))
+    var data = Expr.new(no_span(), ExprKind.Variable(intern("data")))
     data.ty = Type { kind: TypeKind.PtrTo(pointee), provenance: Provenance.Inferred(no_span()) }
-    var len = new_expr(no_span(), ExprKind.Variable(intern("len")))
+    var len = Expr.new(no_span(), ExprKind.Variable(intern("len")))
     len.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
-    val e = new_expr(no_span(), ExprKind.Binary(expr_ptr(data), BinOp.Add, expr_ptr(len)))
+    val e = Expr.new(no_span(), ExprKind.Binary(expr_ptr(data), BinOp.Add, expr_ptr(len)))
     assert_eq(e.emit_expr().as_str(), "(__data + __len)", "pointer arithmetic does not dispatch pointee Add")
 }
 
 // `a == b` on String operands dispatches through its `Equal` impl.
 @test fun emit_string_equality_dispatches_to_trait(): void {
-    val e = new_expr(no_span(), ExprKind.Binary(str_var_ptr("a"), BinOp.Eq, str_var_ptr("b")))
+    val e = Expr.new(no_span(), ExprKind.Binary(str_var_ptr("a"), BinOp.Eq, str_var_ptr("b")))
     val c = e.emit_expr()
     assert_eq(c.as_str(), "String_equals(&(__a), __b)", "String == calls Equal")
 }
@@ -83,34 +87,34 @@ fun emit_prim_binop(k: TypeKind, op: BinOp): String {
 // `==` on a struct calls `Pt_equals`, with no `__Equal` suffix: Clone, Drop
 // and Equal are exempt from trait-method renaming.
 @test fun emit_struct_equality_has_no_trait_suffix(): void {
-    val e = new_expr(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.Eq, pt_var_ptr("q")))
+    val e = Expr.new(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.Eq, pt_var_ptr("q")))
     assert_eq(e.emit_expr().as_str(), "Pt_equals(&(__p), __q)", "struct == calls the unsuffixed Equal impl")
 }
 
 @test fun emit_struct_inequality_negates_the_same_call(): void {
-    val e = new_expr(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.NotEq, pt_var_ptr("q")))
+    val e = Expr.new(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.NotEq, pt_var_ptr("q")))
     assert_eq(e.emit_expr().as_str(), "(!Pt_equals(&(__p), __q))", "struct != negates the same call")
 }
 
 // Other operator traits keep their suffix.
 @test fun emit_struct_add_keeps_its_trait_suffix(): void {
-    val e = new_expr(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.Add, pt_var_ptr("q")))
+    val e = Expr.new(no_span(), ExprKind.Binary(pt_var_ptr("p"), BinOp.Add, pt_var_ptr("q")))
     assert_eq(e.emit_expr().as_str(), "Pt_add__Add(&(__p), __q)", "struct + keeps the __Add suffix")
 }
 
 // `s == "literal"` feeds both as C strings to str_equals.
 @test fun emit_str_vs_literal_eq(): void {
-    var lhs = new_expr(no_span(), ExprKind.Variable(intern("s")))
+    var lhs = Expr.new(no_span(), ExprKind.Variable(intern("s")))
     lhs.ty = Type { kind: TypeKind.StrTy, provenance: Provenance.Inferred(no_span()) }
-    var rhs = new_expr(no_span(), ExprKind.LitStr(String.from("new_list")))
+    var rhs = Expr.new(no_span(), ExprKind.LitStr(String.from("new_list")))
     rhs.ty = Type { kind: TypeKind.StrTy, provenance: Provenance.Inferred(no_span()) }
-    val e = new_expr(no_span(), ExprKind.Binary(expr_ptr(lhs), BinOp.Eq, expr_ptr(rhs)))
+    val e = Expr.new(no_span(), ExprKind.Binary(expr_ptr(lhs), BinOp.Eq, expr_ptr(rhs)))
     val c = e.emit_expr()
     assert_eq(c.as_str(), "str_equals(__s, \"new_list\")", "str vs literal uses raw cstrings")
 }
 
 fun borrowed_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: k, provenance: Provenance.Inferred(no_span()) }
     e.coerce = coerce_addr_of()
     return expr_ptr(e)
@@ -121,14 +125,14 @@ fun borrowed_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
 @test fun a_c_operator_takes_a_borrowed_operand_by_value(): void {
     val a = prim_var_ptr("a", TypeKind.Int32)
     val b = borrowed_var_ptr("b", TypeKind.Int32)
-    val add = new_expr(no_span(), ExprKind.Binary(a, BinOp.Add, b))
+    val add = Expr.new(no_span(), ExprKind.Binary(a, BinOp.Add, b))
     assert_eq(add.emit_expr().as_str(), "((int32_t)(__a + __b))", "a borrowed operand stays a value under +")
 }
 
 // A struct operator is a trait call, and there the borrow is the argument.
 @test fun an_operator_trait_call_passes_a_borrowed_operand_by_address(): void {
     val p = TypeKind.Struct(intern("P"))
-    val eq = new_expr(no_span(), ExprKind.Binary(prim_var_ptr("a", p), BinOp.Eq, borrowed_var_ptr("b", p)))
+    val eq = Expr.new(no_span(), ExprKind.Binary(prim_var_ptr("a", p), BinOp.Eq, borrowed_var_ptr("b", p)))
     assert_eq(eq.emit_expr().as_str(), "P_equals(&(__a), (&__b))", "the operand arrives as an address")
 }
 
@@ -136,7 +140,7 @@ fun borrowed_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
 @test fun a_str_comparison_takes_a_borrowed_operand_by_value(): void {
     val a = prim_var_ptr("a", TypeKind.StrTy)
     val b = borrowed_var_ptr("b", TypeKind.StrTy)
-    val eq = new_expr(no_span(), ExprKind.Binary(a, BinOp.Eq, b))
+    val eq = Expr.new(no_span(), ExprKind.Binary(a, BinOp.Eq, b))
     assert_eq(eq.emit_expr().as_str(), "str_equals(__a, __b)", "a borrowed str operand stays a value")
 }
 
@@ -144,6 +148,6 @@ fun borrowed_var_ptr(name: str, k: TypeKind): Ptr<Expr> {
 @test fun a_primitive_operator_beside_an_untyped_operand_is_the_c_operator(): void {
     val a = prim_var_ptr("a", TypeKind.Int32)
     val b = prim_var_ptr("b", TypeKind.Poison)
-    val add = new_expr(no_span(), ExprKind.Binary(a, BinOp.Add, b))
+    val add = Expr.new(no_span(), ExprKind.Binary(a, BinOp.Add, b))
     assert_eq(add.emit_expr().as_str(), "((int32_t)(__a + __b))", "an untyped right operand stays a C operand")
 }

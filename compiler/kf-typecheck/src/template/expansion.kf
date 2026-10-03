@@ -4,7 +4,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.Annotation
 import kf_core.diagnostic.*
 
 /// A field, as a template reads it.
@@ -56,7 +61,7 @@ impl Expansion {
         while use in &self.field().annotations {
             if use.name.id == annotation.id {
                 val inits = arguments_by_name(use, &params, span)
-                return new_expr(span, ExprKind.StructLit(annotation, inits))
+                return Expr.new(span, ExprKind.StructLit(annotation, inits))
             }
         }
         return null

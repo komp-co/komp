@@ -1,7 +1,10 @@
 // A use of a binding whose type is still open, needing a type of its own:
 // the binding becomes it, or conflicts with the use that decided it first.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
@@ -27,11 +30,11 @@ mutating fun Expr.conflicts_with_decision(expected: Type, ctx: &var TypeCtx): bo
     if decided_at.is_none() || self.ty.is_poison() || self.ty.type_eq(expected) { return false }
     val decided = self.ty.display_type(ctx)
     val message = "`${name}` is `${decided}`, as an earlier use decided, " +
-        "but this use needs `${expected.display_type(ctx)}`"
+        "but this use expects `${expected.display_type(ctx)}`"
     var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
     diagnostic.secondary.push(new_label(decided_at, "decided `${decided}` here"))
     ctx.emit(diagnostic)
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
     return true
 }
 
@@ -53,7 +56,7 @@ mutating fun Expr.declares_decided(name: String, mutable: bool, ctx: &var TypeCt
 /// typed value's type, as a read in that slot would.
 mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target: Type): Type {
     if value.ty.type_eq(target) || value.operand_takes_other_type(self) { return target }
-    var place = new_expr(span, ExprKind.Variable(intern(name)))
+    var place = Expr.new(span, ExprKind.Variable(intern(name)))
     place.ty = target.clone()
     if is_numeric(value.ty) {
         if !place.narrow_open_number(value.ty.clone(), self) { return target }
@@ -74,6 +77,6 @@ mutating fun Expr.conflicts_with_narrowing(target: &Type, needed: str, ctx: &var
     var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
     diagnostic.secondary.push(new_label(narrowed_at, "used as ${needed} here"))
     ctx.emit(diagnostic)
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
     return true
 }

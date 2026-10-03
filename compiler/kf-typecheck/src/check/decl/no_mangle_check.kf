@@ -2,17 +2,18 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// Two unmangled types of one name anywhere would define one C type twice.
-pub fun Module.reject_colliding_no_mangle(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.reject_colliding_no_mangle(diags: &var Diagnostics): void {
     var seen = List.new<String>()
     while td in &self.decls {
         if td.type_is_no_mangle_decl() {
             if list_has(&seen, td.name.as_str()) {
                 val message = "two types named `${td.name.as_str()}` are `@no_mangle`, so their C names collide"
-                unsafe { diags.push(new_diagnostic(Severity.Error, new_label((&td).decl_name_span(), message))) }
+                diags.emit(new_diagnostic(Severity.Error, new_label((&td).decl_name_span(), message)))
             } else {
                 seen.push(td.name.as_string())
             }

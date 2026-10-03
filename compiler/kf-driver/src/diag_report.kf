@@ -4,12 +4,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
 import kf_core.diagnostic.*
 import kf_shared.compiler_warnings_quiet
 
-/// Adds the errors among them to `errp`.
-pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
+/// Adds the errors among them to `errors`.
+pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errors: &var Diagnostics, smap: Ptr<SourceMap>): void {
     var nerr = 0
     val leveled = apply_lint_levels(diags, m, &build_lint_config())
     val quiet = compiler_warnings_quiet()
@@ -18,5 +18,5 @@ pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errp: Ptr<ErrCou
         // `-q` silences advice; a Deny lint or an error is not advice.
         if !quiet || d.diag_is_error() { d.print_diag(smap) }
     }
-    unsafe { errp.n = errp.n + nerr }
+    errors.count_errors(nerr)
 }

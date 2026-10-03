@@ -4,7 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Intrinsic
+import kf_core.ast.Sym
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_written_amp
+import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.declaration.Param
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 /// What the walk has found, and where it is.
@@ -212,6 +219,7 @@ fun Expr.visit(walk: &var LintWalk): void {
             val shield = name.as_str() == "range" || name.as_str() == "range_inclusive"
             walk.visit_arguments(&args, shield)
         }
+        Intrinsic(_intrinsic, args) => walk.visit_arguments(&args, false)
         CallValue(callee, args) => {
             callee.visit(walk)
             walk.visit_arguments(&args, false)

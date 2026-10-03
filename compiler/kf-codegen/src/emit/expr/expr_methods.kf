@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
@@ -47,6 +49,7 @@ pub fun emit_value_expr(e: Expr): String {
 fun expr_is_call_shaped(e: Expr): bool {
     return when (e.kind) {
         Call(_n, _a) => true
+        Intrinsic(_i, _a) => true
         MethodCall(_r, _m, _a) => true
         CallValue(_c, _a) => true
         _ => false

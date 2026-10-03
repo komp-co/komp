@@ -3,17 +3,17 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
-import kf_core.diagnostic.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
 import kf_resolve.*
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.types.*
+import kf_typecheck.leaked_diagnostics
 
 pub fun mk_ctx(): TypeCtx {
     val table = new_decl_table()
     val sigs = new_sig_table()
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = List.new<Diagnostic>() }
     val tab_ptr: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *tab_ptr = table }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
@@ -30,12 +30,12 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { (*sig_ptr).note_lang_trait("mul", intern("Mul")) }
     unsafe { (*sig_ptr).note_lang_trait("div", intern("Div")) }
     unsafe { (*sig_ptr).note_lang_trait("compare", intern("Compare")) }
-    return new_type_ctx(void_ty(no_span()), diag_ptr, Option.Some(tab_ptr), sig_ptr)
+    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, Option.Some(tab_ptr), sig_ptr)
 }
 
 @test fun lit_int_is_int32(): void {
     var ctx = mk_ctx()
-    var e = new_expr(no_span(), ExprKind.LitInt(42))
+    var e = Expr.new(no_span(), ExprKind.LitInt(42))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -45,7 +45,7 @@ pub fun mk_ctx(): TypeCtx {
 
 @test fun lit_bool_is_bool(): void {
     var ctx = mk_ctx()
-    var e = new_expr(no_span(), ExprKind.LitBool(true))
+    var e = Expr.new(no_span(), ExprKind.LitBool(true))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "ok")
@@ -58,10 +58,10 @@ pub fun mk_ctx(): TypeCtx {
     val sp = ctx.sigs
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("int32"), receiver_identity: intern("int32"), trait_name: String.from("Add"), trait_args: "", generics: "", arg_count: 0 }) }
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.LitInt(1)) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.LitInt(1)) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.LitInt(2)) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.LitInt(2)) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -72,10 +72,10 @@ pub fun mk_ctx(): TypeCtx {
 @test fun bool_and_bool_is_bool(): void {
     var ctx = mk_ctx()
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.LitBool(true)) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.LitBool(true)) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.LitBool(false)) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.AndAnd, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.LitBool(false)) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.AndAnd, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "ok")
@@ -86,7 +86,7 @@ pub fun mk_ctx(): TypeCtx {
 @test fun call_unknown_fn_is_poison(): void {
     var ctx = mk_ctx()
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.Call(intern("ghost"), args))
+    var e = Expr.new(no_span(), ExprKind.Call(intern("ghost"), args))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "unknown call → poison")
 }
@@ -94,12 +94,12 @@ pub fun mk_ctx(): TypeCtx {
 @test fun call_known_fn_returns_sig_ret(): void {
     var ctx = mk_ctx()
     val params = List.new<Type>()
-    val sig = FnSignature { name: String.from("answer"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
+    val sig = FnSignature { name: String.from("answer"), params: params, ret: Type.new_int32(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     // Through a local: `(*ctx.sigs)` parses as `ctx.sigs`.
     val sp = ctx.sigs
     unsafe { sp.insert(sig) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.Call(intern("answer"), args))
+    var e = Expr.new(no_span(), ExprKind.Call(intern("answer"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -110,10 +110,10 @@ pub fun mk_ctx(): TypeCtx {
 @test fun int_plus_bool_emits_diagnostic(): void {
     var ctx = mk_ctx()
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.LitInt(1)) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.LitInt(1)) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.LitBool(true)) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.LitBool(true)) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
     check_expr(&var e, &var ctx)
     val has_diag = e.ty.is_poison()
     assert_eq(has_diag, true, "result is poison")
@@ -124,15 +124,15 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Bare"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "struct == without Equal is poison")
 }
@@ -142,16 +142,16 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Eqd"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("Eqd"), receiver_identity: intern("Eqd"), trait_name: String.from("Equal"), trait_args: "", generics: "", arg_count: 0 }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Eqd")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Eqd")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "ok")
@@ -164,10 +164,10 @@ pub fun mk_ctx(): TypeCtx {
     register_string_with_equal_and_from(ctx.sigs)
     ctx.declare(String.from("value"), intern("String").lang_struct_ty(no_span()))
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("value"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("value"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.LitStr(String.from("value"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.LitStr(String.from("value"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Eq, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "String == literal is bool")
@@ -180,15 +180,15 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Bare"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Lt, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Lt, rhs_ptr))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "struct < without Compare is poison")
 }
@@ -198,16 +198,16 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Ord"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("Ord"), receiver_identity: intern("Ord"), trait_name: String.from("Compare"), trait_args: "", generics: "", arg_count: 0 }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Ord")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Ord")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Lt, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Lt, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "ok")
@@ -220,15 +220,15 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Bare"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "struct + without Add is poison")
 }
@@ -238,16 +238,16 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Vec"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("Vec"), receiver_identity: intern("Vec"), trait_name: String.from("Add"), trait_args: "", generics: "", arg_count: 0 }) }
     ctx.declare(String.from("a"), Type { kind: TypeKind.Struct(intern("Vec")), provenance: Provenance.Declared(no_span()) })
     ctx.declare(String.from("b"), Type { kind: TypeKind.Struct(intern("Vec")), provenance: Provenance.Declared(no_span()) })
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("a"))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("a"))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern("b"))) }
-    var e = new_expr(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern("b"))) }
+    var e = Expr.new(no_span(), ExprKind.Binary(lhs_ptr, BinOp.Add, rhs_ptr))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Struct(nm) => assert_eq(nm.as_str(), "Vec", "Vec + Vec is Vec")
@@ -269,7 +269,7 @@ pub fun mk_ctx(): TypeCtx {
     val ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("data"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("data"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("RC"), fields: fs, is_refcounted: true, owner_crate: crate_id_poison() }) }
     val found = unsafe { sp.find_struct("RC", crate_id_poison()) }
     assert_eq(found.is_some(), true, "RC found")
@@ -281,19 +281,19 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
-    fs.push(StructFieldInfo { name: String.from("y"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("y"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Point"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
 
     var inits = List.new<FieldInit>()
     val xp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *xp = new_expr(no_span(), ExprKind.LitInt(1)) }
-    inits.push(new_field_init(no_span(), String.from("x"), xp))
+    unsafe { *xp = Expr.new(no_span(), ExprKind.LitInt(1)) }
+    inits.push(FieldInit.new(no_span(), String.from("x"), xp))
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *yp = new_expr(no_span(), ExprKind.LitInt(2)) }
-    inits.push(new_field_init(no_span(), String.from("y"), yp))
+    unsafe { *yp = Expr.new(no_span(), ExprKind.LitInt(2)) }
+    inits.push(FieldInit.new(no_span(), String.from("y"), yp))
 
-    var e = new_expr(no_span(), ExprKind.StructLit(intern("Point"), inits))
+    var e = Expr.new(no_span(), ExprKind.StructLit(intern("Point"), inits))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Struct(n) => assert_eq(n.as_str(), "Point", "result is Point")
@@ -312,8 +312,8 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { sp.insert(sig) }
     // identity(42): T binds to int32
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(42)))
-    var e = new_expr(no_span(), ExprKind.Call(intern("identity"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitInt(42)))
+    var e = Expr.new(no_span(), ExprKind.Call(intern("identity"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "T → int32")
@@ -329,9 +329,9 @@ pub fun mk_ctx(): TypeCtx {
     vs.push(VariantInfo { name: String.from("Warning"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("Severity"), variants: vs, owner_crate: crate_id_poison() }) }
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("Severity"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("Severity"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("Error"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("Error"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         EnumTy(n) => assert_eq(n.as_str(), "Severity", "got Severity")
@@ -344,15 +344,15 @@ pub fun mk_ctx(): TypeCtx {
     val sp = ctx.sigs
     var vs = List.new<VariantInfo>()
     var ok_payloads = List.new<Type>()
-    ok_payloads.push(int32_ty(no_span()))
+    ok_payloads.push(Type.new_int32(no_span()))
     vs.push(VariantInfo { name: String.from("Ok"), payloads: ok_payloads })
     vs.push(VariantInfo { name: String.from("Err"), payloads: List.new<Type>() })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("Result"), variants: vs, owner_crate: crate_id_poison() }) }
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("Result"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("Result"))) }
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(42)))
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("Ok"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitInt(42)))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("Ok"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         EnumTy(n) => assert_eq(n.as_str(), "Result", "got Result")
@@ -365,13 +365,13 @@ pub fun mk_ctx(): TypeCtx {
     val sp = ctx.sigs
     var vs = List.new<VariantInfo>()
     var ok_payloads = List.new<Type>()
-    ok_payloads.push(int32_ty(no_span()))
+    ok_payloads.push(Type.new_int32(no_span()))
     vs.push(VariantInfo { name: String.from("Ok"), payloads: ok_payloads })
     unsafe { sp.insert_enum(EnumLayout { name: String.from("R"), variants: vs, owner_crate: crate_id_poison() }) }
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("R"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("R"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("Ok"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("Ok"), args))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "arity mismatch poisons")
 }
@@ -380,17 +380,17 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("w"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("w"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Foo"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    val sig = FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
+    val sig = FnSignature { name: String.from("Foo_area"), params: params, ret: Type.new_int32(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     unsafe { sp.insert(sig) }
     ctx.declare(String.from("x"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("x"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("x"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("area"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("area"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -404,11 +404,11 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { sp.insert_struct(StructLayout { name: String.from("Foo"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: crate_id_poison() }) }
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    unsafe { sp.insert(FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
+    unsafe { sp.insert(FnSignature { name: String.from("Foo_area"), params: params, ret: Type.new_int32(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     ctx.declare(String.from("x"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("x"))) }
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("area"), List.new<Expr>()))
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("x"))) }
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("area"), List.new<Expr>()))
     check_expr(&var e, &var ctx)
     assert_eq(e.mangled_callee.as_str(), "Foo_area", "resolved method calls retain their exact callee")
 }
@@ -419,10 +419,10 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     ctx.declare(String.from("xs"), Type { kind: TypeKind.Struct(intern("List__int32")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("xs"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("xs"))) }
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(0)))
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("get"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitInt(0)))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("get"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -434,9 +434,9 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     ctx.declare(String.from("xs"), Type { kind: TypeKind.Struct(intern("List__Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("xs"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("xs"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("size"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("size"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         UInt64 => assert(true, "ok")
@@ -449,9 +449,9 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     ctx.declare(String.from("s"), intern("String").lang_struct_ty(no_span()))
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("s"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("s"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("clone"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("clone"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Struct(name) => assert_eq(name.as_str(), "String", "String.clone returns String")
@@ -466,13 +466,13 @@ pub fun mk_ctx(): TypeCtx {
     var params = List.new<Type>()
     params.push(intern("String").lang_struct_ty(no_span()))
     params.push(intern("String").lang_struct_ty(no_span()))
-    unsafe { (*ctx.sigs).insert(FnSignature { name: String.from("String_equals"), params: params, ret: bool_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
+    unsafe { (*ctx.sigs).insert(FnSignature { name: String.from("String_equals"), params: params, ret: Type.new_bool(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     ctx.declare(String.from("s"), intern("String").lang_struct_ty(no_span()))
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("s"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("s"))) }
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitStr(String.from("x"))))
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("equals"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("x"))))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("equals"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Bool => assert(true, "ok")
@@ -484,9 +484,9 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     ctx.declare(String.from("x"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("x"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("x"))) }
     val args = List.new<Expr>()
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("ghost"), args))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("ghost"), args))
     check_expr(&var e, &var ctx)
     assert_eq(e.ty.is_poison(), true, "unknown method → poison")
 }
@@ -495,13 +495,13 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("P"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
 
     ctx.declare(String.from("p"), Type { kind: TypeKind.Struct(intern("P")), provenance: Provenance.Declared(no_span()) })
     val obj_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *obj_ptr = new_expr(no_span(), ExprKind.Variable(intern("p"))) }
-    var e = new_expr(no_span(), ExprKind.FieldAccess(obj_ptr, intern("x")))
+    unsafe { *obj_ptr = Expr.new(no_span(), ExprKind.Variable(intern("p"))) }
+    var e = Expr.new(no_span(), ExprKind.FieldAccess(obj_ptr, intern("x")))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Int32 => assert(true, "ok")
@@ -514,7 +514,7 @@ pub fun mk_ctx(): TypeCtx {
     val tab = ctx.table ?: return
     val name = String.from("Foo")
     val _ = unsafe { tab.insert(name) }
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern("Foo"), List.new<TypeRef>()))
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("Foo"), List.new<TypeRef>()))
     val t = tr.resolve_type_ref(&var ctx)
     when (t.kind) {
         Struct(n) => assert_eq(n.as_str(), "Foo", "bare name → no mangle")
@@ -528,8 +528,8 @@ pub fun mk_ctx(): TypeCtx {
     val name = String.from("List")
     val _ = unsafe { tab.insert(name) }
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), args))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
     val t = tr.resolve_type_ref(&var ctx)
     when (t.kind) {
         Struct(n) => assert_eq(n.as_str(), "List__String", "List<String> → List__String")
@@ -543,11 +543,11 @@ pub fun mk_ctx(): TypeCtx {
     val name = String.from("List")
     val _ = unsafe { tab.insert(name) }
     var inner_args = List.new<TypeRef>()
-    inner_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
-    val inner = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), inner_args))
+    inner_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
+    val inner = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), inner_args))
     var outer_args = List.new<TypeRef>()
     outer_args.push(inner)
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), outer_args))
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), outer_args))
     val t = tr.resolve_type_ref(&var ctx)
     when (t.kind) {
         Struct(n) => assert_eq(n.as_str(), "List__List__String", "List<List<String>> → List__List__String")
@@ -558,28 +558,34 @@ pub fun mk_ctx(): TypeCtx {
 @test fun alloc_array_call_types_as_ptr(): void {
     var ctx = mk_ctx()
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(4)))
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc_array__int32"), args))
-    // The parser's flag, not the name, makes an intrinsic.
-    e.is_intrinsic = true
+    args.push(Expr.new(no_span(), ExprKind.LitInt(4)))
+    var e = Expr.new(no_span(), ExprKind.Intrinsic(Intrinsic.AllocArray, args))
+    e.type_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         PtrTo(p) => {
             val inner = unsafe { *p }
-            val expected = int32_ty(no_span())
-            assert_eq(inner.type_eq(expected), true, "alloc_array__int32 -> Ptr<int32>")
+            val expected = Type.new_int32(no_span())
+            assert_eq(inner.type_eq(expected), true, "alloc_array<int32> -> Ptr<int32>")
         }
-        _ => fail("expected PtrTo result for alloc_array__int32")
+        _ => fail("expected PtrTo result for alloc_array<int32>")
     }
+}
+
+@test fun an_intrinsic_without_its_type_argument_is_reported(): void {
+    var ctx = mk_ctx()
+    var e = Expr.new(no_span(), ExprKind.Intrinsic(Intrinsic.Sizeof, List.new<Expr>()))
+    check_expr(&var e, &var ctx)
+    assert_eq(ctx.diags.has_errors(), true, "`sizeof<>()` names no type")
 }
 
 @test fun box_new_types_as_boxof(): void {
     var ctx = mk_ctx()
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(7)))
+    args.push(Expr.new(no_span(), ExprKind.LitInt(7)))
     val recvp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recvp = new_expr(no_span(), ExprKind.Variable(intern("Box"))) }
-    var e = new_expr(no_span(), ExprKind.MethodCall(recvp, intern("new"), args))
+    unsafe { *recvp = Expr.new(no_span(), ExprKind.Variable(intern("Box"))) }
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recvp, intern("new"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         BoxOf(p) => {
@@ -601,11 +607,11 @@ fun resolve_type_ref_qualifies_the_current_module_type(): void {
     val tab = ctx.table ?: return
     unsafe { tab.insert(String.from("Point")) }
     val sp = ctx.sigs
-    unsafe { sp.insert_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))) }
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))
+    unsafe { sp.insert_type_identity(TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))) }
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))
     val ty = tr.resolve_type_ref(&var ctx)
     when (ty.kind) {
-        Struct(actual) => assert_eq(type_identity_matches(actual, new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))), true, "resolved type uses the declaration owner")
+        Struct(actual) => assert_eq(type_identity_matches(actual, TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))), true, "resolved type uses the declaration owner")
         _ => fail("expected Struct")
     }
 }
@@ -618,15 +624,14 @@ fun alloc_intrinsic_preserves_qualified_type_argument(): void {
     val tab = ctx.table ?: return
     unsafe { tab.insert(String.from("Point")) }
     val sp = ctx.sigs
-    unsafe { sp.insert_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))) }
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Point"), List.new<Expr>()))
-    e.is_intrinsic = true
-    e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>())))
+    unsafe { sp.insert_type_identity(TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))) }
+    var e = Expr.new(no_span(), ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()))
+    e.type_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         PtrTo(inner) => {
             when (unsafe { inner.kind }) {
-                Struct(actual) => assert_eq(type_identity_matches(actual, new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))), true, "alloc preserves the qualified argument type")
+                Struct(actual) => assert_eq(type_identity_matches(actual, TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))), true, "alloc preserves the qualified argument type")
                 _ => fail("expected qualified Point")
             }
         }
@@ -642,9 +647,9 @@ fun resolve_type_ref_uses_unambiguous_imported_type(): void {
     val tab = ctx.table ?: return
     unsafe { tab.insert(String.from("Span")) }
     val sp = ctx.sigs
-    val expected = new_type_identity(new_crate_id("core"), intern("span"), intern("Span"))
+    val expected = TypeIdentity.new(new_crate_id("core"), intern("span"), intern("Span"))
     unsafe { sp.insert_type_identity(expected) }
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern("Span"), List.new<TypeRef>()))
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("Span"), List.new<TypeRef>()))
     val ty = tr.resolve_type_ref(&var ctx)
     when (ty.kind) {
         Struct(actual) => assert_eq(type_identity_matches(actual, expected), true, "unambiguous imported type keeps its declaration identity")
@@ -654,20 +659,20 @@ fun resolve_type_ref_uses_unambiguous_imported_type(): void {
 
 @test
 fun type_mangle_uses_display_name_for_c_compatibility(): void {
-    val identity = new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))
+    val identity = TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))
     val ty = named_struct_ty(identity, no_span())
     assert_eq(mangle_type(ty).as_str(), "Point", "unity C mangling uses the display name")
 }
 
 @test fun type_mangle_returns_owned_str(): void {
-    val name: String = mangle_type(int32_ty(no_span()))
+    val name: String = mangle_type(Type.new_int32(no_span()))
     assert_eq(name.as_str(), "int32", "type mangles are owned String values")
 }
 
 @test fun type_name_mangle_returns_owned_str(): void {
     var ctx = mk_ctx()
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val name: String = mangle_type_name("Wrap", &args, &var ctx)
     assert_eq(name.as_str(), "Wrap__int32", "generic type names are owned String values")
 }
@@ -676,9 +681,9 @@ fun type_mangle_uses_display_name_for_c_compatibility(): void {
 @test fun write_file_call_types_void_without_sig(): void {
     var ctx = mk_ctx()
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitStr(String.from("/tmp/x"))))
-    args.push(new_expr(no_span(), ExprKind.LitStr(String.from("body"))))
-    var e = new_expr(no_span(), ExprKind.Call(intern("write_file"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("/tmp/x"))))
+    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("body"))))
+    var e = Expr.new(no_span(), ExprKind.Call(intern("write_file"), args))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         Void => assert(true, "ok")
@@ -690,9 +695,9 @@ fun type_mangle_uses_display_name_for_c_compatibility(): void {
     var ctx = mk_ctx()
     ctx.declare(String.from("s"), intern("String").lang_struct_ty(no_span()))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitStr(String.from("/tmp/x"))))
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("s"))))
-    var e = new_expr(no_span(), ExprKind.Call(intern("write_file"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("/tmp/x"))))
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("s"))))
+    var e = Expr.new(no_span(), ExprKind.Call(intern("write_file"), args))
     check_expr(&var e, &var ctx)
     val content = *args.at(1)
     assert_eq(content.coerce == coerce_none(), false, "String content arg records a str coercion")
@@ -702,8 +707,8 @@ fun type_mangle_uses_display_name_for_c_compatibility(): void {
 fun shared_reference_keeps_immutable_flag(): void {
     var ctx = mk_ctx()
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *inner = new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
-    val tr = new_type_ref(no_span(), TypeRefKind.Reference(false, inner))
+    unsafe { *inner = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    val tr = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
     val ty = tr.resolve_type_ref(&var ctx)
     when (ty.kind) {
         RefTo(mutable, _) => assert_eq(mutable, false, "&T stays shared")
@@ -715,8 +720,8 @@ fun shared_reference_keeps_immutable_flag(): void {
 fun mutable_reference_keeps_mutable_flag(): void {
     var ctx = mk_ctx()
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *inner = new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
-    val tr = new_type_ref(no_span(), TypeRefKind.Reference(true, inner))
+    unsafe { *inner = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    val tr = TypeRef.new(no_span(), TypeRefKind.Reference(true, inner))
     val ty = tr.resolve_type_ref(&var ctx)
     when (ty.kind) {
         RefTo(mutable, _) => assert_eq(mutable, true, "&var T stays mutable")
@@ -732,10 +737,10 @@ fun mk_borrow_ty(inner: Type, mutable: bool): Type {
 
 fun binary_over(a: str, op: BinOp, b: str): Expr {
     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *lhs_ptr = new_expr(no_span(), ExprKind.Variable(intern(a))) }
+    unsafe { *lhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern(a))) }
     val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *rhs_ptr = new_expr(no_span(), ExprKind.Variable(intern(b))) }
-    return new_expr(no_span(), ExprKind.Binary(lhs_ptr, op, rhs_ptr))
+    unsafe { *rhs_ptr = Expr.new(no_span(), ExprKind.Variable(intern(b))) }
+    return Expr.new(no_span(), ExprKind.Binary(lhs_ptr, op, rhs_ptr))
 }
 
 mutating fun TypeCtx.register_prim_op(trait_name: str): void {
@@ -747,8 +752,8 @@ mutating fun TypeCtx.register_prim_op(trait_name: str): void {
 @test fun a_borrowed_operand_types_as_its_pointee(): void {
     var ctx = mk_ctx()
     ctx.register_prim_op("Equal")
-    ctx.declare(String.from("n"), mk_borrow_ty(int32_ty(no_span()), false))
-    ctx.declare(String.from("m"), int32_ty(no_span()))
+    ctx.declare(String.from("n"), mk_borrow_ty(Type.new_int32(no_span()), false))
+    ctx.declare(String.from("m"), Type.new_int32(no_span()))
     var e = binary_over("n", BinOp.Eq, "m")
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
@@ -760,8 +765,8 @@ mutating fun TypeCtx.register_prim_op(trait_name: str): void {
 @test fun a_borrow_on_either_side_is_peeled(): void {
     var ctx = mk_ctx()
     ctx.register_prim_op("Add")
-    ctx.declare(String.from("n"), mk_borrow_ty(int32_ty(no_span()), false))
-    ctx.declare(String.from("m"), int32_ty(no_span()))
+    ctx.declare(String.from("n"), mk_borrow_ty(Type.new_int32(no_span()), false))
+    ctx.declare(String.from("m"), Type.new_int32(no_span()))
     var e = binary_over("m", BinOp.Add, "n")
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
@@ -774,8 +779,8 @@ mutating fun TypeCtx.register_prim_op(trait_name: str): void {
 @test fun two_borrows_compare_their_pointees(): void {
     var ctx = mk_ctx()
     ctx.register_prim_op("Equal")
-    ctx.declare(String.from("a"), mk_borrow_ty(int32_ty(no_span()), false))
-    ctx.declare(String.from("b"), mk_borrow_ty(int32_ty(no_span()), true))
+    ctx.declare(String.from("a"), mk_borrow_ty(Type.new_int32(no_span()), false))
+    ctx.declare(String.from("b"), mk_borrow_ty(Type.new_int32(no_span()), true))
     var e = binary_over("a", BinOp.Eq, "b")
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
@@ -789,7 +794,7 @@ mutating fun TypeCtx.register_prim_op(trait_name: str): void {
     var ctx = mk_ctx()
     val sp = ctx.sigs
     var fs = List.new<StructFieldInfo>()
-    fs.push(StructFieldInfo { name: String.from("x"), ty: int32_ty(no_span()), is_var: true })
+    fs.push(StructFieldInfo { name: String.from("x"), ty: Type.new_int32(no_span()), is_var: true })
     unsafe { sp.insert_struct(StructLayout { name: String.from("Bare"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     val bare = Type { kind: TypeKind.Struct(intern("Bare")), provenance: Provenance.Declared(no_span()) }
     ctx.declare(String.from("a"), mk_borrow_ty(bare, false))
@@ -817,5 +822,5 @@ fun the_impl_suggestion_leaves_a_bare_name_alone(): void {
 
 @test
 fun the_impl_suggestion_names_a_primitive_plainly(): void {
-    assert_eq(source_type_name(&int32_ty(no_span())).as_str(), "int32", "a primitive has no owner to strip")
+    assert_eq(source_type_name(&Type.new_int32(no_span())).as_str(), "int32", "a primitive has no owner to strip")
 }

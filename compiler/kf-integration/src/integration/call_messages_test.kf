@@ -1,0 +1,56 @@
+// What the checker says when a call's arguments disagree with what it, or an
+// earlier use, decided.
+
+import core.assert.assert_eq
+import alloc.list.*
+import alloc.path.Path
+
+import kf_core.diagnostic.new_diagnostics
+import kf_driver.fresh_source_map
+import kf_driver.new_lint_config
+import kf_driver.checked_diagnostics
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import kf_integration.harness.assemble_project
+
+/// Whether checking `source` as a one-file crate reports `needle`, through
+/// every pass `komp check` runs.
+fun reports(name: str, source: str, needle: str): bool {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"call_probe\"\nkind = \"lib\"\n")
+    val _source = write_text("${dir}/src/lib.kf".as_str(), source)
+    val smap = fresh_source_map()
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    val checked = merged.checked_diagnostics(smap, &new_lint_config())
+    while d in &checked {
+        if d.primary.message.as_str().contains(needle) { return true }
+    }
+    return false
+}
+
+@test
+fun a_type_parameter_mismatch_names_the_argument_that_decided_it(): void {
+    val said = reports("kf_call_decided", """struct Sym { val id: int32 }
+fun same<T>(a: T, b: T): bool { return true }
+pub fun f(): bool { return same(Sym { id: 1 }, "x") }
+""", "expected `Sym`, as argument 1 decided, found `str`")
+    assert_eq(said, true, "argument 2 is checked against what argument 1 made `T`")
+}
+
+@test
+fun an_open_list_reports_what_the_later_use_expects(): void {
+    val said = reports("kf_call_open_list", """import alloc.list.*
+fun take_names(xs: &var List<String>): uint64 { return xs.size() }
+pub fun f(): uint64 {
+    var names = []
+    names.push("T")
+    return take_names(&var names)
+}
+""", "but this use expects `List<String>`")
+    assert_eq(said, true, "the conflicting use names its expectation")
+}

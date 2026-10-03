@@ -1,4 +1,4 @@
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
 import kf_core.ast.subst.monomorphized_type_name
 
 fun subst_proj_tref_ptr_opt(popt: Ptr<TypeRef>?, self_name: str, trait_name: str, trait_args: str, sigs: Ptr<SigTable>): void {

@@ -3,7 +3,7 @@
 // CONSTRAINT: every `when` here must list every variant; the compiler does
 // not require it on a `when` with a value, and a missing arm returns garbage.
 
-import kf_core.ast.*
+import kf_core.ast.expression.BinOp
 import kf_parse.lexer.*
 
 /// Precedence and AST op; higher binds tighter.

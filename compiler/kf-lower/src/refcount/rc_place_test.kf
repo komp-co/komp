@@ -2,14 +2,19 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 fun holder_ty(): Type {
     return Type { kind: TypeKind.Struct(intern("Holder")), provenance: Provenance.Inferred(no_span()) }
 }
 
 fun typed(kind: ExprKind, ty: Type): Expr {
-    var e = new_expr(no_span(), kind)
+    var e = Expr.new(no_span(), kind)
     e.ty = ty
     return e
 }

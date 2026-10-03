@@ -2,6 +2,8 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.no_span
 
 fun payload_pattern(binders: List<Pattern>): Pattern {
@@ -26,13 +28,13 @@ fun payload_pattern(binders: List<Pattern>): Pattern {
 }
 
 @test fun a_field_path_is_rooted_at_its_variable(): void {
-    val root = Box.new(new_expr(no_span(), ExprKind.Variable(intern("c"))))
-    val place = new_expr(no_span(), ExprKind.FieldAccess(root, intern("n")))
+    val root = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("c"))))
+    val place = Expr.new(no_span(), ExprKind.FieldAccess(root, intern("n")))
     assert_eq(place.rooted_at("c"), true, "`c.n` is inside `c`")
 }
 
 @test fun a_deref_leaves_the_binder(): void {
-    val root = Box.new(new_expr(no_span(), ExprKind.Variable(intern("p"))))
-    val place = new_expr(no_span(), ExprKind.Deref(root))
+    val root = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("p"))))
+    val place = Expr.new(no_span(), ExprKind.Deref(root))
     assert_eq(place.rooted_at("p"), false, "`*p` is what `p` points at")
 }

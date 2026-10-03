@@ -40,9 +40,9 @@ fun no_shadow_names(): List<String> {
 }
 
 fun SigTable.shadow_diag_count(name: str): uint64 {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
-    check_trait_assoc_shadowing(name, self, diagnostics)
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
+    check_trait_assoc_shadowing(name, self, unsafe { &var *diagnostics })
     return unsafe { (*diagnostics).size() }
 }
 

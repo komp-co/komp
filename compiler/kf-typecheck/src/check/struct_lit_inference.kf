@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.FieldInit
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.bind_generic_from_param
@@ -49,4 +52,21 @@ fun Expr.report_unbound(name: str, param: &String, ctx: &var TypeCtx): bool? {
         "write the type arguments, as `${name}<...> { ... }`"
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
     return false
+}
+
+/// `val b: Box2<int64> = Box2 { v: 5 }`: a literal of the annotated type that
+/// writes no arguments takes the annotation's, before its fields are read.
+mutating fun Expr.take_annotated_type_args(annotation: &TypeRef): void {
+    if !self.type_args.is_empty() { return }
+    var literal_name = String.from("")
+    when (self.kind) {
+        StructLit(name, _) => literal_name = name.as_string()
+        _ => return
+    }
+    when (annotation.kind) {
+        Named(name, args) => {
+            if name.as_str() == literal_name.as_str() && !args.is_empty() { self.type_args = args.clone() }
+        }
+        _ => { }
+    }
 }

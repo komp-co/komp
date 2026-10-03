@@ -1,7 +1,12 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 // bx_-prefixed: the liveness tests in this unit define `var_expr` and friends.
 
@@ -12,13 +17,13 @@ fun bx_boxed(e: Expr): Ptr<Expr> {
 }
 
 fun bx_var(name: str): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: TypeKind.Struct(intern("Pair")), provenance: Provenance.Inferred(no_span()) }
     return e
 }
 
 fun bx_field(base: Expr, field: str): Expr {
-    var e = new_expr(no_span(), ExprKind.FieldAccess(bx_boxed(base), intern(field)))
+    var e = Expr.new(no_span(), ExprKind.FieldAccess(bx_boxed(base), intern(field)))
     e.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
     return e
 }
@@ -41,13 +46,13 @@ fun a_nested_field_extends_it_again(): void {
 // A method's returned borrow points into its receiver.
 @test
 fun a_method_call_reduces_to_its_receiver(): void {
-    val call = new_expr(no_span(), ExprKind.MethodCall(bx_boxed(bx_var("xs")), intern("at_mut"), List.new<Expr>()))
+    val call = Expr.new(no_span(), ExprKind.MethodCall(bx_boxed(bx_var("xs")), intern("at_mut"), List.new<Expr>()))
     assert_eq(call.access_path().as_str(), "xs", "`xs.at_mut(i)` points into `xs`")
 }
 
 @test
 fun a_literal_names_no_place(): void {
-    val lit = new_expr(no_span(), ExprKind.LitInt(7))
+    val lit = Expr.new(no_span(), ExprKind.LitInt(7))
     assert_eq(lit.access_path().as_str(), "", "a literal aliases nothing")
 }
 

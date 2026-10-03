@@ -1,0 +1,30 @@
+//! run: exit 5
+//! deps: core, alloc
+// A `val` field of type `&var T` cannot be pointed elsewhere, but a mutating
+// call through it changes what it borrows.
+
+struct Sink {
+    var items: List<int32>
+}
+
+impl Sink {
+    mutating fun emit(x: int32): void { self.items.push(x) }
+}
+
+view struct Ctx {
+    val sink: &var Sink
+}
+
+impl Ctx {
+    mutating fun report(x: int32): void {
+        self.sink.emit(x)
+    }
+}
+
+fun main(): int32 {
+    var sink = Sink { items: List.new<int32>() }
+    var ctx = Ctx { sink: &var sink }
+    ctx.report(2)
+    ctx.report(3)
+    return sink.items[0] + sink.items[1]
+}

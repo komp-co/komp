@@ -1,0 +1,9 @@
+//! build: fail
+//! deps: core, alloc
+// An intrinsic's type argument is the type it works on, and there is one.
+
+fun main(): int32 {
+    val p = unsafe { alloc<int32, int64>() }
+    unsafe { dealloc<int32>(p) }
+    return 0
+}

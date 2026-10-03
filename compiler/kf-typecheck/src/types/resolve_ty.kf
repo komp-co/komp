@@ -5,6 +5,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_resolve.*
@@ -45,7 +46,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             when s {
                 "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Declared(self.span) }
                 "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Declared(self.span) }
-                "int32" => return int32_ty(self.span)
+                "int32" => return Type.new_int32(self.span)
                 "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Declared(self.span) }
                 "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Declared(self.span) }
                 "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Declared(self.span) }
@@ -53,13 +54,13 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Declared(self.span) }
                 "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Declared(self.span) }
                 "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Declared(self.span) }
-                "bool" => return bool_ty(self.span)
+                "bool" => return Type.new_bool(self.span)
                 "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Declared(self.span) }
-                "str" => return str_ty(self.span)
+                "str" => return Type.new_str(self.span)
                 _ => { }
             }
             if is_lang_string { return ctx.string_name().lang_struct_ty(self.span) }
-            if s.equals("void") { return void_ty(self.span) }
+            if s.equals("void") { return Type.new_void(self.span) }
             if s.equals("Self") && !ctx.self_ty.is_poison() { return ctx.self_ty.clone() }
 
             // `Ptr<T>` is `PtrTo(T)`, emitted `T*`, not a container.
@@ -67,7 +68,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 if args.size() == 1 {
                     val arg0 = *args.at(0)
                     val inner = arg0.resolve_type_ref(ctx)
-                    return ptr_ty(inner, self.span)
+                    return Type.new_ptr(inner, self.span)
                 }
             }
 
@@ -76,14 +77,14 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 if args.size() == 1 {
                     val arg0 = *args.at(0)
                     val inner = arg0.resolve_type_ref(ctx)
-                    return box_ty(inner, self.span)
+                    return Type.new_box(inner, self.span)
                 }
             }
 
             // A generic parameter in scope?
             while g in &ctx.generics {
                 if g.as_str().equals(s) {
-                    return generic_ty(g, self.span)
+                    return Type.new_generic(g, self.span)
                 }
             }
 
@@ -95,7 +96,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                     if d.is_none() {
                         val lab = new_label(self.span, "unknown type `${name.as_string()}`")
                         ctx.emit(new_diagnostic(Severity.Error, lab))
-                        return poison_ty()
+                        return Type.new_poison()
                     }
                 }
                 None => { }
@@ -105,9 +106,9 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                     if info.type_params.size() != args.size() {
                         val message = "type `${s}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
                         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                        return poison_ty()
+                        return Type.new_poison()
                     }
-                    if !check_generic_arg_kinds(s, &info.type_params, args, ctx) { return poison_ty() }
+                    if !check_generic_arg_kinds(s, &info.type_params, args, ctx) { return Type.new_poison() }
                 }
                 None => { }
             }
@@ -139,7 +140,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Declared(self.span) }
         }
         DynTrait(name, args) => {
-            var resolved_args = new_type_vec()
+            var resolved_args = List.new<Type>()
             while argument in &args {
                 resolved_args.push(argument.resolve_type_ref(ctx))
             }
@@ -153,52 +154,51 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                     "unknown trait `${name.as_string()}` in dynamic trait type"
                 }
                 ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                return poison_ty()
+                return Type.new_poison()
             }
             if count > 1 {
                 val message = "trait name `${name.as_string()}` is ambiguous in this scope"
                 ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                return poison_ty()
+                return Type.new_poison()
             }
             when (unsafe { sigs.find_unique_trait(name.as_str()) }) {
                 Some(info) => {
                     if info.type_params.size() != args.size() {
                         val message = "trait `${name.as_string()}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
                         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                        return poison_ty()
+                        return Type.new_poison()
                     }
                     return dyn_trait_type(info.identity, resolved_args, self.span)
                 }
-                None => return poison_ty()
+                None => return Type.new_poison()
             }
         }
         Function(params, ret_ptr) => {
-            var values = new_type_vec()
+            var values = List.new<Type>()
             while param in &params {
                 values.push(param.resolve_type_ref(ctx))
             }
             val ret = ret_ptr.resolve_type_ref(ctx)
-            val function = fn_ty(values, ret, Provenance.Declared(self.span))
+            val function = Type.new_fn(values, ret, Provenance.Declared(self.span))
             ctx.note_fn_type(&function)
             return function
         }
         Reference(mutable, inner_ptr) => {
             val inner = (unsafe { *inner_ptr }).resolve_type_ref(ctx)
-            val p: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *p = inner }
+            val p = type_node(inner)
             return Type {
                 kind: TypeKind.RefTo(mutable, p),
                 provenance: Provenance.Declared(self.span)
             }
         }
-        Array(_, _) => return poison_ty()
+        Array(_, _) => return Type.new_poison()
         Value(v) => return Type { kind: TypeKind.Value(v), provenance: Provenance.Declared(self.span) }
         Projection(owner_ptr, member) => {
             val owner_tr: TypeRef = unsafe { *owner_ptr }
             val owner_ty = owner_tr.resolve_type_ref(ctx)
             return resolve_projection(owner_ty, member, self.span, ctx)
         }
-        Poison => return poison_ty()
+        Poison => return Type.new_poison()
     }
 }
 
@@ -208,7 +208,7 @@ pub fun impl_target_ty(name: str, span: Span, string_name: Sym): Type {
     when name {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
         "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }
-        "int32" => return int32_ty(span)
+        "int32" => return Type.new_int32(span)
         "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(span) }
         "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
         "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) }
@@ -216,9 +216,9 @@ pub fun impl_target_ty(name: str, span: Span, string_name: Sym): Type {
         "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
         "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
         "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
-        "bool" => return bool_ty(span)
+        "bool" => return Type.new_bool(span)
         "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Inferred(span) }
-        "str" => return str_ty(span)
+        "str" => return Type.new_str(span)
         _ => { }
     }
     if is_lang_name(name, string_name) { return string_name.lang_struct_ty(span) }
@@ -229,22 +229,22 @@ pub fun impl_target_ty(name: str, span: Span, string_name: Sym): Type {
 /// inside a trait it is deferred, not an error.
 fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCtx): Type {
     // Already reported.
-    if owner_ty.is_poison() { return poison_ty() }
+    if owner_ty.is_poison() { return Type.new_poison() }
     // "" for a generic parameter or `Self`: deferred as a projection type until
     // Mono pins the owner.
     val owner_key = owner_ty.assoc_owner_key()
-    if owner_key.as_str().equals("") { return projection_ty(owner_ty, member, span) }
-    if owner_key.as_str().equals("Self") { return projection_ty(owner_ty, member, span) }
+    if owner_key.as_str().equals("") { return Type.new_projection(owner_ty, member, span) }
+    if owner_key.as_str().equals("Self") { return Type.new_projection(owner_ty, member, span) }
 
     val found = unsafe { (*ctx.sigs).count_assoc_bindings(owner_key.as_str(), member.as_str()) }
     // A mono-suffixed owner is an instance Mono has not materialized: defer.
     if found == 0 && !mangle_base_name(owner_key.clone()).as_str().equals(owner_key.as_str()) {
-        return projection_ty(owner_ty, member, span)
+        return Type.new_projection(owner_ty, member, span)
     }
     if found == 0 {
         val message = "no associated type `${member.as_str()}` on `${owner_key.as_str()}`"
         ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
-        return poison_ty()
+        return Type.new_poison()
     }
     if found > 1 {
         // Inside an impl, the impl says which instantiation `Self.Out` means;
@@ -261,18 +261,22 @@ fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCt
         // reported.
         val message = "`${owner_key.as_str()}.${member.as_str()}` is ambiguous: more than one trait binds `${member.as_str()}` for `${owner_key.as_str()}`"
         ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
-        return poison_ty()
+        return Type.new_poison()
     }
     return unsafe { (*ctx.sigs).lookup_assoc_binding(owner_key.as_str(), member.as_str()) }
 }
 
 /// Top-level only: `a: T`, not `List<T>`.
+/// Every parameter at once: each first becomes a placeholder no identifier
+/// can spell, so in `Pair<B, A>` the `B` put in for `A` is not then replaced.
 pub fun subst_all_generics(t: Type, names: &List<String>, args: &List<Type>): Type {
+    val n = if names.size() < args.size() { names.size() } else { args.size() }
     var cur = t
-    while i in 0..names.size() {
-        if i < args.size() {
-            cur = cur.subst_generic(*names.at(i), *args.at(i))
-        }
+    while i in 0..n {
+        cur = cur.subst_generic(*names.at(i), Type.new_generic("%${i}", no_span()))
+    }
+    while i in 0..n {
+        cur = cur.subst_generic("%${i}", *args.at(i))
     }
     return cur
 }

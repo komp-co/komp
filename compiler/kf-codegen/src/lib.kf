@@ -3,7 +3,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
 import kf_codegen.emit.*
 import kf_codegen.runtime.emit_runtime_header
 import kf_core.runtime.runtime_header_declares

@@ -2,19 +2,21 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.Span
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 fun at(start: uint32): Span { return Span { file_id: 1, start: start, end: start + 1 } }
 
 fun ints(values: List<int64>): List<Expr> {
     var out = List.new<Expr>()
     while v in &values {
-        out.push(new_expr(at(v as uint32), ExprKind.LitInt(v)))
+        out.push(Expr.new(at(v as uint32), ExprKind.LitInt(v)))
     }
     return out
 }
 
 fun literal_of(values: List<int64>): Expr {
-    return list_literal_expr(at(40), &ints(values))
+    return Expr.new_list_literal(at(40), &ints(values))
 }
 
 @test fun an_empty_literal_is_a_bare_new_call(): void {

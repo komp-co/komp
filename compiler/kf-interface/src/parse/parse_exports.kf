@@ -3,7 +3,9 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.new_reexport
+import kf_core.ast.new_renaming_reexport
 import json.reader.*
 
 /// The module's exports, as `pub` imports it owns.

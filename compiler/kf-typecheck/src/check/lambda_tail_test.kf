@@ -3,13 +3,18 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_typecheck.types.display_type
 
 fun typed_expr_stmt(kind: ExprKind, ty: Type): Stmt {
     val expr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *expr = new_expr(no_span(), kind) }
+    unsafe { *expr = Expr.new(no_span(), kind) }
     unsafe { expr.ty = ty }
-    return new_stmt(no_span(), StmtKind.Expression(expr))
+    return Stmt.new(no_span(), StmtKind.Expression(expr))
 }
 
 fun arm_yielding(tail: Stmt): Arm {
@@ -25,18 +30,18 @@ fun when_over(first: Stmt, second: Stmt): List<Stmt> {
     arms.push(arm_yielding(first))
     arms.push(arm_yielding(second))
     val subject: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *subject = new_expr(no_span(), ExprKind.LitInt(1)) }
+    unsafe { *subject = Expr.new(no_span(), ExprKind.LitInt(1)) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.When(subject, arms)))
+    body.push(Stmt.new(no_span(), StmtKind.When(subject, arms)))
     return body
 }
 
 fun int_stmt(n: int64): Stmt {
-    return typed_expr_stmt(ExprKind.LitInt(n), int32_ty(no_span()))
+    return typed_expr_stmt(ExprKind.LitInt(n), Type.new_int32(no_span()))
 }
 
 fun void_call_stmt(): Stmt {
-    return typed_expr_stmt(ExprKind.Call(intern("log"), List.new<Expr>()), void_ty(no_span()))
+    return typed_expr_stmt(ExprKind.Call(intern("log"), List.new<Expr>()), Type.new_void(no_span()))
 }
 
 @test fun a_trailing_when_yields_its_arms_value(): void {
@@ -55,7 +60,7 @@ fun void_call_stmt(): Stmt {
     var ctx = mk_ctx()
     val body = when_over(void_call_stmt(), int_stmt(1))
     val _value = lambda_value_type(&body, no_span(), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "statements need not agree")
+    assert_eq(ctx.diags.items.size(), 0, "statements need not agree")
 }
 
 @test fun each_arm_of_a_trailing_when_returns_its_value(): void {

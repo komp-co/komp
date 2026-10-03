@@ -4,7 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.types.TypeRef
 
 pub struct VariantPayloads {
     var owners: List<String>

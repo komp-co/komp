@@ -1,6 +1,12 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 
 import kf_codegen.emit.mangle_named
 
@@ -148,6 +154,7 @@ fun Expr.scan_expr(callees: &var NameSet, type_refs: &var NameSet): void {
             callees.add(name.as_string())
             scan_expr_list(args, callees, type_refs)
         }
+        Intrinsic(_intrinsic, args) => scan_expr_list(args, callees, type_refs)
         StructLit(name, finits) => {
             if self.type_args.size() > 0 {
                 var refs = List.new<TypeRef>()

@@ -3,19 +3,25 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
 
 fun mk_void_ret(): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     return rp
 }
 
 fun mk_lit_int_arg(n: int64): Expr {
-    var a = new_expr(no_span(), ExprKind.LitInt(n))
-    a.ty = int32_ty(no_span())
+    var a = Expr.new(no_span(), ExprKind.LitInt(n))
+    a.ty = Type.new_int32(no_span())
     return a
 }
 
@@ -38,9 +44,9 @@ fun Module.first_body_callee(): String {
     var args = List.new<Expr>()
     args.push(mk_lit_int_arg(42))
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call_ptr = new_expr(no_span(), ExprKind.Call(intern("foo"), args)) }
+    unsafe { *call_ptr = Expr.new(no_span(), ExprKind.Call(intern("foo"), args)) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call_ptr)))
     val fn_kind = TopDeclKind.Function(List.new<Param>(), mk_void_ret(), body, true, false, false, false)
     val fn_td = new_top_decl(no_span(), String.from("main"), fn_kind)
     var m = Module {
@@ -58,7 +64,7 @@ fun Module.first_body_callee(): String {
 }
 
 fun mk_list_string_recv(): Expr {
-    var r = new_expr(no_span(), ExprKind.Variable(intern("xs")))
+    var r = Expr.new(no_span(), ExprKind.Variable(intern("xs")))
     r.ty = Type { kind: TypeKind.Struct(intern("List__String")), provenance: Provenance.Inferred(no_span()) }
     return r
 }
@@ -69,9 +75,9 @@ fun mk_list_string_recv(): Expr {
     unsafe { *recv_ptr = mk_list_string_recv() }
     val args = List.new<Expr>()
     val method_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *method_call_ptr = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern("push"), args)) }
+    unsafe { *method_call_ptr = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern("push"), args)) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(method_call_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(method_call_ptr)))
     val fn_kind = TopDeclKind.Function(List.new<Param>(), mk_void_ret(), body, true, false, false, false)
     val fn_td = new_top_decl(no_span(), String.from("main"), fn_kind)
     var m = Module {

@@ -4,7 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.array_literal_callee
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.check.borrow.coerce_call_arg
@@ -34,7 +41,7 @@ fun Type.array_shape(ctx: &var TypeCtx): ArrayShape? {
 /// `Array<int32, 3>`, not its mangled name. Any other type as written.
 fun Type.written_instance(span: Span, ctx: &var TypeCtx): TypeRef {
     val inst = self.expected_inst(ctx) ?: return self.type_to_type_ref(span)
-    return new_type_ref(span, TypeRefKind.Named(intern(inst.base.as_str()), clone_type_args(&inst.args)))
+    return TypeRef.new(span, TypeRefKind.Named(intern(inst.base.as_str()), clone_type_args(&inst.args)))
 }
 
 fun TypeRef.written_length(): uint64? {
@@ -59,7 +66,7 @@ mutating fun Expr.retarget_array_literal(expected: Type, ctx: &var TypeCtx): boo
         val shown = expected.display_type(ctx)
         val message = "this literal has ${elements.size()} elements, but `${shown}` holds ${shape.length}"
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     self.become_array_literal(elements, expected, &shape, ctx)
@@ -79,9 +86,9 @@ mutating fun Expr.become_array_literal(
         if !check_array_element(&var checked, i, shape.element.clone(), ctx) { fits = false }
     }
     val span = self.span
-    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), checked))
+    *self = Expr.new(span, ExprKind.Call(intern(array_literal_callee()), checked))
     self.type_args.push(expected.written_instance(span, ctx))
-    self.ty = if fits { expected } else { poison_ty() }
+    self.ty = if fits { expected } else { Type.new_poison() }
 }
 
 /// `[a, b]` where `Array<T, N>?` is expected: the array, in `Some`.
@@ -98,7 +105,7 @@ fun check_array_element(elements: &var List<Expr>, i: uint64, expected: Type, ct
     val before = elements.at(i).ty.clone()
     val outcome = coerce_call_arg(elements, i, expected.clone(), ctx)
     if !outcome.valid { return false }
-    val actual = if before.is_poison() { poison_ty() } else { elements.at(i).ty.clone() }
+    val actual = if before.is_poison() { Type.new_poison() } else { elements.at(i).ty.clone() }
     if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
     // Checked first as a list's, whose elements must agree too.
     if ctx.reported_at(elements.at(i).span) { return false }
@@ -108,7 +115,7 @@ fun check_array_element(elements: &var List<Expr>, i: uint64, expected: Type, ct
 }
 
 fun TypeCtx.reported_at(span: Span): bool {
-    while diag in &*self.diags {
+    while diag in &self.diags.items {
         val at = diag.primary.span
         if at.file_id == span.file_id && at.start == span.start && at.end == span.end { return true }
     }
@@ -142,9 +149,9 @@ mutating fun Expr.type_array_literal(ctx: &var TypeCtx): void {
     val span = self.span
     if !first.is_poison() { elements = agreeing_elements(&elements, first.clone(), span, ctx) }
     val array = array_type_ref(first.written_instance(span, ctx), elements.size(), ctx.array_name(), span)
-    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    *self = Expr.new(span, ExprKind.Call(intern(array_literal_callee()), elements))
     self.type_args.push(array.clone())
-    self.ty = if first.is_poison() { poison_ty() } else { array.resolve_type_ref(ctx) }
+    self.ty = if first.is_poison() { Type.new_poison() } else { array.resolve_type_ref(ctx) }
 }
 
 /// The elements checked against the first's type, or, when one does not fit,
@@ -170,8 +177,8 @@ fun agreeing_elements(elements: &List<Expr>, first: Type, literal: Span, ctx: &v
 fun array_type_ref(element: TypeRef, length: uint64, array_name: Sym, span: Span): TypeRef {
     var args = List.new<TypeRef>()
     args.push(element)
-    args.push(new_type_ref(span, TypeRefKind.Value(length as int64)))
-    return new_type_ref(span, TypeRefKind.Named(array_name, args))
+    args.push(TypeRef.new(span, TypeRefKind.Value(length as int64)))
+    return TypeRef.new(span, TypeRefKind.Named(array_name, args))
 }
 
 /// `T[]` given the length of what initializes it: a literal's element count

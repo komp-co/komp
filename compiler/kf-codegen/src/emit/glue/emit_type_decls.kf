@@ -4,7 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.type_retain_fn
+import kf_core.ast.types.TypeRef
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named

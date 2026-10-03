@@ -96,7 +96,7 @@ return id<int32>(p.a) + p.b }"""
 // unwrap<int32> constructs Wrap<T>, so Wrap__int32 is induced.
 @test fun integration_generic_transitive(): void {
     val src = """struct Wrap<T> { pub val v: T }
-fun unwrap<T>(x: T): T { val b = Wrap<T> { v: x }
+fun unwrap<T: Copy>(x: T): T { val b = Wrap<T> { v: x }
 return b.v }
 fun main(): int32 { return unwrap<int32>(42) }"""
     val code = build_and_run(src, scratch_path("komp_gen_box"))
@@ -117,7 +117,7 @@ return c.v }"""
 // Wrap<int32>.get() dispatches to Wrap__int32_get: 7 + 35 = 42.
 @test fun integration_generic_inherent_method(): void {
     val src = """struct Wrap<T> { pub val v: T }
-impl Wrap<T> { pub fun get(): T { return self.v } }
+impl Wrap<T: Copy> { pub fun get(): T { return self.v } }
 fun main(): int32 { val b = Wrap<int32> { v: 7 }
 return b.get() + 35 }"""
     val code = build_and_run(src, scratch_path("komp_gen_method"))
@@ -364,7 +364,7 @@ return 1 }"""
     val src = """struct Buffer<T> { pub var data: Ptr<T>  pub var cap: uint64 }
 fun new_buffer<T>(capacity: uint64): Buffer<T> { val d = unsafe { alloc_array<T>(capacity) }
 return Buffer<T> { data: d, cap: capacity } }
-impl Buffer<T> { pub fun get(index: uint64): T { return unsafe { *(self.data + index) } }  pub fun store(index: uint64, value: T): void { unsafe { *(self.data + index) = value } } }
+impl Buffer<T: Copy> { pub fun get(index: uint64): T { return unsafe { *(self.data + index) } }  pub fun store(index: uint64, value: T): void { unsafe { *(self.data + index) = value } } }
 fun main(): int32 { var b = new_buffer<int32>(4)
 b.store(0, 40)
 b.store(1, 2)

@@ -3,10 +3,13 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 
 fun test_ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
     return rp
 }
 
@@ -80,7 +83,7 @@ fun canonical_identity_maps_to_qualified(): void {
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
     m.collect_type_renames(&var names, &var repls)
-    val canon = canonical_type_identity(new_type_identity(new_crate_id("aa"), intern("aa.geo"), intern("Point")))
+    val canon = canonical_type_identity(TypeIdentity.new(new_crate_id("aa"), intern("aa.geo"), intern("Point")))
     assert_eq(rename_lookup(canon.as_str(), &var names, &var repls).as_str(), "aa__Point", "canonical identity maps to the same symbol")
 }
 

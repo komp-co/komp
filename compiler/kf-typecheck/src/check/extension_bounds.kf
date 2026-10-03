@@ -5,13 +5,15 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.subst_trait_args
 import kf_typecheck.traits.key_segments
 import kf_typecheck.traits.str_list_has
+import kf_core.ast.projection_mangle_display
 
 /// "no method" with the reason, when an extension applies except for its
 /// bound; false otherwise.
@@ -27,7 +29,7 @@ mutating fun Expr.report_blocked_extension(name: str, recv: &Type, ctx: &var Typ
         message = "${why}, which `${type_name}` is not bounded by; add it: `${type_name}: ${trait_name}`"
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
     return true
 }
 
@@ -142,7 +144,7 @@ fun report_no_parameter_method(param: str, method: str, span: Span, ctx: &var Ty
     val fix = "declare a bound whose trait provides it: `${param}: SomeTrait`"
     var message = "no method `${method}` on type parameter `${param}` (${fix})"
     if trait_param.as_str().equals(param) {
-        val shown = display_type(&generic_ty(String.from(param), span), ctx)
+        val shown = display_type(&Type.new_generic(String.from(param), span), ctx)
         message = "no method `${method}` on `self`: an extension on `${shown.as_str()}` has only that trait's methods"
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))

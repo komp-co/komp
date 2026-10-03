@@ -3,15 +3,21 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.ast.dyn_meta.*
 import kf_mono.materialize.clone_subst_decl
 
 fun mono_dyn_generic(): Type {
-    return generic_ty(String.from("T"), no_span())
+    return Type.new_generic(String.from("T"), no_span())
 }
 
 fun mono_dyn_object(): Type {
-    var args = new_type_vec()
+    var args = List.new<Type>()
     args.push(mono_dyn_generic())
     return dyn_trait_type(intern("Sink"), args, no_span())
 }
@@ -23,32 +29,32 @@ fun mono_dyn_ref(): Type {
 }
 
 fun mono_dyn_template(): TopDecl {
-    var source = new_expr(no_span(), ExprKind.Variable(intern("box")))
+    var source = Expr.new(no_span(), ExprKind.Variable(intern("box")))
     source.ty = Type { kind: TypeKind.Struct(intern("Box__T")), provenance: Provenance.Declared(no_span()) }
     val source_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *source_ptr = source }
-    var coercion = new_expr(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Box__T__Sink__T")))
+    var coercion = Expr.new(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Box__T__Sink__T")))
     coercion.ty = mono_dyn_ref()
     val coercion_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *coercion_ptr = coercion }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
 
-    var receiver = new_expr(no_span(), ExprKind.Variable(intern("object")))
+    var receiver = Expr.new(no_span(), ExprKind.Variable(intern("object")))
     receiver.ty = mono_dyn_ref()
     val receiver_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *receiver_ptr = receiver }
-    var call = new_expr(no_span(), ExprKind.MethodCall(receiver_ptr, intern("send"), List.new<Expr>()))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(receiver_ptr, intern("send"), List.new<Expr>()))
     call.ty = mono_dyn_generic()
     call.is_dynamic_call = true
     call.dynamic_slot = 0
     call.dynamic_layout = intern("Sink__T")
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *call_ptr = call }
-    body.push(new_stmt(no_span(), StmtKind.Expression(call_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call_ptr)))
 
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     var decl = new_top_decl(no_span(), String.from("use_sink"), TopDeclKind.Function(List.new<Param>(), ret, body, true, false, false, false))
     decl.generics.push(new_type_param(no_span(), String.from("T")))
     var slot_params = List.new<Type>()
@@ -77,7 +83,7 @@ fun mono_dyn_template(): TopDecl {
 fun mono_dyn_materialized(): TopDecl {
     val template = mono_dyn_template()
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     var module = Module { crate: crate_id_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
     module.decls.push(clone_subst_decl(template, &args, String.from("use_sink__int32")))
     module.mono_dyn_metadata()

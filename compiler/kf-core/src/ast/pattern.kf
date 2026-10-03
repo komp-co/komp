@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 
 @derive(Clone)
 pub struct Pattern {

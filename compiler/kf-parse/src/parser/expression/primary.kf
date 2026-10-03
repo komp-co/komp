@@ -1,7 +1,8 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
 import kf_parse.lexer.*
 import kf_parse.parser.*
 
@@ -15,11 +16,11 @@ fun if_stmt_as_expr(s: Stmt): Expr {
         If(cond_ptr, then_body, else_body) => {
             val then_ptr = branch_as_expr(&then_body, s.span)
             val else_ptr = else_as_expr(&else_body, s.span)
-            return new_expr(s.span, ExprKind.IfExpr(cond_ptr, then_ptr, else_ptr))
+            return Expr.new(s.span, ExprKind.IfExpr(cond_ptr, then_ptr, else_ptr))
         }
-        _ => return expr_poison(s.span)
+        _ => return Expr.new_poison(s.span)
     }
-    return expr_poison(s.span)
+    return Expr.new_poison(s.span)
 }
 
 fun branch_as_expr(stmts: &List<Stmt>, span: Span): Ptr<Expr> {
@@ -33,7 +34,7 @@ fun branch_as_expr(stmts: &List<Stmt>, span: Span): Ptr<Expr> {
             _ => { }
         }
     }
-    unsafe { *ep = new_expr(span, ExprKind.Block(copy_stmt_list(stmts))) }
+    unsafe { *ep = Expr.new(span, ExprKind.Block(copy_stmt_list(stmts))) }
     return ep
 }
 
@@ -69,19 +70,19 @@ impl Parser {
             IntLiteral(n) => {
                 unsafe { self.advance() }
                 // Postfix runs so `0 as Ptr<T>` parses its `as`.
-                return self.parse_postfix(new_expr(t.span, ExprKind.LitInt(n)))
+                return self.parse_postfix(Expr.new(t.span, ExprKind.LitInt(n)))
             }
             StringLiteral(s) => {
                 unsafe { self.advance() }
-                return self.parse_postfix(new_expr(t.span, ExprKind.LitStr(s.clone())))
+                return self.parse_postfix(Expr.new(t.span, ExprKind.LitStr(s.clone())))
             }
             FloatLiteral(text) => {
                 unsafe { self.advance() }
-                return self.parse_postfix(new_expr(t.span, ExprKind.LitFloat(text.clone())))
+                return self.parse_postfix(Expr.new(t.span, ExprKind.LitFloat(text.clone())))
             }
             CharLiteral(scalar) => {
                 unsafe { self.advance() }
-                return self.parse_postfix(new_expr(t.span, ExprKind.LitChar(scalar)))
+                return self.parse_postfix(Expr.new(t.span, ExprKind.LitChar(scalar)))
             }
             KeywordTok(kw) => {
                 return self.parse_keyword_primary(kw, t.span)
@@ -96,16 +97,16 @@ impl Parser {
             Newline => {
                 self.expr_expected_err(t.span, String.from("end of line"))
                 unsafe { self.advance() }
-                return expr_poison(t.span)
+                return Expr.new_poison(t.span)
             }
             Eof => {
                 self.expr_expected_err(t.span, String.from("end of file"))
-                return expr_poison(t.span)
+                return Expr.new_poison(t.span)
             }
             LexError(_) => {
                 // Already reported by report_lex_errors.
                 unsafe { self.advance() }
-                return expr_poison(t.span)
+                return Expr.new_poison(t.span)
             }
         }
     }
@@ -125,11 +126,11 @@ impl Parser {
         when (kw) {
             True => {
                 unsafe { self.advance() }
-                return self.parse_postfix(new_expr(span, ExprKind.LitBool(true)))
+                return self.parse_postfix(Expr.new(span, ExprKind.LitBool(true)))
             }
             False => {
                 unsafe { self.advance() }
-                return self.parse_postfix(new_expr(span, ExprKind.LitBool(false)))
+                return self.parse_postfix(Expr.new(span, ExprKind.LitBool(false)))
             }
             Fun => return self.kw_expr_err(kw, span)
             Val => return self.kw_expr_err(kw, span)
@@ -164,7 +165,7 @@ impl Parser {
 
     mutating fun kw_expr_err(kw: Keyword, span: Span): Expr {
         self.expr_expected_err(span, "keyword `${kw_str(kw)}`")
-        return expr_poison(span)
+        return Expr.new_poison(span)
     }
 
     mutating fun parse_op_primary(o: Operator, span: Span): Expr {
@@ -185,14 +186,14 @@ impl Parser {
                 val operand = self.parse_primary()
                 val operand_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *operand_ptr = operand }
-                return new_expr(span, ExprKind.Unary(UnaryOp.Neg, operand_ptr))
+                return Expr.new(span, ExprKind.Unary(UnaryOp.Neg, operand_ptr))
             }
             Bang => {
                 unsafe { self.advance() }
                 val operand = self.parse_primary()
                 val operand_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *operand_ptr = operand }
-                return new_expr(span, ExprKind.Unary(UnaryOp.Not, operand_ptr))
+                return Expr.new(span, ExprKind.Unary(UnaryOp.Not, operand_ptr))
             }
             // `|a, b| expr`. `|` is otherwise only infix.
             Pipe => return self.parse_lambda(span)
@@ -204,13 +205,13 @@ impl Parser {
             Plus => return self.advance_and_poison_expr(span)
             DotDot => return self.advance_and_poison_expr(span)
             DotDotEq => return self.advance_and_poison_expr(span)
-            // `*ptr`: binds tighter than binary operators.
+            // `*ptr`: binds tighter than binary operators and `as`.
             Star => {
                 unsafe { self.advance() } // consume `*`
-                val operand = self.parse_primary()
+                val operand = self.parse_prefix_operand()
                 val operand_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *operand_ptr = operand }
-                return new_expr(span, ExprKind.Deref(operand_ptr))
+                return self.cast_prefixed(Expr.new(span, ExprKind.Deref(operand_ptr)))
             }
             Slash => return self.advance_and_poison_expr(span)
             Eq => return self.advance_and_poison_expr(span)
@@ -235,11 +236,11 @@ impl Parser {
                 if is_keyword(self.peek(), Keyword.Val) {
                     unsafe { self.advance() }
                 }
-                var inner = self.parse_primary()
+                var inner = self.parse_prefix_operand()
                 inner.coerce = written
                 // `&*ptr` vouches that a raw pointer is live, so a reference
                 // slot accepts it.
-                return inner
+                return self.cast_prefixed(inner)
             }
             Semicolon => return self.advance_and_poison_expr(span)
             AmpAmp => return self.advance_and_poison_expr(span)
@@ -255,23 +256,39 @@ impl Parser {
             At => return self.advance_and_poison_expr(span)
             // `!!` needs a value on its left.
             BangBang => return self.advance_and_poison_expr(span)
-            RParen => return expr_poison(span)
-            LBrace => return expr_poison(span)
-            RBrace => return expr_poison(span)
+            RParen => return Expr.new_poison(span)
+            LBrace => return Expr.new_poison(span)
+            RBrace => return Expr.new_poison(span)
             LBracket => {
                 val literal = self.parse_list_literal(span)
                 return self.parse_postfix(literal)
             }
-            RBracket => return expr_poison(span)
-            Comma => return expr_poison(span)
-            Colon => return expr_poison(span)
+            RBracket => return Expr.new_poison(span)
+            Comma => return Expr.new_poison(span)
+            Colon => return Expr.new_poison(span)
         }
+    }
+
+    /// The operand of a prefix `&`, `&var` or `*`, stopping before `as`.
+    mutating fun parse_prefix_operand(): Expr {
+        val saved = self.cast_after_prefix
+        self.cast_after_prefix = true
+        val operand = self.parse_primary()
+        self.cast_after_prefix = saved
+        return operand
+    }
+
+    /// `prefixed` with the `as` casts that follow it, unless it is itself the
+    /// operand of an enclosing prefix, which takes them.
+    mutating fun cast_prefixed(prefixed: Expr): Expr {
+        if self.cast_after_prefix || !is_keyword(self.peek(), Keyword.As) { return prefixed }
+        return self.parse_postfix(prefixed)
     }
 
     mutating fun advance_and_poison_expr(span: Span): Expr {
         self.expr_expected_err(span, tok_str(self.peek()))
         unsafe { self.advance() }
-        return expr_poison(span)
+        return Expr.new_poison(span)
     }
 
     /// `unsafe { EXPR }`; `unsafe` already consumed.

@@ -9,10 +9,16 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Module
+import kf_core.ast.view
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Field
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
-pub fun Module.derive_clone_check_module(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.derive_clone_check_module(diags: &var Diagnostics): void {
     while td in &self.decls {
         when (td.kind) {
             Struct(fields, _p) => {
@@ -29,14 +35,14 @@ pub fun Module.derive_clone_check_module(diags: Ptr<List<Diagnostic>>): void {
 
 /// One error per offending field. The span identifies the type, whose name is
 /// mangled by now.
-fun report_freed_ptr_fields(fields: &List<Field>, freed: &List<String>, span: Span, diags: Ptr<List<Diagnostic>>): void {
+fun report_freed_ptr_fields(fields: &List<Field>, freed: &List<String>, span: Span, diags: &var Diagnostics): void {
     while f in &fields {
         val tr = unsafe { *f.ty }
         if tr.tref_is_raw_ptr() && names_contains(freed, f.name.as_str()) {
             var msg = String.from("this type's `drop` frees `")
             msg.append(f.name.as_str())
             msg.append("`, so a derived `Clone` would copy the pointer and free the buffer twice; write an `impl Clone` that copies what `drop` frees")
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(span, msg))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
         }
     }
 }
@@ -125,6 +131,11 @@ fun Expr.collect_freed_in_expr(out: &var List<String>): void {
                     collect_self_fields(arg, out)
                 }
             }
+            while arg in &args {
+                arg.collect_freed_in_expr(out)
+            }
+        }
+        Intrinsic(_intrinsic, args) => {
             while arg in &args {
                 arg.collect_freed_in_expr(out)
             }

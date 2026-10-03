@@ -4,7 +4,7 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.types.Type
 import kf_typecheck.traits.supertrait_closure_reqs
 import kf_typecheck.traits.trait_method_in
 import kf_typecheck.traits.key_segments
@@ -47,7 +47,7 @@ fun trait_method_for_generic(gname: String, method_name: String, ctx: &var TypeC
             if b.param.as_str().equals(gname.as_str()) {
                 // `Self` is the bounded parameter: `cmp(other: Self)` on
                 // `T: Compare` reads `cmp(other: T)`.
-                val self_t = generic_ty(gname.clone(), no_span())
+                val self_t = Type.new_generic(gname.clone(), no_span())
                 // The trait's parameters take the bound's arguments:
                 // `next(): T?` on `I: Iterator<int32>` reads `next(): int32?`.
                 val direct = trait_method_in(b.trait_name.as_str(), method_name.clone(),
@@ -68,6 +68,6 @@ fun trait_method_for_generic(gname: String, method_name: String, ctx: &var TypeC
     return TraitMethodReq {
         name: "", span: no_span(), arity: ARITY_NOT_FOUND(),
         has_default: false, has_method_generics: false, is_static: false,
-        params: List.new<Type>(), ret: poison_ty(), is_mutating: false
+        params: List.new<Type>(), ret: Type.new_poison(), is_mutating: false
     }
 }

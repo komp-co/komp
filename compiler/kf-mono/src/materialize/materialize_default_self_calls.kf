@@ -7,7 +7,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_mono.mangle_method
 
 fun trait_method_names(defaults: &List<TopDecl>): List<String> {
@@ -115,6 +119,9 @@ mutating fun Expr.stamp_expr(owner_name: str, suffix: str, siblings: &List<Strin
             stamp_expr(unsafe { &var *inner_ptr }, owner_name, suffix, siblings)
         }
         Call(_, args) => {
+            stamp_args(args, owner_name, suffix, siblings)
+        }
+        Intrinsic(_, args) => {
             stamp_args(args, owner_name, suffix, siblings)
         }
         CallValue(callee_ptr, args) => {

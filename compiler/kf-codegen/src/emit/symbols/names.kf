@@ -7,11 +7,13 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.ast.subst.mangle_tyref
 
 pub fun push_rename(old: String, new_name: String, names: &var List<String>, repls: &var List<TypeRef>): void {
     names.push(old)
-    repls.push(new_type_ref(no_span(), TypeRefKind.Named(intern(new_name.as_str()), List.new<TypeRef>())))
+    repls.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(new_name.as_str()), List.new<TypeRef>())))
 }
 
 /// "" on a miss.
@@ -52,7 +54,7 @@ fun Module.collect_type_renames_pass(imported: bool, names: &var List<String>, r
                 // matched first so it is not prefixed twice.
                 push_rename(String.from(new_name.as_str()), String.from(new_name.as_str()), names, repls)
                 push_rename(td.name.as_string(), String.from(new_name.as_str()), names, repls)
-                val canon = canonical_type_identity(new_type_identity(td.crate, td.module_path, td.name))
+                val canon = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, td.name))
                 push_rename(canon.as_string(), String.from(new_name.as_str()), names, repls)
             }
         }

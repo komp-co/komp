@@ -2,7 +2,10 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 import kf_typecheck.types.type_eq
 
 fun server_ty(): Type {
@@ -11,9 +14,9 @@ fun server_ty(): Type {
 
 /// `(<receiver>) -> int32`, the receiver `&Server` or `&var Server`.
 fun reader_type(is_mutable: bool): Type {
-    var params = new_type_vec()
+    var params = List.new<Type>()
     params.push(server_ty().borrowed(is_mutable, no_span()))
-    return fn_ty(params, int32_ty(no_span()), Provenance.Inferred(no_span()))
+    return Type.new_fn(params, Type.new_int32(no_span()), Provenance.Inferred(no_span()))
 }
 
 @test fun a_shared_receiver_fits_a_mutable_target(): void {
@@ -29,25 +32,25 @@ fun reader_type(is_mutable: bool): Type {
 }
 
 @test fun a_value_does_not_fit_a_borrow(): void {
-    var params = new_type_vec()
+    var params = List.new<Type>()
     params.push(server_ty())
-    val by_value = fn_ty(params, int32_ty(no_span()), Provenance.Inferred(no_span()))
+    val by_value = Type.new_fn(params, Type.new_int32(no_span()), Provenance.Inferred(no_span()))
     assert_eq(matches(by_value, reader_type(true), false), false, "only a borrow loosens")
 }
 
 @test fun a_different_result_does_not_fit(): void {
-    var params = new_type_vec()
+    var params = List.new<Type>()
     params.push(server_ty().borrowed(false, no_span()))
-    val returns_bool = fn_ty(params, bool_ty(no_span()), Provenance.Inferred(no_span()))
+    val returns_bool = Type.new_fn(params, Type.new_bool(no_span()), Provenance.Inferred(no_span()))
     assert_eq(matches(returns_bool, reader_type(true), false), false, "the result stays exact")
 }
 
 fun function_of(params: List<Type>, ret: Type): Type {
-    var types = new_type_vec()
+    var types = List.new<Type>()
     while param in &params {
         types.push(param)
     }
-    return fn_ty(types, ret, Provenance.Inferred(no_span()))
+    return Type.new_fn(types, ret, Provenance.Inferred(no_span()))
 }
 
 fun types(first: Type, second: Type): List<Type> {
@@ -65,54 +68,54 @@ fun one(only: Type): List<Type> {
 
 /// `(bool, _) -> bool`, or with `has_rest` `(bool, ..) -> bool`.
 fun flag_pattern(two: bool): Type {
-    val params = if two { types(bool_ty(no_span()), poison_ty()) } else { one(bool_ty(no_span())) }
-    return function_of(params, bool_ty(no_span()))
+    val params = if two { types(Type.new_bool(no_span()), Type.new_poison()) } else { one(Type.new_bool(no_span())) }
+    return function_of(params, Type.new_bool(no_span()))
 }
 
 @test fun rest_admits_no_further_parameter(): void {
-    val own = function_of(one(bool_ty(no_span())), bool_ty(no_span()))
+    val own = function_of(one(Type.new_bool(no_span())), Type.new_bool(no_span()))
     assert_eq(matches(own, flag_pattern(false), true), true, "`(bool)` under `(bool, ..)`")
 }
 
 @test fun rest_admits_several_parameters(): void {
-    val own = function_of(types(bool_ty(no_span()), int32_ty(no_span())), bool_ty(no_span()))
+    val own = function_of(types(Type.new_bool(no_span()), Type.new_int32(no_span())), Type.new_bool(no_span()))
     assert_eq(matches(own, flag_pattern(false), true), true, "`(bool, int32)` under `(bool, ..)`")
 }
 
 @test fun rest_still_checks_the_written_parameters(): void {
-    val own = function_of(one(int32_ty(no_span())), bool_ty(no_span()))
+    val own = function_of(one(Type.new_int32(no_span())), Type.new_bool(no_span()))
     assert_eq(matches(own, flag_pattern(false), true), false, "`(int32)` under `(bool, ..)`")
 }
 
 @test fun a_wildcard_takes_exactly_one_parameter(): void {
-    val own = function_of(one(bool_ty(no_span())), bool_ty(no_span()))
+    val own = function_of(one(Type.new_bool(no_span())), Type.new_bool(no_span()))
     assert_eq(matches(own, flag_pattern(true), false), false, "`(bool)` under `(bool, _)`")
 }
 
 @test fun a_wildcard_takes_any_type(): void {
-    val own = function_of(types(bool_ty(no_span()), server_ty()), bool_ty(no_span()))
+    val own = function_of(types(Type.new_bool(no_span()), server_ty()), Type.new_bool(no_span()))
     assert_eq(matches(own, flag_pattern(true), false), true, "`(bool, Server)` under `(bool, _)`")
 }
 
 @test fun a_wildcard_result_takes_any_result(): void {
-    val own = function_of(one(bool_ty(no_span())), server_ty())
-    val pattern = function_of(one(bool_ty(no_span())), poison_ty())
+    val own = function_of(one(Type.new_bool(no_span())), server_ty())
+    val pattern = function_of(one(Type.new_bool(no_span())), Type.new_poison())
     assert_eq(matches(own, pattern, false), true, "`-> Server` under `-> _`")
 }
 
 @test fun a_shared_wildcard_borrow_refuses_a_mutable_one(): void {
-    val pattern = function_of(one(poison_ty().borrowed(false, no_span())), int32_ty(no_span()))
+    val pattern = function_of(one(Type.new_poison().borrowed(false, no_span())), Type.new_int32(no_span()))
     assert_eq(matches(reader_type(true), pattern, false), false, "`&var Server` under `&_`")
 }
 
 @test fun a_mutable_wildcard_borrow_lends_a_shared_one(): void {
-    val pattern = function_of(one(poison_ty().borrowed(true, no_span())), int32_ty(no_span()))
+    val pattern = function_of(one(Type.new_poison().borrowed(true, no_span())), Type.new_int32(no_span()))
     assert_eq(matches(reader_type(false), pattern, false), true, "`&Server` under `&var _`")
 }
 
 @test fun a_wildcard_borrow_refuses_a_value(): void {
-    val own = function_of(one(server_ty()), int32_ty(no_span()))
-    val pattern = function_of(one(poison_ty().borrowed(false, no_span())), int32_ty(no_span()))
+    val own = function_of(one(server_ty()), Type.new_int32(no_span()))
+    val pattern = function_of(one(Type.new_poison().borrowed(false, no_span())), Type.new_int32(no_span()))
     assert_eq(matches(own, pattern, false), false, "`Server` under `&_`")
 }
 
@@ -126,14 +129,14 @@ fun generic(name: str): Type {
 }
 
 @test fun a_type_parameter_binds_where_it_first_appears(): void {
-    val own = function_of(types(server_ty(), server_ty()), bool_ty(no_span()))
-    val pattern = function_of(types(generic("T"), generic("T")), bool_ty(no_span()))
+    val own = function_of(types(server_ty(), server_ty()), Type.new_bool(no_span()))
+    val pattern = function_of(types(generic("T"), generic("T")), Type.new_bool(no_span()))
     assert_eq(matches(own, pattern, false), true, "`(Server, Server)` under `(T, T)`")
 }
 
 @test fun a_type_parameter_holds_to_its_binding(): void {
-    val own = function_of(types(server_ty(), bool_ty(no_span())), bool_ty(no_span()))
-    val pattern = function_of(types(generic("T"), generic("T")), bool_ty(no_span()))
+    val own = function_of(types(server_ty(), Type.new_bool(no_span())), Type.new_bool(no_span()))
+    val pattern = function_of(types(generic("T"), generic("T")), Type.new_bool(no_span()))
     assert_eq(matches(own, pattern, false), false, "`(Server, bool)` under `(T, T)`")
 }
 
@@ -145,8 +148,8 @@ fun generic(name: str): Type {
 
 @test fun a_type_parameter_records_what_it_stands_for(): void {
     var bindings = no_bindings()
-    val own = function_of(one(server_ty()), bool_ty(no_span()))
-    own.matches_target(&function_of(one(generic("T")), bool_ty(no_span())), false, &var bindings)
-    val bound = bindings.of(intern("T")) ?: poison_ty()
+    val own = function_of(one(server_ty()), Type.new_bool(no_span()))
+    own.matches_target(&function_of(one(generic("T")), Type.new_bool(no_span())), false, &var bindings)
+    val bound = bindings.of(intern("T")) ?: Type.new_poison()
     assert_eq(bound.type_eq(server_ty()), true, "T is Server")
 }

@@ -11,7 +11,17 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.MarkKind
+import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.note_import_use_named
@@ -21,8 +31,6 @@ import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_to_type_ref
 import kf_typecheck.check.decl.is_borrow
 import kf_typecheck.check.decl.type_param_name
-
-pub fun annotated_prefix(): str { return "annotated__" }
 
 /// What a query's entries are: callable `AnnotatedFunction`s of one function
 /// type, or `AnnotatedItem`s naming each declaration.
@@ -52,14 +60,14 @@ pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): vo
         }
     }
     var built = if elements.size() == 0 {
-        collection_new_call(self.span, ctx.list_name())
+        Expr.new_collection_new_call(self.span, ctx.list_name())
     } else {
         var array = List.new<Expr>()
-        array.push(list_literal_expr(self.span, &elements))
-        val receiver = Box.new(new_expr(self.span, ExprKind.Variable(ctx.list_name())))
-        new_expr(self.span, ExprKind.MethodCall(receiver, intern("from"), array))
+        array.push(Expr.new_list_literal(self.span, &elements))
+        val receiver = Box.new(Expr.new(self.span, ExprKind.Variable(ctx.list_name())))
+        Expr.new(self.span, ExprKind.MethodCall(receiver, intern("from"), array))
     }
-    built.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
+    built.type_args.push(TypeRef.new(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
         entry_type_args(&declared, &shape, self.span))))
     built.type_args_written = true
     *self = built
@@ -80,7 +88,7 @@ fun DeclaredAnnotation.entry_shape(pins: &List<Type>, span: Span): EntryShape {
     }
     val is_callable = written != null && (self.type_params.size() == 0 || pins.size() > 0)
     if pins.size() == 0 {
-        val function_ref = written ?: type_ref_poison(span)
+        val function_ref = written ?: TypeRef.new_poison(span)
         return EntryShape {
             is_callable: is_callable, function_type: self.function_type.clone(), function_ref: function_ref
         }
@@ -94,11 +102,11 @@ fun DeclaredAnnotation.entry_shape(pins: &List<Type>, span: Span): EntryShape {
 /// replaced by its pin.
 fun Type.with_params(params: &List<TypeParam>, pins: &List<Type>): Type {
     val parts = self.fn_parts() ?: return *self
-    var types = new_type_vec()
+    var types = List.new<Type>()
     while param in &parts.params {
         types.push(param.slot_with(params, pins))
     }
-    return fn_ty(types, parts.ret.slot_with(params, pins), self.provenance)
+    return Type.new_fn(types, parts.ret.slot_with(params, pins), self.provenance)
 }
 
 fun Type.slot_with(params: &List<TypeParam>, pins: &List<Type>): Type {
@@ -159,7 +167,7 @@ mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &v
 
 mutating fun Expr.query_error(message: String, ctx: &var TypeCtx): AnnotationQuery? {
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
     return null
 }
 
@@ -188,7 +196,7 @@ fun Expr.queried_type_args(): List<TypeRef> {
 /// rest.
 fun entry_type_args(declared: &DeclaredAnnotation, shape: &EntryShape, span: Span): List<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
+    args.push(TypeRef.new(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
     if shape.is_callable { args.push(shape.function_ref.clone()) }
     return args
 }
@@ -203,23 +211,23 @@ fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, shape
     val arguments = arguments_literal(listed, declared, span)
     fields.push(FieldInit { span: span, name: intern("args"), value: Box.new(arguments) })
     if shape.is_callable {
-        var reference = new_expr(span, ExprKind.FnRef(listed.item))
+        var reference = Expr.new(span, ExprKind.FnRef(listed.item))
         reference.ty = shape.function_type.clone()
         ctx.note_fn_type(&reference.ty)
         fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
     } else {
-        val kind_type = new_expr(span, ExprKind.Variable(intern("AnnotatedKind")))
-        val variant = new_expr(span, ExprKind.FieldAccess(Box.new(kind_type), listed.kind.variant_name()))
+        val kind_type = Expr.new(span, ExprKind.Variable(intern("AnnotatedKind")))
+        val variant = Expr.new(span, ExprKind.FieldAccess(Box.new(kind_type), listed.kind.variant_name()))
         fields.push(FieldInit { span: span, name: intern("kind"), value: Box.new(variant) })
     }
-    var entry = new_expr(span, ExprKind.StructLit(intern(shape.entry_type_name()), fields))
+    var entry = Expr.new(span, ExprKind.StructLit(intern(shape.entry_type_name()), fields))
     entry.type_args = entry_type_args(declared, shape, span)
     entry.type_args_written = true
     return entry
 }
 
 fun string_field(name: str, value: str, span: Span): FieldInit {
-    val literal = new_expr(span, ExprKind.LitStr(String.from(value)))
+    val literal = Expr.new(span, ExprKind.LitStr(String.from(value)))
     return FieldInit { span: span, name: intern(name), value: Box.new(literal) }
 }
 
@@ -231,7 +239,7 @@ fun arguments_literal(listed: &AnnotatedItem, declared: &DeclaredAnnotation, spa
         val value = listed.args.at(i).clone()
         fields.push(FieldInit { span: value.span, name: declared.params.at(i).name, value: Box.new(value) })
     }
-    return new_expr(span, ExprKind.StructLit(declared.name, fields))
+    return Expr.new(span, ExprKind.StructLit(declared.name, fields))
 }
 
 fun MarkTarget.marks_only_members(): bool {

@@ -2,11 +2,13 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 fun storage_of(element: str): TypeRef {
-    val inner = new_type_ref(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>()))
-    return new_type_ref(no_span(), TypeRefKind.Array(Box.new(inner), 2))
+    val inner = TypeRef.new(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Array(Box.new(inner), 2))
 }
 
 @test

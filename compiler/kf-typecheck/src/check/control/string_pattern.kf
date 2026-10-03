@@ -4,6 +4,10 @@
 // on a `String` binder. As a guarded arm it covers nothing for exhaustiveness.
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.Span
@@ -25,14 +29,14 @@ pub mutating fun Arm.desugar_string_pattern(texts: List<String>, subject_ty: Typ
     while i in 1..texts.size() {
         val next = text_equals(binder, texts.at(i).clone(), subject_ty, span, ctx)
         val either: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *either = new_expr(span, ExprKind.Binary(condition, BinOp.OrOr, next)) }
+        unsafe { *either = Expr.new(span, ExprKind.Binary(condition, BinOp.OrOr, next)) }
         condition = either
     }
     when (self.guard) {
         Some(written) => {
             val both: Ptr<Expr> = unsafe { alloc<Expr>() }
             // The store below drops the written guard, so the condition keeps a copy.
-            unsafe { *both = new_expr(span, ExprKind.Binary(condition, BinOp.AndAnd, Box.new(written.clone()))) }
+            unsafe { *both = Expr.new(span, ExprKind.Binary(condition, BinOp.AndAnd, Box.new(written.clone()))) }
             condition = both
         }
         None => { }
@@ -43,16 +47,16 @@ pub mutating fun Arm.desugar_string_pattern(texts: List<String>, subject_ty: Typ
 /// `binder == "text"`, through `.as_str()` unless the subject is a `str`.
 fun text_equals(binder: Sym, text: String, subject_ty: Type, span: Span, ctx: &TypeCtx): Ptr<Expr> {
     var left: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *left = new_expr(span, ExprKind.Variable(binder)) }
+    unsafe { *left = Expr.new(span, ExprKind.Variable(binder)) }
     if !subject_ty.is_str(ctx) {
         val view: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *view = new_expr(span, ExprKind.MethodCall(left, intern("as_str"), List.new<Expr>())) }
+        unsafe { *view = Expr.new(span, ExprKind.MethodCall(left, intern("as_str"), List.new<Expr>())) }
         left = view
     }
     val right: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *right = new_expr(span, ExprKind.LitStr(text)) }
+    unsafe { *right = Expr.new(span, ExprKind.LitStr(text)) }
     val equal: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *equal = new_expr(span, ExprKind.Binary(left, BinOp.Eq, right)) }
+    unsafe { *equal = Expr.new(span, ExprKind.Binary(left, BinOp.Eq, right)) }
     return equal
 }
 

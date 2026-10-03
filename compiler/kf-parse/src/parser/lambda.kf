@@ -5,7 +5,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.new_param
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 impl Parser {
     pub mutating fun parse_lambda(span: Span): Expr {
@@ -35,14 +41,14 @@ impl Parser {
 
     mutating fun finish_lambda(params: List<Param>, span: Span): Expr {
         if is_op(self.peek(), Operator.LBrace) {
-            return new_expr(span, ExprKind.Lambda(params, self.parse_block()))
+            return Expr.new(span, ExprKind.Lambda(params, self.parse_block()))
         }
         val body = self.parse_expr()
         val body_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *body_ptr = body }
         var stmts = List.new<Stmt>()
-        stmts.push(new_stmt(span, StmtKind.Expression(body_ptr)))
-        return new_expr(span, ExprKind.Lambda(params, stmts))
+        stmts.push(Stmt.new(span, StmtKind.Expression(body_ptr)))
+        return Expr.new(span, ExprKind.Lambda(params, stmts))
     }
 
     mutating fun parse_lambda_param(): Param {

@@ -1,0 +1,19 @@
+//! run: exit 14
+//! deps: core, alloc
+// Only the taken branch of an `if` value runs, interpolation included.
+
+struct Counter {
+    var calls: int32
+}
+
+fun count(c: &var Counter): int32 {
+    c.calls = c.calls + 1
+    return c.calls
+}
+
+fun main(): int32 {
+    var c = Counter { calls: 0 }
+    val text = if c.calls > 100 { "${count(&var c)}" } else { String.from("no") }
+    val other = if c.calls == 0 { "${count(&var c)}!" } else { String.from("yes") }
+    return c.calls * 10 + (text.byte_len() + other.byte_len()) as int32
+}

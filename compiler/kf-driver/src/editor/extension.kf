@@ -3,8 +3,16 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.new_param
 import kf_interface.emit.tyref_to_source
+import kf_core.diagnostic.new_diagnostics
+import kf_typecheck.new_type_ctx
+import kf_typecheck.check.extensions_callable_on
 
 pub fun TopDecl.is_extension(): bool {
     return !self.ext_name.as_str().equals("")
@@ -36,7 +44,7 @@ pub fun extension_call_params(params: &List<Param>, td: &TopDecl): List<Param> {
         Reference(mutable, _inner) => {
             val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *inner = shown }
-            shown = new_type_ref(first.span, TypeRefKind.Reference(mutable, inner))
+            shown = TypeRef.new(first.span, TypeRefKind.Reference(mutable, inner))
         }
         _ => { }
     }
@@ -63,31 +71,29 @@ pub fun written_as_function(src: str, start: uint32, name: str): bool {
     return next == 40 || next == 60
 }
 
-/// A bare type-parameter or trait receiver applies to every type.
-pub fun TopDecl.extension_applies_to(owner: str): bool {
-    if !self.is_extension() { return false }
-    if self.has_annotation("receiver_trait") { return true }
-    when (self.extension_receiver().kind) {
-        Named(head, _args) => {
-            if head.as_str().equals(owner) { return true }
-            return self.receiver_head_is_param(head.as_str())
+/// The hidden names of the extensions a call on `receiver` would pick: the
+/// checker's verdict, so a bound the receiver does not meet rules one out.
+pub fun TypedCrate.callable_extensions(receiver: &Type): List<String> {
+    var sink = new_diagnostics()
+    var ctx = new_type_ctx(Type.new_poison(), &var sink, null, self.sigs)
+    // Visibility is judged from the queried file's module.
+    while td in &self.module.decls {
+        if td.span.file_id == self.file_id {
+            ctx.owner_crate = td.crate
+            ctx.owner_module = td.module_path
+            break
         }
-        _ => return false
     }
+    return extensions_callable_on(receiver, &var ctx)
 }
 
-/// A parameter the receiver introduced (`@receiver_params`) or a list before
-/// it declares.
-fun TopDecl.receiver_head_is_param(name: str): bool {
-    while tp in &self.generics {
-        if tp.name.as_str().equals(name) { return true }
+/// Whether this is one of `links`, as `callable_extensions` named them.
+pub fun TopDecl.is_extension_in(links: &List<String>): bool {
+    if !self.is_extension() { return false }
+    while link in &links {
+        if link.as_str() == self.name.as_str() { return true }
     }
-    return self.has_annotation("receiver_params") && self.receiver_param_named(name)
-}
-
-fun TopDecl.receiver_param_named(name: str): bool {
-    val recorded = self.annotation_words("receiver_params")
-    return recorded.size() > 0 && recorded.at(0).as_str() == name
+    return false
 }
 
 /// Without `self`'s reference; a trait receiver is shown as the trait.
@@ -102,13 +108,13 @@ fun TopDecl.extension_receiver(): TypeRef {
     }
     when (self.kind) {
         Function(params, _ret, _body, _is_pub, _is_unsafe, _is_mutating, _is_static) => {
-            if params.size() == 0 { return type_ref_poison(self.span) }
+            if params.size() == 0 { return TypeRef.new_poison(self.span) }
             val written: TypeRef = unsafe { *params.at(0).ty }
             when (written.kind) {
                 Reference(_mutable, inner) => return unsafe { *inner }
                 _ => return written
             }
         }
-        _ => return type_ref_poison(self.span)
+        _ => return TypeRef.new_poison(self.span)
     }
 }

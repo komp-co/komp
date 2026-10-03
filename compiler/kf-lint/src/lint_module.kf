@@ -4,7 +4,8 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// What the lints find in `m`'s own declarations and files, at each lint's

@@ -183,12 +183,6 @@ reaches two declarations ([#21]).
 
 ## Tooling
 
-The [VS Code extension](https://github.com/komp-co/kf-extensions) runs
-`komp check` per save and offers nothing beyond its diagnostics, quick fixes
-and highlighting until it is rebuilt on the
-[language server](https://github.com/komp-co/kf-lsp). There is no formatter
-([#15]).
-
 A package's feature flags are not read ([#79]).
 
 ## Where the compiler itself stands
@@ -205,7 +199,6 @@ not agree with it in every case.
 
 [#2]: https://github.com/komp-co/komp/issues/2
 [#3]: https://github.com/komp-co/komp/issues/3
-[#15]: https://github.com/komp-co/komp/issues/15
 [#20]: https://github.com/komp-co/komp/issues/20
 [#21]: https://github.com/komp-co/komp/issues/21
 [#36]: https://github.com/komp-co/komp/issues/36

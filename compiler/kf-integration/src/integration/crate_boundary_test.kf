@@ -7,9 +7,9 @@ import core.assert.assert_eq
 
 import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
-import kf_driver.*
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
+import kf_core.diagnostic.new_diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -47,9 +47,8 @@ sc2lib = { path = "../kf_sc2_lib" }
 
 fun build_sc2(): List<CrateCodegenOutput> {
     write_sc2_fixtures()
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    return compile_project_separate(scratch_path("kf_sc2_app"), errp)
+    var errors = new_diagnostics()
+    return compile_project_separate(scratch_path("kf_sc2_app"), &var errors)
 }
 
 // The library compiles first, the app last.
@@ -165,9 +164,8 @@ fun main(): int32 {
 
 fun build_drop_member(): List<CrateCodegenOutput> {
     write_drop_member_fixtures()
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    return compile_project_separate(scratch_path("kf_sc2_dropapp"), errp)
+    var errors = new_diagnostics()
+    return compile_project_separate(scratch_path("kf_sc2_dropapp"), &var errors)
 }
 
 @test

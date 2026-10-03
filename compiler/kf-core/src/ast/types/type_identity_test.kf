@@ -1,9 +1,8 @@
 import core.assert.assert_eq
 import core.assert.fail
 import kf_core.span.no_span
-import kf_core.ast.new_crate_id
-import kf_core.ast.new_crate_id
 import kf_core.ast.intern
+import kf_core.ast.new_crate_id
 
 @test
 fun same_display_name_has_distinct_crate_identities(): void {
@@ -16,7 +15,9 @@ fun resolved_struct_type_retains_its_identity(): void {
     val identity = TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point"))
     val ty = named_struct_ty(identity, no_span())
     when (ty.kind) {
-        Struct(actual) => assert_eq(type_identity_matches(actual, identity), true, "resolved struct retains its semantic identity")
+        Struct(actual) => {
+            assert_eq(type_identity_matches(actual, identity), true, "resolved struct retains its semantic identity")
+        }
         _ => fail("expected Struct")
     }
 }

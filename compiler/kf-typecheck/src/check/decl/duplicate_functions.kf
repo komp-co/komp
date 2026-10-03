@@ -1,6 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 fun TopDecl.is_source_function(): bool {
@@ -14,7 +15,7 @@ fun TopDecl.is_source_function(): bool {
 /// One free function name defined twice in a crate, which would be one C
 /// symbol twice, even from two modules. Reported at the second definition.
 /// CONSTRAINT: externs are not definitions; files redeclare them freely.
-fun Module.reject_duplicate_functions(diags: Ptr<List<Diagnostic>>): void {
+fun Module.reject_duplicate_functions(diags: &var Diagnostics): void {
     var seen = HashMap.new<String, uint64>()
     while i in 0..self.decls.size() {
         val td = self.decls.at(i)
@@ -24,7 +25,7 @@ fun Module.reject_duplicate_functions(diags: Ptr<List<Diagnostic>>): void {
                 Some(first) => {
                     val message = td.duplicate_function_message(self.decls.at(*first))
                     val lab = new_label(td.decl_name_span(), message)
-                    unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+                    diags.emit(new_diagnostic(Severity.Error, lab))
                 }
                 None => seen.insert(key, i)
             }

@@ -2,7 +2,7 @@
 // the SourceMap, with its annotations in front; the consumer re-parses it.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import json.writer.*
 
 /// "" when the declaration cannot be sliced (synthesized, or its span is

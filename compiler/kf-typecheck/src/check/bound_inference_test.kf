@@ -2,7 +2,8 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
 
 // A compound trait argument (`Entry<K, V>`) resolves to a concrete type.
 @test fun a_compound_trait_argument_resolves_to_a_concrete_instance(): void {
@@ -16,8 +17,8 @@ import kf_core.ast.*
         arg_count: 1
     }) }
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     unsafe { ctx.sigs.insert_inst(GenericInst { mangled: String.from("HashMap__int32__int32"), base: String.from("HashMap"), args: args }) }
 
     val self_ty = Type { kind: TypeKind.Struct(intern("HashMap__int32__int32")), provenance: Provenance.Inferred(no_span()) }
@@ -26,7 +27,7 @@ import kf_core.ast.*
     var gnames = List.new<String>()
     gnames.push(String.from("T"))
     var inf_tys = List.new<Type>()
-    inf_tys.push(poison_ty())
+    inf_tys.push(Type.new_poison())
 
     var impl_params = List.new<String>()
     impl_params.push(String.from("K"))

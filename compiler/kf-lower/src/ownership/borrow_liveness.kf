@@ -11,6 +11,10 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 /// Keyed by the mangled `Type_method`: a name alone would conflate a mutating
@@ -26,7 +30,7 @@ struct LivenessFacts {
     val views: List<String>
 }
 
-pub fun Module.borrow_liveness_module(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.borrow_liveness_module(diags: &var Diagnostics): void {
     var muts = List.new<MutatingMethod>()
     self.collect_mutating_methods(&var muts)
     val facts = LivenessFacts { muts: muts, views: self.view_type_names() }
@@ -64,7 +68,7 @@ fun collect_mutating_in_impl(owner: str, methods: &List<TopDecl>, out: &var List
     }
 }
 
-fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     when (td.kind) {
         Function(params, _r, body, _pub, _u, _mut, _st) => {
             var names = List.new<String>()
@@ -89,7 +93,7 @@ fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<Para
 }
 
 /// A borrow is checked within the block that declared it.
-fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: &var Diagnostics): void {
     while i in 0..stmts.size() {
         (stmts.at(i)).check_nested_blocks(facts, ptable, params, diags)
         val origin = owning_origin(stmts, i, (stmts.at(i)).borrow_binding_origin(&facts.views), &facts.views)
@@ -120,7 +124,12 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
     while j > 0 {
         j = j - 1
         if (stmts.at(j)).binding_name().as_str() == current.as_str() {
-            val further = (stmts.at(j)).borrow_binding_origin(views)
+            var further = (stmts.at(j)).borrow_binding_origin(views)
+            if further.as_str() == "" && (stmts.at(j)).declares_borrow_without_value(views) {
+                further = assigned_borrow_origin(stmts, j + 1, current.as_str(), views)
+                // Every value assigned borrows something that outlives the function.
+                if further.as_str() == "" { return further }
+            }
             if further.as_str() == "" { return current }
             current = further
         }
@@ -128,20 +137,20 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
     return current
 }
 
-fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be changed here: `${borrow}` borrows it and is still used afterwards"
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.span, message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
 }
 
 /// `val view = text.as_str()` then `return view`: TypeCheck catches the
 /// direct form; here the origin is known, so the bound form is caught too.
 fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str, origin: str, views: &List<String>,
-    diags: Ptr<List<Diagnostic>>): void {
+    diags: &var Diagnostics): void {
     var i = from + 1
     while i < stmts.size() {
         if (stmts.at(i)).stmt_returns(bound, views) {
             val message = "cannot return `${bound}`: it borrows `${origin}`, which this function owns and drops at the return"
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message)))
             return
         }
         i = i + 1
@@ -155,9 +164,9 @@ fun name_in(names: &List<String>, name: str): bool {
     return false
 }
 
-fun Stmt.emit_moved_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+fun Stmt.emit_moved_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be moved here: `${borrow}` borrows it and is still used afterwards"
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.span, message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
 }
 
 /// The local a `val`/`var` initializer borrows from, or "".
@@ -230,7 +239,7 @@ fun Type.bl_ty_base_name(): String {
     }
 }
 
-fun Stmt.check_nested_blocks(facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun Stmt.check_nested_blocks(facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: &var Diagnostics): void {
     when (self.kind) {
         If(_c, then_body, else_body) => {
             check_stmt_list(&then_body, facts, ptable, params, diags)

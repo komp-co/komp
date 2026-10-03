@@ -14,7 +14,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Module
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 struct Claim {
@@ -22,14 +28,14 @@ struct Claim {
     val is_mut: bool
 }
 
-pub fun Module.borrow_exclusivity_module(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.borrow_exclusivity_module(diags: &var Diagnostics): void {
     var param_table = self.build_param_table()
     while decl in &self.decls {
         decl.bx_check_top_decl(&var param_table, diags)
     }
 }
 
-fun TopDecl.bx_check_top_decl(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.bx_check_top_decl(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     when (self.kind) {
         Function(_p, _r, body, _pub, _u, _mut, _st) => {
             bx_check_stmts(&body, ptable, diags)
@@ -48,13 +54,13 @@ fun TopDecl.bx_check_top_decl(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Dia
     }
 }
 
-fun bx_check_stmts(stmts: &List<Stmt>, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun bx_check_stmts(stmts: &List<Stmt>, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     while stmt in &stmts {
         (stmt).bx_check_stmt(ptable, diags)
     }
 }
 
-fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     when (self.kind) {
         Expression(e) => bx_check_expr(unsafe { &*e }, self.span, ptable, diags)
         LetVal(_n, _t, init) => bx_check_init(init.view(), self.span, ptable, diags)
@@ -108,12 +114,12 @@ fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic
 }
 
 /// A declaration without an initializer has a null pointer.
-fun bx_check_init(init_opt: Ptr<Expr>?, at: Span, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun bx_check_init(init_opt: Ptr<Expr>?, at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     val init = init_opt ?: return
     bx_check_expr(unsafe { &*init }, at, ptable, diags)
 }
 
-fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     when (self.kind) {
         Call(name, args) => {
             var claims = List.new<Claim>()
@@ -122,6 +128,7 @@ fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<
             bx_check_exprs(&args, at, ptable, diags)
         }
         CallValue(_callee, args) => bx_check_exprs(&args, at, ptable, diags)
+        Intrinsic(_intrinsic, args) => bx_check_exprs(&args, at, ptable, diags)
         MethodCall(receiver, method, args) => {
             var claims = List.new<Claim>()
             // Declared arguments only; the receiver is excluded.
@@ -142,7 +149,7 @@ fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<
     }
 }
 
-fun bx_check_exprs(args: &List<Expr>, at: Span, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun bx_check_exprs(args: &List<Expr>, at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
     while arg in &args {
         arg.bx_check_expr(at, ptable, diags)
     }
@@ -168,7 +175,7 @@ fun Type.bx_method_key(method: str): String {
     return "${base.as_str()}_${method}"
 }
 
-fun report_conflicts(claims: &List<Claim>, at: Span, diags: Ptr<List<Diagnostic>>): void {
+fun report_conflicts(claims: &List<Claim>, at: Span, diags: &var Diagnostics): void {
     while i in 0..claims.size() {
         var j = i + 1
         while j < claims.size() {
@@ -183,9 +190,9 @@ fun report_conflicts(claims: &List<Claim>, at: Span, diags: Ptr<List<Diagnostic>
     }
 }
 
-fun Claim.emit_conflict(b: &Claim, at: Span, diags: Ptr<List<Diagnostic>>): void {
+fun Claim.emit_conflict(b: &Claim, at: Span, diags: &var Diagnostics): void {
     val message = self.conflict_message(b)
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(at, message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(at, message)))
 }
 
 fun Claim.conflict_message(b: &Claim): String {

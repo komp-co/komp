@@ -1,5 +1,9 @@
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_parse.parser.*
 
 fun Arm.arm_body_ends_in_expression(): bool {
@@ -47,7 +51,7 @@ impl Parser {
         } else {
             self.pos = save_pos
         }
-        return new_stmt(span, StmtKind.If(cond_ptr, then_body, else_body))
+        return Stmt.new(span, StmtKind.If(cond_ptr, then_body, else_body))
     }
 
     /// The `)` matching the `(` under the cursor. An unclosed group yields the
@@ -84,7 +88,7 @@ impl Parser {
                 self.require_stmt_terminator()
             }
         }
-        return new_stmt(span, StmtKind.If(cond_ptr, then_body, List.new<Stmt>()))
+        return Stmt.new(span, StmtKind.If(cond_ptr, then_body, List.new<Stmt>()))
     }
 
     /// The only loop keyword:
@@ -104,7 +108,7 @@ impl Parser {
         val cond_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *cond_ptr = cond }
         val body = self.parse_block()
-        return new_stmt(span, StmtKind.While(cond_ptr, body))
+        return Stmt.new(span, StmtKind.While(cond_ptr, body))
     }
 
     mutating fun at_iteration_header(): bool {
@@ -124,7 +128,7 @@ impl Parser {
         val body = self.parse_block()
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = subject }
-        return new_stmt(span, StmtKind.ForEach(intern(name.as_str()), subj, body))
+        return Stmt.new(span, StmtKind.ForEach(intern(name.as_str()), subj, body))
     }
 
     /// `for` only opens a trait impl; as a loop it gets one diagnostic and is
@@ -133,14 +137,14 @@ impl Parser {
         unsafe { self.advance() } // consume `for`
         self.parse_err(span, String.from("`while` is the only loop keyword — write `while i in a..b` or `while x in xs`"))
         if self.at_iteration_header() { return self.parse_while_in(span) }
-        return stmt_poison(span)
+        return Stmt.new_poison(span)
     }
 
     mutating fun parse_when_stmt(span: Span): Stmt {
         unsafe { self.advance() } // consume `when`
         var arms = List.new<Arm>()
         val subject_ptr = self.parse_when_subject_and_arms(&var arms)
-        return new_stmt(span, StmtKind.When(subject_ptr, arms))
+        return Stmt.new(span, StmtKind.When(subject_ptr, arms))
     }
 
     /// `when subject { pattern => EXPR }` in value position.
@@ -149,7 +153,7 @@ impl Parser {
         var arms = List.new<Arm>()
         val subject_ptr = self.parse_when_subject_and_arms(&var arms)
         self.require_expression_arms(&arms)
-        return new_expr(span, ExprKind.WhenExpr(subject_ptr, arms))
+        return Expr.new(span, ExprKind.WhenExpr(subject_ptr, arms))
     }
 
     /// A binding's or `return`'s operand, the only positions where a `when` is

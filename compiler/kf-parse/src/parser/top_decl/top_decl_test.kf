@@ -2,7 +2,10 @@ import core.assert.assert_eq
 import core.assert.fail
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.new_top_decl
 import kf_parse.parser.*
 
 @test fun parse_generic_struct_records_type_params(): void {

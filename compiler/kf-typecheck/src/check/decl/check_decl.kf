@@ -1,6 +1,10 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.types.*
@@ -14,7 +18,7 @@ import kf_typecheck.check.borrow.reject_unsayable_origin
 /// caller owns it; what the check hands out are views of it.
 pub fun check_decl_module(m: &var Module,
     table: &var DeclTable,
-    diags: Ptr<List<Diagnostic>>,
+    diags: &var Diagnostics,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>): Box<SigTable> {
@@ -160,8 +164,8 @@ pub fun assoc_names_as_projections(tr: TypeRef, assocs: &List<String>): TypeRef 
             if args.size() == 0 {
                 if str_list_has(assocs, name.as_str()) {
                     val owner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-                    unsafe { *owner = new_type_ref(tr.span, TypeRefKind.Named(intern("Self"), List.new<TypeRef>())) }
-                    return new_type_ref(tr.span, TypeRefKind.Projection(owner, name))
+                    unsafe { *owner = TypeRef.new(tr.span, TypeRefKind.Named(intern("Self"), List.new<TypeRef>())) }
+                    return TypeRef.new(tr.span, TypeRefKind.Projection(owner, name))
                 }
                 return tr
             }
@@ -169,17 +173,17 @@ pub fun assoc_names_as_projections(tr: TypeRef, assocs: &List<String>): TypeRef 
             while arg in &args {
                 nargs.push(assoc_names_as_projections(arg, assocs))
             }
-            return new_type_ref(tr.span, TypeRefKind.Named(name, nargs))
+            return TypeRef.new(tr.span, TypeRefKind.Named(name, nargs))
         }
         Reference(is_mut, inner) => {
             val q: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *q = assoc_names_as_projections(unsafe { *inner }, assocs) }
-            return new_type_ref(tr.span, TypeRefKind.Reference(is_mut, q))
+            return TypeRef.new(tr.span, TypeRefKind.Reference(is_mut, q))
         }
         Projection(owner, member) => {
             val q: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *q = assoc_names_as_projections(unsafe { *owner }, assocs) }
-            return new_type_ref(tr.span, TypeRefKind.Projection(q, member))
+            return TypeRef.new(tr.span, TypeRefKind.Projection(q, member))
         }
         _ => return tr
     }
@@ -203,14 +207,13 @@ pub fun Module.assoc_projection_registry(): Ptr<SigTable> {
     val sigs = new_sig_table()
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = sigs }
-    val sink: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *sink = List.new<Diagnostic>() }
+    var sink = new_diagnostics()
 
     while decl in &self.decls {
         decl.register_type_identity(sig_ptr)
     }
     while decl in &self.decls {
-        decl.register_assoc_bindings_decl(sig_ptr, sink)
+        decl.register_assoc_bindings_decl(sig_ptr, &var sink)
     }
     return sig_ptr
 }
@@ -219,8 +222,8 @@ pub fun Module.assoc_projection_registry(): Ptr<SigTable> {
 /// type; with layouts in one pass, instantiation would depend on order.
 pub fun TopDecl.register_type_identity(sig_ptr: Ptr<SigTable>): void {
     when (self.kind) {
-        Struct(_fields, _is_pub) => unsafe { sig_ptr.insert_type_identity(new_type_identity(self.crate, self.module_path, self.name)) }
-        EnumDecl(_variants, _is_pub) => unsafe { sig_ptr.insert_type_identity(new_type_identity(self.crate, self.module_path, self.name)) }
+        Struct(_fields, _is_pub) => unsafe { sig_ptr.insert_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name)) }
+        EnumDecl(_variants, _is_pub) => unsafe { sig_ptr.insert_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name)) }
         _ => return
     }
     val gnames = type_param_names(self.generics)
@@ -239,7 +242,7 @@ fun is_builtin_type_name(name: str): bool {
 }
 
 /// A type named like a builtin `resolve_type_ref` claims is rejected.
-pub fun TopDecl.reject_reserved_type_name(diags: Ptr<List<Diagnostic>>): bool {
+pub fun TopDecl.reject_reserved_type_name(diags: &var Diagnostics): bool {
     when (self.kind) {
         Struct(_fields, _is_pub) => { }
         EnumDecl(_variants, _is_pub) => { }
@@ -248,13 +251,13 @@ pub fun TopDecl.reject_reserved_type_name(diags: Ptr<List<Diagnostic>>): bool {
     if is_builtin_type_name(self.name.as_str()) {
         val message = "`${self.name.as_str()}` is reserved for a builtin type; a type cannot be declared with that name (rename it)"
         val lab = new_label(self.decl_name_span(), message)
-        unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+        diags.emit(new_diagnostic(Severity.Error, lab))
         return true
     }
     return false
 }
 
-pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
+pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics,
     table: Ptr<DeclTable>?): void {
     when (td.kind) {
         Function(params, ret_ptr, _body, is_pub, _unsafe, _mutating, _static) => {
@@ -337,10 +340,10 @@ fun impl_writes_method(methods: &List<TopDecl>, name: str): bool {
     return false
 }
 
-fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?): void {
+fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     var eff_table: Ptr<DeclTable>? = table
     if unsafe { (*metadata_owner).linkage.is_imported() } { eff_table = Option.None }
-    var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+    var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
     ctx0.owner_crate = owner_crate
     ctx0.owner_module = owner_module
     ctx0.owner_file = owner_file
@@ -372,7 +375,7 @@ fun method_body_owner(struct_name: String, method_name: String): String {
     return struct_name + String.from("_") + method_name
 }
 
-fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &var TopDecl, suffix: String, trait_name: String, trait_args: String, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?): void {
+fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &var TopDecl, suffix: String, trait_name: String, trait_args: String, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     when (td.kind) {
         Function(params, ret_ptr, _body, _pub, _unsafe, is_mutating, is_static) => {
             val impl_generics = type_param_names(&impl_tps)
@@ -387,7 +390,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             // how the receiver is passed; a `static fun` has none.
             var eff_table: Ptr<DeclTable>? = table
             if td.linkage.is_imported() { eff_table = Option.None }
-            var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
             ctx0.owner_crate = td.crate
             ctx0.owner_module = td.scope_module()
             ctx0.owner_file = td.span.file_id
@@ -432,7 +435,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             }
             val sp = sig_ptr
             if td.linkage.is_imported() {
-                val receiver = canonical_type_identity(new_type_identity(td.crate, td.module_path, intern(struct_name.as_str())))
+                val receiver = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, intern(struct_name.as_str())))
                 unsafe { sp.insert_method_link(MethodLink {
                     receiver_identity: receiver,
                     method_name: td.name.as_string(),
@@ -447,7 +450,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
     }
 }
 
-fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
+fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     // An interface-loaded declaration has no body here.
     if td.linkage.is_imported() { return }
     when (td.kind) {
@@ -488,7 +491,7 @@ fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: Ptr<List<Dia
                 check_method_body(struct_name.clone(), gnames, trait_name.clone(), trait_args.clone(), methods.at_mut(i), diags, sigs)
             }
             // Its own ctx, so the impl's generics are in scope.
-            var sig_ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+            var sig_ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
             sig_ctx.owner_crate = td.crate
             sig_ctx.owner_module = td.scope_module()
             sig_ctx.owner_file = td.span.file_id

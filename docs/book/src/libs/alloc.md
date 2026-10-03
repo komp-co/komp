@@ -559,6 +559,43 @@ deque cannot change while a cursor from it is still used: a push could move
 the buffer out from under it. Dropping a deque drops its elements; `clone()`
 copies them in order.
 
+## Arena
+
+`Arena<T>`, from `alloc.arena`, owns values that live as long as it does and
+are dropped together with it. `put` moves a value in and hands back a
+`Ptr<T>` to it. The pointer stays valid until the arena is dropped, since
+values sit in chunks that never move, so values can point at each other
+freely:
+
+```kflat
+import alloc.arena.*
+
+struct Node {
+    val name: String
+    val parent: Ptr<Node>?
+}
+
+fun main(): int32 {
+    var nodes = Arena.new<Node>()
+    val root = nodes.put(Node { name: String.from("root"), parent: null })
+    val leaf = nodes.put(Node { name: String.from("leaf"), parent: root })
+    val up = unsafe { (*leaf).parent!! }
+    return unsafe { (*up).name.byte_len() } as int32 - 4    // 0
+}
+```
+
+| method | does |
+|---|---|
+| `Arena.new<T>()` | an empty arena; nothing is allocated until the first `put` |
+| `put(x)` | the arena owns `x`; a `Ptr<T>` to it |
+| `size()`, `is_empty()` | how many values were put |
+
+Dropping the arena drops every value in it, then frees its chunks. Nothing
+is freed on its own: a value that must go before the others belongs in a
+`Box`. A pointer from `put` must not be used once the arena is dropped,
+which the compiler does not check. Chunks start at 16 values and double up
+to 4096, so most `put`s allocate nothing.
+
 ## HashMap
 
 A hash map keyed by anything implementing `Hash + Equal`:

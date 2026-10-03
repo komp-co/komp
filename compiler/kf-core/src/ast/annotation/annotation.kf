@@ -4,14 +4,17 @@ import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.intern
-import kf_core.ast.new_expr
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
 
 /// One the compiler writes itself, each word a bare name:
 /// `receiver_params(T, U)`.
 pub fun new_annotation(span: Span, name: str, words: List<String>): Annotation {
     var args = List.new<AnnotationArg>()
     while word in &words {
-        val value = new_expr(span, ExprKind.Variable(intern(word.as_str())))
+        val value = Expr.new(span, ExprKind.Variable(intern(word.as_str())))
         args.push(AnnotationArg { name: intern(""), value: Box.new(value) })
     }
     return Annotation { name: intern(name), args: args, has_parens: words.size() > 0, span: span }

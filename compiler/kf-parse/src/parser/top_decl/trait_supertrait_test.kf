@@ -1,7 +1,6 @@
 import core.assert.assert_eq
 import core.assert.fail
 import alloc.list.*
-import kf_core.ast.*
 import kf_parse.parser.parser_for
 
 @test fun parse_trait_records_one_supertrait(): void {

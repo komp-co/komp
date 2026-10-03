@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.enum_tag_const
+import kf_core.ast.statement.SwitchTag
 
 import kf_codegen.concat_all
 

@@ -3,9 +3,11 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
 
 fun literal(kind: ExprKind): Expr {
-    return new_expr(no_span(), kind)
+    return Expr.new(no_span(), kind)
 }
 
 fun binary(left: ExprKind, op: BinOp, right: ExprKind): Expr {

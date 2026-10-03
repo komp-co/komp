@@ -8,6 +8,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import json.writer.*
 import kf_interface.*
 

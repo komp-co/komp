@@ -1,6 +1,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import kf_resolve.new_decl_table
 import kf_core.span.no_span
 import kf_typecheck.typecheck_module
@@ -65,7 +70,7 @@ fun a_lang_key_declared_twice_is_rejected(): void {
 fun a_function_cannot_be_a_lang_item(): void {
     var decls = List.new<TopDecl>()
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
     var helper = new_top_decl(no_span(), String.from("helper"), kind)
     helper.crate = new_crate_id("alloc")
@@ -85,7 +90,7 @@ fun the_lang_key_is_read_from_the_annotation(): void {
 /// A function owned by `crate`, `@prelude` when `in_prelude`.
 fun prelude_decl(crate: str, in_prelude: bool): TopDecl {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
     var helper = new_top_decl(no_span(), String.from("helper"), kind)
     helper.crate = new_crate_id(crate)

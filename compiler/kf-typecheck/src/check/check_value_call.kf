@@ -1,7 +1,7 @@
 // `f(args)` on a local value means `f.call(args)`. Functions and unknown
 // names stay on the free-call path.
 
-import kf_core.ast.*
+import kf_core.ast.Sym
 
 // Only a local proven callable through a `Call` bound, so a same-named local
 // does not steal a function call.

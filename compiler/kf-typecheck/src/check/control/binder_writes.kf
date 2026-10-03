@@ -4,6 +4,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.statement.Stmt
 import kf_core.span.no_span
 import kf_typecheck.check.*
 import kf_typecheck.types.TAG_REF
@@ -135,6 +140,7 @@ fun Expr.expr_writes_through(name: str, ty: &Type, ctx: &var TypeCtx): bool {
                 args.args_write_through(name, ty, ctx)
         }
         Call(_f, args) => args.args_write_through(name, ty, ctx)
+        Intrinsic(_i, args) => args.args_write_through(name, ty, ctx)
         CallValue(_callee, args) => args.args_write_through(name, ty, ctx)
         Binary(l, _op, r) => l.expr_writes_through(name, ty, ctx) || r.expr_writes_through(name, ty, ctx)
         Unary(_op, inner) => inner.expr_writes_through(name, ty, ctx)
@@ -202,7 +208,7 @@ pub mutating fun Expr.yield_ref_binder_value(expected: &Type, ctx: &var TypeCtx)
     if !ctx.ref_binders.contains(&name) { return false }
     val payload = autoderef_ty(self.ty.clone())
     if !payload.type_eq(expected.clone()) { return false }
-    var binder = new_expr(self.span, ExprKind.Variable(intern(name.as_str())))
+    var binder = Expr.new(self.span, ExprKind.Variable(intern(name.as_str())))
     binder.ty = self.ty.clone()
     binder.decl = self.decl
     self.kind = ExprKind.Deref(Box.new(binder))

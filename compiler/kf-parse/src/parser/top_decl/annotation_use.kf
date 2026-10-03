@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.AnnotationArg
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.*
 
 impl Parser {

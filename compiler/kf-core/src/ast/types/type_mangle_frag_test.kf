@@ -67,11 +67,12 @@ fun ptr_to(inner: Type): Type {
 }
 
 @test fun a_nested_pointer_keeps_every_level(): void {
-    assert_eq(ptr_to(ptr_to(struct_named("A"))).mangle_frag().as_str(), "Ptr__Ptr__A", "nesting survives to the innermost type")
+    val nested = ptr_to(ptr_to(struct_named("A")))
+    assert_eq(nested.mangle_frag().as_str(), "Ptr__Ptr__A", "nesting survives to the innermost type")
 }
 
 @test fun a_borrowed_dyn_trait_keeps_its_dyn_identity(): void {
-    val dyn_ty = dyn_trait_type(intern("Score"), unsafe { alloc<List<Type>>() }, no_span())
+    val dyn_ty = dyn_trait_type(intern("Score"), List.new<Type>(), no_span())
     val bare = dyn_ty.mangle_frag()
     val borrowed = ref_to(dyn_ty).mangle_frag()
     assert_eq(borrowed.as_str(), bare.as_str(), "a borrowed dyn trait mangles as the dyn trait")

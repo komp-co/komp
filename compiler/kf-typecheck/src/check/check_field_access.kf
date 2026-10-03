@@ -2,32 +2,32 @@
 // be offered.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.types.Type
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 
 pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, ctx: &var TypeCtx): Type {
-    if receiver_ty.is_poison() { return poison_ty() }
+    if receiver_ty.is_poison() { return Type.new_poison() }
     val recv_ty = autoderef_ty(receiver_ty)
     val tag = recv_ty.kind.kind_tag()
     if tag == TAG_GENERIC() {
         // An unbounded type parameter has no members.
         val lab = new_label(_span, String.from("generic type parameter has no members (no bound)"))
         ctx.emit(new_diagnostic(Severity.Error, lab))
-        return poison_ty()
+        return Type.new_poison()
     }
     // A field read on an enum is decidable and wrong.
     if tag == TAG_ENUM() {
         emit_field_on_enum(recv_ty.kind.coerce_enum_name(), field_name, _span, ctx)
-        return poison_ty()
+        return Type.new_poison()
     }
     // Asks the declared layout whatever the tag: `String` is a struct.
     val is_struct = when (recv_ty.kind) {
         Struct(_) => true
         _ => false
     }
-    if !is_struct { return poison_ty() }
+    if !is_struct { return Type.new_poison() }
     val sname = recv_ty.kind.struct_name()
     val sp = ctx.sigs
     // An instance only ever named inside another's fields, `Pair<I, M>` holding
@@ -39,7 +39,7 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
         if unsafe { sp.find_enum(sname.as_str(), ctx.owner_crate) }.is_some() {
             emit_field_on_enum(sname, field_name, _span, ctx)
         }
-        return poison_ty()
+        return Type.new_poison()
     }
     while f in &layout.fields {
         if f.name.as_str().equals(field_name.as_str()) {
@@ -49,7 +49,7 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
     // The layout is here without the field: decidable. The earlier exits are
     // states a valid program passes through.
     emit_no_such_field(sname, field_name, &layout, _span, ctx)
-    return poison_ty()
+    return Type.new_poison()
 }
 
 /// An enum has variants, not fields. This matters most for an optional: a

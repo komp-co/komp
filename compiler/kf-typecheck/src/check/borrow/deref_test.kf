@@ -2,7 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
 import kf_core.diagnostic.*
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.mk_ctx
@@ -10,7 +12,7 @@ import kf_typecheck.types.type_eq
 
 mutating fun TypeCtx.invalid_deref_option_type(): Type {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val sigs = self.sigs
     unsafe { sigs.insert_inst(GenericInst { mangled: String.from("Option__int32"), base: String.from("Option"), args: args }) }
     return Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
@@ -19,8 +21,8 @@ mutating fun TypeCtx.invalid_deref_option_type(): Type {
 fun deref_test_check_in(ty: Type, ctx: &var TypeCtx): Type {
     ctx.declare_val(String.from("value"), ty)
     val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *inner = new_expr(no_span(), ExprKind.Variable(intern("value"))) }
-    var expr = new_expr(no_span(), ExprKind.Deref(inner))
+    unsafe { *inner = Expr.new(no_span(), ExprKind.Variable(intern("value"))) }
+    var expr = Expr.new(no_span(), ExprKind.Deref(inner))
     check_expr(&var expr, ctx)
     return expr.ty
 }
@@ -62,14 +64,14 @@ fun TypeCtx.invalid_deref_first_message(): String {
 }
 
 @test fun test_invalid_deref_keeps_poison_silent(): void {
-    val ctx = invalid_deref_check(poison_ty())
+    val ctx = invalid_deref_check(Type.new_poison())
     assert_eq(ctx.invalid_deref_count(), 0, "an earlier type error does not cascade")
 }
 
 @test fun test_valid_deref_pointer_returns_pointee(): void {
     var ctx = mk_ctx()
-    val result = deref_test_check_in(ptr_ty(int32_ty(no_span()), no_span()), &var ctx)
-    assert_eq(result.type_eq(int32_ty(no_span())), true, "raw-pointer dereference returns its pointee type")
+    val result = deref_test_check_in(Type.new_ptr(Type.new_int32(no_span()), no_span()), &var ctx)
+    assert_eq(result.type_eq(Type.new_int32(no_span())), true, "raw-pointer dereference returns its pointee type")
 }
 
 // `&*p` and `&var *p` become references.
@@ -90,11 +92,11 @@ mutating fun Expr.borrow_written_deref_in(written: uint8): void {
 }
 
 fun checked_deref_of_p(): Expr {
-    var p = new_expr(no_span(), ExprKind.Variable(intern("p")))
+    var p = Expr.new(no_span(), ExprKind.Variable(intern("p")))
     p.ty = ptr_to_int()
     val pp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *pp = p }
-    var e = new_expr(no_span(), ExprKind.Deref(pp))
+    var e = Expr.new(no_span(), ExprKind.Deref(pp))
     e.ty = int_ty()
     return e
 }

@@ -1,0 +1,15 @@
+//! run: exit 2
+//! deps: core
+// Inside an impl, `Self` names its type as a static call's receiver too.
+
+struct Counter { val n: int32 }
+
+impl Counter {
+    static fun one(): Self { return Self { n: 1 } }
+    static fun two(): Self {
+        val a = Self.one()
+        return Self { n: a.n * 2 }
+    }
+}
+
+fun main(): int32 { return Counter.two().n }

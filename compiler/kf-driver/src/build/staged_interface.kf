@@ -3,13 +3,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_crate_id
 import kf_assemble.*
 import kf_interface.export_closure_diagnostics
 import kf_interface.emit.emit_interface_full
 import kf_driver.count_errors
 import kf_driver.fresh_source_map
 import kf_driver.resolve_typecheck_diagnostics
+import kf_core.diagnostic.new_diagnostics
 
 /// The interface's text, or, when `failure` says why, none: a load missing,
 /// or the crate not compiling, in which case its last good interface stands.
@@ -22,7 +24,7 @@ pub struct StagedInterface {
 /// with nothing printed.
 pub fun CompileUnit.interface_from_source(interfaces: &InterfaceLookup, overlay: &Overlay): StagedInterface {
     val smap = fresh_source_map()
-    val parse_diags = fresh_diag_list()
+    var parse_diags = new_diagnostics()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = interfaces.path_of(dependency.as_str())
@@ -31,9 +33,9 @@ pub fun CompileUnit.interface_from_source(interfaces: &InterfaceLookup, overlay:
         append_modules(&var modules, &loaded.modules)
     }
     val name = String.from(self.name.as_str())
-    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, parse_diags, false, overlay)
+    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, &var parse_diags, false, overlay)
     append_modules(&var modules, &source_crate.modules)
-    if unsafe { parse_diags.size() } > 0 { return staged_failure("`${self.name}` does not parse") }
+    if parse_diags.size() > 0 { return staged_failure("`${self.name}` does not parse") }
     var merged = merge_module_list(modules)
     merged.crate = new_crate_id(self.name.as_str())
     if count_errors(&merged.resolve_typecheck_diagnostics(smap)) > 0 {

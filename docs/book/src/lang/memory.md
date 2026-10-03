@@ -365,6 +365,24 @@ fun bump(slot: &var int32): void { ... }    // fine
 fun read(value: &dyn Score): int32 { ... }  // fine
 ```
 
+A `String` passed where a `str` is expected lends its text for the call.
+When the callee keeps the value instead, as a list keeps an element, the
+text must outlive the statement, and a temporary `String` does not:
+
+```kflat
+var names = ["T"]
+names.push(String.from("hello"))    // error
+val kept = String.from("hello")
+names.push(kept)                    // fine: `kept` outlives the statement
+```
+
+```console
+error: `push` keeps this `str`, which points into a `String` freed at the end of the statement; keep the `String` in a local first, or store `String`s
+```
+
+The same holds for any parameter typed by a type parameter that stands for
+`str`, whose argument a generic function or method may store.
+
 ## View types
 
 A `view struct` or `view enum` is a borrow of your own design. Its fields may
@@ -424,6 +442,28 @@ generic view, such as `Cursor<int32>` from
 `view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
 being one in another crate. Core's [slices](arrays.md#any-length-slices),
 `&T[]` and `&var T[]`, are views written this way.
+
+A `val` field holding a `&var` cannot be pointed elsewhere, but a `mutating`
+call through it changes what it borrows. It still needs a writable view: from
+a method that is not `mutating`, it is rejected.
+
+```kflat
+struct Sink {
+    var items: List<int32>
+}
+
+impl Sink {
+    mutating fun emit(x: int32): void { self.items.push(x) }
+}
+
+view struct Ctx {
+    val sink: &var Sink
+}
+
+impl Ctx {
+    mutating fun report(x: int32): void { self.sink.emit(x) }
+}
+```
 
 ## Returning a borrow
 

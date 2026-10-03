@@ -4,7 +4,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.resolve_type_ref
@@ -22,21 +26,21 @@ pub mutating fun Expr.name_method_value(receiver: &Expr, method: Sym, ctx: &var 
         val what = "`${type_name.as_str()}.${method.as_str()}`"
         val message = "generic method ${what} cannot be used as a value: a function value has one type"
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
-    val owner_ref = new_type_ref(self.span, TypeRefKind.Named(intern(type_name.as_str()), List.new<TypeRef>()))
+    val owner_ref = TypeRef.new(self.span, TypeRefKind.Named(intern(type_name.as_str()), List.new<TypeRef>()))
     val owner = owner_ref.resolve_type_ref(ctx)
     self.kind = ExprKind.FnRef(intern(sig.name.as_str()))
     val link = sigs.receiver_method_link(&owner, method.as_str())
     if link.as_str().byte_len() > 0 { self.mangled_callee = link }
-    var params = new_type_vec()
+    var params = List.new<Type>()
     var is_receiver = !sig.is_static
     while param in &sig.params {
         params.push(if is_receiver { owner.borrowed(sig.is_mutating, self.span) } else { param })
         is_receiver = false
     }
-    self.ty = fn_ty(params, sig.ret, Provenance.Inferred(self.span))
+    self.ty = Type.new_fn(params, sig.ret, Provenance.Inferred(self.span))
     ctx.note_fn_type(&self.ty)
     return true
 }

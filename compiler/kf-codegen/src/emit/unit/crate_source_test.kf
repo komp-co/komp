@@ -5,6 +5,7 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.declaration.*
 
 // `Point` is public, so the header owns it; `Secret` stays here.
 fun src_view(): Module {

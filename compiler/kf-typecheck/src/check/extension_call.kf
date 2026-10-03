@@ -6,13 +6,18 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.check_dyn_method_call
 import kf_typecheck.traits.receiver_declares_trait_method
+import kf_typecheck.traits.str_list_has
 import kf_typecheck.note_import_use_named
 
 /// True when either took the call.
@@ -25,7 +30,12 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
     val link = chosen_extension(name.as_str(), &recv.ty, e.span, ctx)
     if link.byte_len() == 0 { return e.report_blocked_extension(name.as_str(), &recv.ty, ctx) }
     if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args.size(), e.span, ctx) {
-        e.ty = poison_ty()
+        e.ty = Type.new_poison()
+        return true
+    }
+    if recv.cannot_lend_to(link.as_str(), ctx) {
+        emit_immutable_recv_err(name.as_string(), recv, e.span, ctx)
+        e.ty = Type.new_poison()
         return true
     }
     var call_args = List.new<Expr>()
@@ -54,10 +64,10 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
     if link.byte_len() == 0 { return false }
     if link.as_str().equals(".") {
         ctx.pretyped_args = 0
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
-    self.ty = check_call(link.clone(), args, self.type_args, false, self.span, ctx)
+    self.ty = check_call(link.clone(), args, self.type_args, self.span, ctx)
     // After the check, which coerced the arguments in place.
     val callee = if ctx.qualified_callee.byte_len() > 0 { ctx.qualified_callee.clone() } else { link.clone() }
     ctx.qualified_callee = String.from("")
@@ -192,6 +202,31 @@ fun fitting_extensions(name: str, recv: &Type, ctx: &var TypeCtx): List<Extensio
     return out
 }
 
+/// For each extension name, the hidden name of the one a call on `recv`
+/// would pick; a name no extension fits, or several tie for, is left out.
+pub fun extensions_callable_on(recv: &Type, ctx: &var TypeCtx): List<String> {
+    var out = List.new<String>()
+    var asked = List.new<String>()
+    val names = unsafe { (*ctx.sigs).ext_names }
+    while name in &names {
+        if !str_list_has(&asked, name.as_str()) {
+            asked.push(name.as_string())
+            val fits = fitting_extensions(name.as_str(), recv, ctx)
+            var best: uint64 = 0
+            var winners = List.new<String>()
+            while fit in &fits {
+                if fit.rank > best {
+                    best = fit.rank
+                    winners = List.new<String>()
+                }
+                if fit.rank == best { winners.push(fit.link.clone()) }
+            }
+            if winners.size() == 1 { out.push(winners.at(0).clone()) }
+        }
+    }
+    return out
+}
+
 fun fits_contain(fits: &List<ExtensionFit>, link: str): bool {
     while fit in &fits {
         if fit.link.as_str().equals(link) { return true }
@@ -282,4 +317,17 @@ pub fun unimported_extension_note(wanted: str, ctx: &var TypeCtx): String {
     }
     if found.as_str() == "" { return "" }
     return ": `${found.as_str()}` declares an extension `${wanted}`, and this file does not import it"
+}
+
+/// A `mutating` extension's `&var` receiver, asked of a place that cannot
+/// lend one: reported in method terms, as an impl's method is.
+fun Expr.cannot_lend_to(link: str, ctx: &var TypeCtx): bool {
+    val sig = unsafe { (*ctx.sigs).find_signature(link) } ?: return false
+    if sig.params.is_empty() { return false }
+    val wants_var = when (sig.params.at(0).kind) {
+        RefTo(v, _) => v
+        _ => false
+    }
+    if !wants_var || self.place_root_name().is_empty() { return false }
+    return !self.place_is_mutable(ctx) && !self.lends_through_its_borrow(&self.ty, ctx)
 }

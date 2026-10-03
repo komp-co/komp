@@ -1,6 +1,9 @@
 // One arm per StmtKind; a `let` also declares its binding.
 
-import kf_core.ast.*
+import kf_core.ast.view
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.*
@@ -147,8 +150,7 @@ fun is_written_borrow(code: uint8): bool {
 }
 
 pub fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
-    val p: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *p = inner }
+    val p = type_node(inner)
     return Type { kind: TypeKind.RefTo(mutable, p), provenance: Provenance.Inferred(span) }
 }
 
@@ -156,6 +158,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     // Read before check_expr clears it.
     val written = unsafe { init_ptr.coerce }
     val live = unsafe { &var *init_ptr }
+    if ann.is_some() { live.take_annotated_type_args(unsafe { &*(ann!!) }) }
     check_local_initializer(live, ctx)
     if ann.is_none() && live.declares_decided(name.clone(), mutable, ctx) { return }
     // The live node: the rewrites below replace what a copy would still hold.
@@ -178,7 +181,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             } else {
                 val lab = new_label(init.span, String.from("init type doesn't match declared"))
                 ctx.emit(new_diagnostic(Severity.Error, lab))
-                ty = poison_ty()
+                ty = Type.new_poison()
             }
         }
         None => {

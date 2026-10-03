@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 
 /// The names on the member at `index`, joined by spaces.

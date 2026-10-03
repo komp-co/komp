@@ -3,6 +3,10 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.any_kind_target
 import kf_interface.parse.parse_interface
 
 fun annotation_module(is_pub: bool): Module {
@@ -45,7 +49,7 @@ fun private_annotation_stays_out_of_the_interface(): void {
 }
 
 fun named(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 /// The target of the one annotation `m` reads back as.

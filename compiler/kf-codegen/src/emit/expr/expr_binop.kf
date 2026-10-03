@@ -3,7 +3,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.*
 
 import kf_codegen.concat_all
 import kf_codegen.emit.c_type_of_type

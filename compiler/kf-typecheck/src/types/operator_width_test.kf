@@ -2,15 +2,18 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.*
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.*
 import kf_typecheck.check.check_expr
+import kf_typecheck.leaked_diagnostics
 
 fun operator_width_ctx(): TypeCtx {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
     val declarations: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *declarations = new_decl_table() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
@@ -22,12 +25,12 @@ fun operator_width_ctx(): TypeCtx {
     unsafe { signatures.insert_trait_impl(TraitImplInfo { type_name: String.from("int64"), receiver_identity: intern("int64"), trait_name: String.from("Equal"), trait_args: "", generics: "", arg_count: 0 }) }
     unsafe { (*signatures).note_lang_trait("equal", intern("Equal")) }
     unsafe { (*signatures).note_lang_trait("compare", intern("Compare")) }
-    return new_type_ctx(void_ty(no_span()), diagnostics, declarations, signatures)
+    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, declarations, signatures)
 }
 
 fun operator_width_var(name: str, kind: TypeKind): Ptr<Expr> {
     val expression: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *expression = new_expr(no_span(), ExprKind.Variable(intern(name))) }
+    unsafe { *expression = Expr.new(no_span(), ExprKind.Variable(intern(name))) }
     unsafe { expression.ty = Type { kind: kind, provenance: Provenance.Declared(no_span()) } }
     return expression
 }
@@ -38,7 +41,7 @@ fun check_mixed_width(op: BinOp, left_kind: TypeKind, right_kind: TypeKind): boo
     val right = operator_width_var("right", right_kind)
     ctx.declare(String.from("left"), unsafe { left.ty.clone() })
     ctx.declare(String.from("right"), unsafe { right.ty.clone() })
-    var expression = new_expr(no_span(), ExprKind.Binary(left, op, right))
+    var expression = Expr.new(no_span(), ExprKind.Binary(left, op, right))
     check_expr(&var expression, &var ctx)
     return expression.ty.is_poison()
 }
@@ -49,9 +52,9 @@ fun mixed_width_diagnostic_count(op: BinOp): uint64 {
     val right = operator_width_var("right", TypeKind.UInt64)
     ctx.declare(String.from("left"), unsafe { left.ty.clone() })
     ctx.declare(String.from("right"), unsafe { right.ty.clone() })
-    var expression = new_expr(no_span(), ExprKind.Binary(left, op, right))
+    var expression = Expr.new(no_span(), ExprKind.Binary(left, op, right))
     check_expr(&var expression, &var ctx)
-    return unsafe { (*ctx.diags).size() }
+    return ctx.diags.items.size()
 }
 
 fun check_wide_value_with_literal(op: BinOp, literal_left: bool): bool {
@@ -64,7 +67,7 @@ fun check_wide_value_with_literal(op: BinOp, literal_left: bool): bool {
         left = ep(ExprKind.LitInt(0))
         right = value
     }
-    var expression = new_expr(no_span(), ExprKind.Binary(left, op, right))
+    var expression = Expr.new(no_span(), ExprKind.Binary(left, op, right))
     check_expr(&var expression, &var ctx)
     return !expression.ty.is_poison()
 }
@@ -80,7 +83,7 @@ fun check_int64_with_negative_literal(literal_left: bool): bool {
         left = negative
         right = value
     }
-    var expression = new_expr(no_span(), ExprKind.Binary(left, BinOp.Eq, right))
+    var expression = Expr.new(no_span(), ExprKind.Binary(left, BinOp.Eq, right))
     check_expr(&var expression, &var ctx)
     return !expression.ty.is_poison()
 }
@@ -90,7 +93,7 @@ fun out_of_range_uint8_literal_is_rejected(): bool {
     val value = operator_width_var("value", TypeKind.UInt8)
     ctx.declare(String.from("value"), unsafe { value.ty.clone() })
     val literal = ep(ExprKind.LitInt(511))
-    var expression = new_expr(no_span(), ExprKind.Binary(value, BinOp.Eq, literal))
+    var expression = Expr.new(no_span(), ExprKind.Binary(value, BinOp.Eq, literal))
     check_expr(&var expression, &var ctx)
     return expression.ty.is_poison()
 }

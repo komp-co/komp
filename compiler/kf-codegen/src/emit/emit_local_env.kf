@@ -6,7 +6,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
 
 import kf_codegen.concat
 import kf_codegen.emit.*

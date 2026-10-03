@@ -3,6 +3,8 @@
 // writer, which publishes it.
 
 import alloc.list.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.*
 
 /// `str`, `&T` and `&var T`: types whose validity is bounded by another frame.
 pub fun TypeRef.type_ref_is_borrow(): bool {
@@ -71,11 +73,8 @@ pub fun Expr.borrow_root_in(views: &List<String>): String {
 pub fun Expr.lent_roots(views: &List<String>): List<String> {
     var roots = List.new<String>()
     when (self.kind) {
-        Call(_name, args) => {
-            while arg in &args {
-                if arg.is_lent(views) { add_root(&var roots, arg.borrow_root_in(views)) }
-            }
-        }
+        Call(_name, args) => args.add_lent_roots(views, &var roots)
+        Intrinsic(_intrinsic, args) => args.add_lent_roots(views, &var roots)
         StructLit(_name, fields) => {
             while field in &fields {
                 if field.value.is_lent(views) { add_root(&var roots, field.value.borrow_root_in(views)) }
@@ -84,6 +83,12 @@ pub fun Expr.lent_roots(views: &List<String>): List<String> {
         _ => {}
     }
     return roots
+}
+
+fun List<Expr>.add_lent_roots(views: &List<String>, roots: &var List<String>): void {
+    while arg in &self {
+        if arg.is_lent(views) { add_root(roots, arg.borrow_root_in(views)) }
+    }
 }
 
 fun add_root(roots: &var List<String>, root: String): void {

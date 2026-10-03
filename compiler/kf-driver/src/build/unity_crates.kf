@@ -3,23 +3,25 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.new_crate_id
 import kf_assemble.no_overlay
 import kf_assemble.stamp_module_owner
 
-import kf_driver.*
+import kf_driver.fresh_source_map
+import kf_driver.run_pipeline
 import kf_driver.testing.*
 import kf_shared.publish_text
+import kf_core.diagnostic.new_diagnostics
 
 /// Compiles `crates`, dependencies first and the root last, into the C at
 /// `out`. `with_tests` adds the root's `_test.kf` files and a generated test
 /// main. Returns the number of errors; nothing is written when there are any.
 pub fun compile_unity_crates(crates: &List<CrateSource>, is_bin: bool, with_tests: bool, out: str): int32 {
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
+    var pdiags = new_diagnostics()
     val none = no_overlay()
-    var modules = assemble_crate_list(crates, smap, pdiags, with_tests, &none)
-    val parse_errors = report_parse_errors(pdiags, smap, false)
+    var modules = assemble_crate_list(crates, smap, &var pdiags, with_tests, &none)
+    val parse_errors = report_parse_errors(&var pdiags, smap, false)
     // A test build stops here, before a parse error becomes a C compiler one.
     if with_tests && parse_errors != 0 { return parse_errors }
     if with_tests {
@@ -32,11 +34,11 @@ pub fun compile_unity_crates(crates: &List<CrateSource>, is_bin: bool, with_test
         stamp_module_owner(&var main_module, new_crate_id(root_name))
         modules.push(main_module)
     }
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: parse_errors } }
+    var errors = new_diagnostics()
+    errors.count_errors(parse_errors)
     var merged = merge_module_list(modules)
-    val generated = merged.run_pipeline(is_bin || with_tests, errp, smap)
-    val errors = unsafe { errp.n }
-    if errors == 0 && !publish_text(out, generated.as_str()) { return 1 }
-    return errors
+    val generated = merged.run_pipeline(is_bin || with_tests, &var errors, smap)
+    val error_count = errors.error_count()
+    if error_count == 0 && !publish_text(out, generated.as_str()) { return 1 }
+    return error_count
 }

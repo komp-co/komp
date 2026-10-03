@@ -1,6 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Linkage
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 fun TopDecl.impl_member_is_method(): bool {
@@ -13,7 +14,7 @@ fun TopDecl.impl_member_is_method(): bool {
 /// One name twice in a single impl block; only the first would be registered.
 /// Per block: impls of different traits may share a method name, mangled
 /// apart. Imported declarations are skipped.
-fun reject_duplicate_methods(methods: &List<TopDecl>, type_name: str, linkage: Linkage, diags: Ptr<List<Diagnostic>>): void {
+fun reject_duplicate_methods(methods: &List<TopDecl>, type_name: str, linkage: Linkage, diags: &var Diagnostics): void {
     if linkage.is_imported() { return }
     while i in 0..methods.size() {
         val later = *methods.at(i)
@@ -27,7 +28,7 @@ fun reject_duplicate_methods(methods: &List<TopDecl>, type_name: str, linkage: L
                         if earlier.name.as_str().equals(later.name.as_str()) {
                             val message = "`${later.name.as_str()}` is already defined for `${type_name}`"
                             val lab = new_label((&later).decl_name_span(), message)
-                            unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+                            diags.emit(new_diagnostic(Severity.Error, lab))
                             reported = true
                         }
                     }

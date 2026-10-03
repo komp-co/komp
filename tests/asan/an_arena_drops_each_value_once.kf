@@ -1,0 +1,15 @@
+//! asan: clean
+// Dropping an arena drops every value it holds, across chunks and in the
+// partly filled last one, and frees each chunk.
+
+import alloc.arena.*
+
+fun main(): int32 {
+    var arena = Arena.new<String>()
+    var total: uint64 = 0
+    while i in 0..40 {
+        val p = arena.put(String.from("value"))
+        total = total + unsafe { (*p).byte_len() }
+    }
+    return (total - 200) as int32
+}

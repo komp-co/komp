@@ -11,20 +11,24 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_typecheck.*
 
 /// Before anything reads an impl as a fact about its target.
-pub fun Module.check_impl_headers(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_impl_headers(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     while decl in &self.decls {
         decl.check_impl_header(sig_ptr, diags)
     }
 }
 
 /// A non-impl is left alone.
-pub fun TopDecl.check_impl_header(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.check_impl_header(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         ImplBlock(_methods) => self.check_inherent_target(sig_ptr, diags)
         TraitImpl(tref, _members) => {
@@ -38,7 +42,7 @@ pub fun TopDecl.check_impl_header(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagno
 
 /// `Iterator<T>` in `impl Iterator<T> for Rev<...>`: each name must be
 /// declared by the impl or be a real type.
-fun TopDecl.check_trait_impl_args(tref: TypeRef, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.check_trait_impl_args(tref: TypeRef, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (tref.kind) {
         Named(_name, args) => {
             while arg in &args {
@@ -49,7 +53,7 @@ fun TopDecl.check_trait_impl_args(tref: TypeRef, sig_ptr: Ptr<SigTable>, diags: 
     }
 }
 
-fun TypeRef.report_undeclared_trait_arg(td: &TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TypeRef.report_undeclared_trait_arg(td: &TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Named(name, sub_args) => {
             if sub_args.size() == 0 {
@@ -86,7 +90,7 @@ fun trait_arg_is_declared(name: str, td: &TopDecl, sig_ptr: Ptr<SigTable>): bool
 }
 
 /// The target must be a type of this crate.
-fun TopDecl.check_inherent_target(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.check_inherent_target(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     val name = self.name.as_str()
     if !self.target_names_a_type("an inherent impl needs a struct or enum declared in this crate", sig_ptr, diags) { return }
     // The owner decides: `String` is a builtin name core declares.
@@ -103,14 +107,14 @@ fun TopDecl.check_inherent_target(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagno
 
 /// A foreign trait for a foreign type is allowed; coherence prevents
 /// collisions.
-fun TopDecl.check_trait_impl_target(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.check_trait_impl_target(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     if is_builtin_type_name(self.name.as_str()) { return }
     self.target_names_a_type("a trait is implemented FOR a type, and this names none", sig_ptr, diags)
 }
 
 /// False once something is reported. A blanket `impl Trait for T` lands here
 /// too and is reported, since it currently applies to nothing.
-fun TopDecl.target_names_a_type(hint: str, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): bool {
+fun TopDecl.target_names_a_type(hint: str, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): bool {
     val name = self.name.as_str()
     when (unsafe { sig_ptr.find_trait(name) }) {
         Some(_info) => {
@@ -152,7 +156,7 @@ fun target_owner(name: str, td: &TopDecl, sig_ptr: Ptr<SigTable>): TargetOwner {
 
 /// `impl Show for Pair<int32, bool>` parses like `Pair<A, B>` with parameters
 /// named `int32` and `bool`; only the header can still tell.
-fun TopDecl.reject_arguments_as_parameters(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.reject_arguments_as_parameters(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     while tp in &self.generics {
         val pname = tp.name.as_str()
         if name_is_a_declared_type(pname, self, sig_ptr) {
@@ -175,12 +179,12 @@ fun name_is_a_declared_type(name: str, td: &TopDecl, sig_ptr: Ptr<SigTable>): bo
     return false
 }
 
-fun TopDecl.report_header(diags: Ptr<List<Diagnostic>>, message: String): void {
+fun TopDecl.report_header(diags: &var Diagnostics, message: String): void {
     report_at(self.decl_name_span(), diags, message)
 }
 
-fun report_at(at: Span, diags: Ptr<List<Diagnostic>>, message: String): void {
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(at, message))) }
+fun report_at(at: Span, diags: &var Diagnostics, message: String): void {
+    diags.emit(new_diagnostic(Severity.Error, new_label(at, message)))
 }
 
 /// `N` in `impl<T, N: uint64> From<T[N]> for List<T>`: the parameters only

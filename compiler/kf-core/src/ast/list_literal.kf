@@ -3,15 +3,9 @@
 // and a slot may retarget or convert. `[]` has no element to type it by, so it
 // is `__empty_list_literal.new()` until the checker names what it builds.
 
-import alloc.list.*
-
-import kf_core.span.Span
-
 /// The receiver an empty literal's `new()` is written against until the
 /// checker names its type.
 pub fun empty_list_literal_receiver(): str { return "__empty_list_literal" }
-
-
 
 /// The call an array literal is: its arguments are the elements, and codegen
 /// writes them as the array's C initializer. Reserved-prefixed, so no

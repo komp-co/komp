@@ -3,18 +3,22 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 
 fun interface_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
 @test
 fun interface_trait_suffix_owns_generic_suffix(): void {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    val trait_ref = new_type_ref(no_span(), TypeRefKind.Named(intern("Display"), args))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    val trait_ref = TypeRef.new(no_span(), TypeRefKind.Named(intern("Display"), args))
     val m = new_module(List.new<String>())
     val suffix: String = interface_trait_suffix(trait_ref, &m)
     assert_eq(suffix.as_str(), "Display__int32", "generic trait suffix is owned String text")

@@ -2,6 +2,12 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 
 fun boxed_expr(e: Expr): Ptr<Expr> {
@@ -11,7 +17,7 @@ fun boxed_expr(e: Expr): Ptr<Expr> {
 }
 
 fun var_expr(name: str, ty: Type): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = ty
     return e
 }
@@ -26,33 +32,33 @@ fun string_type(): Type {
 
 /// `val <bound> = <origin>.as_str()`, typed as the borrow it is.
 fun borrow_binding(bound: str, origin: str): Stmt {
-    var call = new_expr(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(origin, string_type())), intern("as_str"), List.new<Expr>()))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(origin, string_type())), intern("as_str"), List.new<Expr>()))
     call.ty = str_type()
-    return new_stmt(no_span(), StmtKind.LetVal(intern(bound), null, boxed_expr(call)))
+    return Stmt.new(no_span(), StmtKind.LetVal(intern(bound), null, boxed_expr(call)))
 }
 
 /// `<origin>.append("x")` as a bare statement.
 fun append_call(origin: str): Stmt {
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitStr(String.from("x"))))
-    var call = new_expr(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(origin, string_type())), intern("append"), args))
+    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("x"))))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(origin, string_type())), intern("append"), args))
     call.ty = Type { kind: TypeKind.Void, provenance: Provenance.Inferred(no_span()) }
-    return new_stmt(no_span(), StmtKind.Expression(boxed_expr(call)))
+    return Stmt.new(no_span(), StmtKind.Expression(boxed_expr(call)))
 }
 
 /// `<origin> = <origin>`, which drops the old buffer.
 fun reassign(origin: str): Stmt {
-    return new_stmt(no_span(), StmtKind.Assign(intern(origin), boxed_expr(var_expr(origin, string_type()))))
+    return Stmt.new(no_span(), StmtKind.Assign(intern(origin), boxed_expr(var_expr(origin, string_type()))))
 }
 
 fun read_of(name: str): Stmt {
-    return new_stmt(no_span(), StmtKind.Expression(boxed_expr(var_expr(name, str_type()))))
+    return Stmt.new(no_span(), StmtKind.Expression(boxed_expr(var_expr(name, str_type()))))
 }
 
 /// One per declaration: a shared pointer would be dropped by each.
 fun void_ret(): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *p = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *p = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     return p
 }
 
@@ -64,8 +70,8 @@ fun typed_param(name: str, ty: TypeRef): Param {
 
 fun string_ref(): TypeRef {
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *inner = new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
-    return new_type_ref(no_span(), TypeRefKind.Reference(false, inner))
+    unsafe { *inner = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    return TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
 }
 
 /// `consume(s: String)` takes its argument by value; `observe(s: &String)`
@@ -73,7 +79,7 @@ fun string_ref(): TypeRef {
 fun sink_decls(): List<TopDecl> {
     var out = List.new<TopDecl>()
     var consume_params = List.new<Param>()
-    consume_params.push(typed_param("s", new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>()))))
+    consume_params.push(typed_param("s", TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>()))))
     out.push(new_top_decl(no_span(), String.from("consume"), TopDeclKind.Function(consume_params, void_ret(), List.new<Stmt>(), true, false, false, false)))
     var observe_params = List.new<Param>()
     observe_params.push(typed_param("s", string_ref()))
@@ -85,23 +91,23 @@ fun sink_decls(): List<TopDecl> {
 fun call_with(callee: str, origin: str): Stmt {
     var args = List.new<Expr>()
     args.push(var_expr(origin, string_type()))
-    var call = new_expr(no_span(), ExprKind.Call(intern(callee), args))
+    var call = Expr.new(no_span(), ExprKind.Call(intern(callee), args))
     call.ty = Type { kind: TypeKind.Void, provenance: Provenance.Inferred(no_span()) }
-    return new_stmt(no_span(), StmtKind.Expression(boxed_expr(call)))
+    return Stmt.new(no_span(), StmtKind.Expression(boxed_expr(call)))
 }
 
 fun return_of(name: str, ty: Type): Stmt {
-    return new_stmt(no_span(), StmtKind.Return(Option.Some(boxed_expr(var_expr(name, ty)))))
+    return Stmt.new(no_span(), StmtKind.Return(Option.Some(boxed_expr(var_expr(name, ty)))))
 }
 
 /// `<recv>.<method>(<origin>)`; `mangled` keys the param table.
 fun method_call_with(recv: str, method: str, mangled: str, origin: str): Stmt {
     var args = List.new<Expr>()
     args.push(var_expr(origin, string_type()))
-    var call = new_expr(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(recv, string_type())), intern(method), args))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(boxed_expr(var_expr(recv, string_type())), intern(method), args))
     call.mangled_callee = intern(mangled)
     call.ty = Type { kind: TypeKind.Void, provenance: Provenance.Inferred(no_span()) }
-    return new_stmt(no_span(), StmtKind.Expression(boxed_expr(call)))
+    return Stmt.new(no_span(), StmtKind.Expression(boxed_expr(call)))
 }
 
 /// One function whose body is `body`, plus a `String` impl declaring
@@ -111,7 +117,7 @@ fun module_with(body: List<Stmt>): Module {
     methods.push(new_top_decl(no_span(), String.from("append"), TopDeclKind.Function(List.new<Param>(), void_ret(), List.new<Stmt>(), true, false, true, false)))
     methods.push(new_top_decl(no_span(), String.from("as_str"), TopDeclKind.Function(List.new<Param>(), void_ret(), List.new<Stmt>(), true, false, false, false)))
     var take_params = List.new<Param>()
-    take_params.push(typed_param("s", new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>()))))
+    take_params.push(typed_param("s", TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>()))))
     methods.push(new_top_decl(no_span(), String.from("take"), TopDeclKind.Function(take_params, void_ret(), List.new<Stmt>(), true, false, false, false)))
     var read_params = List.new<Param>()
     read_params.push(typed_param("s", string_ref()))
@@ -125,10 +131,9 @@ fun module_with(body: List<Stmt>): Module {
 
 fun errors_for(body: List<Stmt>): uint64 {
     val m = module_with(body)
-    val out: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *out = List.new<Diagnostic>() }
-    m.borrow_liveness_module(out)
-    return unsafe { out.size() }
+    var out = new_diagnostics()
+    m.borrow_liveness_module(&var out)
+    return out.size()
 }
 
 @test
@@ -171,7 +176,7 @@ fun a_borrow_that_is_never_read_constrains_nothing(): void {
 fun a_read_only_method_on_the_origin_is_accepted(): void {
     var body = List.new<Stmt>()
     body.push(borrow_binding("view", "out"))
-    body.push(new_stmt(no_span(), StmtKind.Expression(boxed_expr(var_expr("out", string_type())))))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(boxed_expr(var_expr("out", string_type())))))
     body.push(read_of("view"))
     assert_eq(errors_for(body), 0, "reading the origin is not disturbing it")
 }

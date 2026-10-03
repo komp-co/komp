@@ -3,15 +3,16 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
+import kf_core.ast.expression.*
 
 fun local(name: str, coerce: uint8): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.coerce = coerce
     return e
 }
 
 fun call_of(args: List<Expr>): Expr {
-    return new_expr(no_span(), ExprKind.Call(intern("peek"), args))
+    return Expr.new(no_span(), ExprKind.Call(intern("peek"), args))
 }
 
 @test fun a_call_borrows_from_the_argument_it_was_lent(): void {

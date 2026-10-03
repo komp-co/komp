@@ -5,7 +5,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 pub fun Type.type_to_type_ref(span: Span): TypeRef {
     when (self.kind) {
@@ -34,7 +37,7 @@ pub fun Type.type_to_type_ref(span: Span): TypeRef {
             if within.type_ref_is_poison() { return poison_ref(span) }
             val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *inner_ptr = within }
-            return new_type_ref(span, TypeRefKind.Reference(mutable, inner_ptr))
+            return TypeRef.new(span, TypeRefKind.Reference(mutable, inner_ptr))
         }
         FnTy(_) => {
             val parts = self.fn_parts() ?: return poison_ref(span)
@@ -46,9 +49,9 @@ pub fun Type.type_to_type_ref(span: Span): TypeRef {
             }
             val ret = Box.new(parts.ret.type_to_type_ref(span))
             if ret.type_ref_is_poison() { return poison_ref(span) }
-            return new_type_ref(span, TypeRefKind.Function(params, ret))
+            return TypeRef.new(span, TypeRefKind.Function(params, ret))
         }
-        Value(v) => return new_type_ref(span, TypeRefKind.Value(v))
+        Value(v) => return TypeRef.new(span, TypeRefKind.Value(v))
         _ => return poison_ref(span)
     }
 }
@@ -61,11 +64,11 @@ pub fun TypeRef.type_ref_is_poison(): bool {
 }
 
 fun named_ref(name: str, span: Span): TypeRef {
-    return new_type_ref(span, TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun poison_ref(span: Span): TypeRef {
-    return new_type_ref(span, TypeRefKind.Poison)
+    return TypeRef.new(span, TypeRefKind.Poison)
 }
 
 fun wrapped_ref(head: str, inner: &Type, span: Span): TypeRef {
@@ -73,5 +76,5 @@ fun wrapped_ref(head: str, inner: &Type, span: Span): TypeRef {
     if within.type_ref_is_poison() { return poison_ref(span) }
     var args = List.new<TypeRef>()
     args.push(within)
-    return new_type_ref(span, TypeRefKind.Named(intern(head), args))
+    return TypeRef.new(span, TypeRefKind.Named(intern(head), args))
 }

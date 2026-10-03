@@ -6,6 +6,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.new_annotation
 
 fun lang_trait(name: str, key: str): TopDecl {
     val kind = TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>())
@@ -26,7 +30,7 @@ fun copy_module(annotation: Annotation): Module {
 }
 
 fun hand_written_clone(): TopDecl {
-    val trait_ref = Box.new(new_type_ref(no_span(), TypeRefKind.Named(intern("Clone"), List.new<TypeRef>())))
+    val trait_ref = Box.new(TypeRef.new(no_span(), TypeRefKind.Named(intern("Clone"), List.new<TypeRef>())))
     return new_top_decl(no_span(), String.from("Point"), TopDeclKind.TraitImpl(trait_ref, List.new<TopDecl>()))
 }
 

@@ -5,7 +5,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.lang_iterable_key
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.kind_tag
@@ -36,30 +43,30 @@ fun expand_foreach_ref(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span:
     val ptrname = "__forptr_${tag}"
 
     val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *iter_call_ptr = new_expr(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>())) }
-    val let_it = new_stmt(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
+    unsafe { *iter_call_ptr = Expr.new(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>())) }
+    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
 
     val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *it_var_box = new_expr(span, ExprKind.Variable(intern(itname.as_str()))) }
+    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname.as_str()))) }
     val next_ptr_call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *next_ptr_call = new_expr(span, ExprKind.MethodCall(it_var_box, intern("next_ptr"), List.new<Expr>())) }
-    val let_ptr = new_stmt(span, StmtKind.LetVal(intern(ptrname.as_str()), null, next_ptr_call))
+    unsafe { *next_ptr_call = Expr.new(span, ExprKind.MethodCall(it_var_box, intern("next_ptr"), List.new<Expr>())) }
+    val let_ptr = Stmt.new(span, StmtKind.LetVal(intern(ptrname.as_str()), null, next_ptr_call))
 
     // if ptr_is_null(__forptr_N) { break }
     var null_args = List.new<Expr>()
-    null_args.push(new_expr(span, ExprKind.Variable(intern(ptrname.as_str()))))
+    null_args.push(Expr.new(span, ExprKind.Variable(intern(ptrname.as_str()))))
     val null_test: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *null_test = new_expr(span, ExprKind.Call(intern("ptr_is_null"), null_args)) }
+    unsafe { *null_test = Expr.new(span, ExprKind.Call(intern("ptr_is_null"), null_args)) }
     var brk_body = List.new<Stmt>()
-    brk_body.push(new_stmt(span, StmtKind.Break))
-    val if_stmt = new_stmt(span, StmtKind.If(null_test, brk_body, List.new<Stmt>()))
+    brk_body.push(Stmt.new(span, StmtKind.Break))
+    val if_stmt = Stmt.new(span, StmtKind.If(null_test, brk_body, List.new<Stmt>()))
 
     // val name = *__forptr_N
     val ptr_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *ptr_var_box = new_expr(span, ExprKind.Variable(intern(ptrname.as_str()))) }
+    unsafe { *ptr_var_box = Expr.new(span, ExprKind.Variable(intern(ptrname.as_str()))) }
     val deref: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *deref = new_expr(span, ExprKind.Deref(ptr_var_box)) }
-    val let_binder = new_stmt(span, StmtKind.LetVal(binder, null, deref))
+    unsafe { *deref = Expr.new(span, ExprKind.Deref(ptr_var_box)) }
+    val let_binder = Stmt.new(span, StmtKind.LetVal(binder, null, deref))
 
     var while_body = List.new<Stmt>()
     while_body.push(let_ptr)
@@ -69,14 +76,14 @@ fun expand_foreach_ref(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span:
         while_body.push(item)
     }
     val while_cond: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *while_cond = new_expr(span, ExprKind.LitBool(true)) }
-    val while_stmt = new_stmt(span, StmtKind.While(while_cond, while_body))
+    unsafe { *while_cond = Expr.new(span, ExprKind.LitBool(true)) }
+    val while_stmt = Stmt.new(span, StmtKind.While(while_cond, while_body))
 
     var outer = List.new<Stmt>()
     outer.push(let_it)
     outer.push(while_stmt)
     val outer_cond: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *outer_cond = new_expr(span, ExprKind.LitBool(true)) }
+    unsafe { *outer_cond = Expr.new(span, ExprKind.LitBool(true)) }
     return StmtKind.If(outer_cond, outer, List.new<Stmt>())
 }
 

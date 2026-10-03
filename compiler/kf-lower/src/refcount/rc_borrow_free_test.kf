@@ -2,12 +2,17 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.lang_annotation
+import kf_core.ast.new_module
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_lower.ownership.names_contains
 
 fun named_tref(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *p = new_type_ref(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>())) }
+    unsafe { *p = TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>())) }
     return p
 }
 
@@ -50,9 +55,9 @@ fun free_names_of(decls: List<TopDecl>): List<String> {
 
 fun list_of(name: str, element: str, lang: bool): TopDecl {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>())))
     val data: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *data = new_type_ref(no_span(), TypeRefKind.Named(intern("Ptr"), args)) }
+    unsafe { *data = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args)) }
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("data"), data, true, false))
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
@@ -80,9 +85,9 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
 
 @test fun a_struct_holding_a_list_of_strings_holds_no_borrow(): void {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
     val items: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *items = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), args)) }
+    unsafe { *items = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args)) }
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("items"), items, true, true))
     var decls = List.new<TopDecl>()

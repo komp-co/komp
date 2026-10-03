@@ -3,14 +3,18 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 import kf_mono.mono_module
 import kf_mono.collect.has_decl
 
 fun signature_test_ty(name: str, arg: str): Ptr<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern(arg), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(arg), List.new<TypeRef>())))
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = new_type_ref(no_span(), TypeRefKind.Named(intern(name), args)) }
+    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args)) }
     return out
 }
 
@@ -54,10 +58,10 @@ fun signature_test_list_impl(): TopDecl {
     generics.push(new_type_param(no_span(), String.from("B")))
     pair.generics = generics
     var pair_args = List.new<TypeRef>()
-    pair_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("A"), List.new<TypeRef>())))
-    pair_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("B"), List.new<TypeRef>())))
+    pair_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("A"), List.new<TypeRef>())))
+    pair_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("B"), List.new<TypeRef>())))
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = new_type_ref(no_span(), TypeRefKind.Named(intern("Pair"), pair_args)) }
+    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("Pair"), pair_args)) }
     val method = new_top_decl(no_span(), String.from("clone"), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)

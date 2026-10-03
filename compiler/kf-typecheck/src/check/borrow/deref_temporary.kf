@@ -1,7 +1,8 @@
 // `*` through a `Box` a call's result owns. The result is a temporary, freed
 // when the statement ends, so a value read out of its box dangles after that.
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.lint_at
 import kf_core.span.*
 
@@ -22,6 +23,7 @@ pub fun lint_deref_through_temporary(operand: &Expr, span: Span, ctx: &var TypeC
 fun is_owned_by_a_call_result(e: &Expr): bool {
     when (e.kind) {
         Call(_, _) => return type_is_held_by_value(&e.ty)
+        Intrinsic(_, _) => return type_is_held_by_value(&e.ty)
         CallValue(_callee, _) => return type_is_held_by_value(&e.ty)
         MethodCall(_, _, _) => return type_is_held_by_value(&e.ty)
         FieldAccess(obj_ptr, _) => return is_owned_by_a_call_result(unsafe { &*obj_ptr })

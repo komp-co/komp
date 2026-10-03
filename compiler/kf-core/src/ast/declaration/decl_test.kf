@@ -2,14 +2,14 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.type_ref_poison
 import kf_core.ast.intern
-import kf_core.ast.new_type_ref
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 @test fun new_param_round_trips_fields(): void {
     val sp = Span { file_id: 1, start: 0, end: 5 }
     val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ty = type_ref_poison(no_span()) }
+    unsafe { *ty = TypeRef.new_poison(no_span()) }
     val p = new_param(sp, String.from("x"), ty)
     assert_eq(p.span.start, 0, "span")
     assert_eq(p.name.as_str(), "x", "name")
@@ -23,14 +23,14 @@ import kf_core.ast.new_type_ref
 @test fun param_vec_push_grows(): void {
     var v = List.new<Param>()
     val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ty = type_ref_poison(no_span()) }
+    unsafe { *ty = TypeRef.new_poison(no_span()) }
     v.push(new_param(no_span(), String.from("a"), ty))
     assert_eq(v.size(), 1, "one pushed")
 }
 
 @test fun new_field_round_trips(): void {
     val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ty = type_ref_poison(no_span()) }
+    unsafe { *ty = TypeRef.new_poison(no_span()) }
     val f = new_field(no_span(), String.from("count"), ty, true, true)
     assert_eq(f.is_var, true, "is_var")
     assert_eq(f.is_pub, true, "is_pub")
@@ -98,7 +98,7 @@ import kf_core.ast.new_type_ref
 
 @test fun trait_impl_kind_constructs(): void {
     val tref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *tref = new_type_ref(no_span(), TypeRefKind.Named(intern("Clone"), List.new<TypeRef>())) }
+    unsafe { *tref = TypeRef.new(no_span(), TypeRefKind.Named(intern("Clone"), List.new<TypeRef>())) }
     val k = TopDeclKind.TraitImpl(tref, List.new<TopDecl>())
     val td = new_top_decl(no_span(), String.from("Pair"), k)
     assert_eq(td.name.as_str(), "Pair", "impl target on outer decl")

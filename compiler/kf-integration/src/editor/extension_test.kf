@@ -150,3 +150,66 @@ fun a_receiver_declared_before_the_receiver_still_applies_to_every_type(): void 
     val offered = json.as_str().contains("\"label\":\"level\",\"kind\":\"method\"")
     assert_eq(offered, true, "a parameter declared in front is still a parameter receiver")
 }
+
+fun bounded_source(): str {
+    return """pub trait Loud {
+    fun volume(): int32
+}
+
+pub struct Mute {
+    pub val x: int32
+}
+
+impl Mute {
+    pub fun level(): int32 { return 0 }
+}
+
+pub fun <T: Loud> T.level(): int32 {
+    return self.volume()
+}
+
+pub fun <T: Loud> T.boost(): int32 {
+    return self.volume() + 1
+}
+
+pub fun probe(): int32 {
+    val m = Mute { x: 1 }
+    return m.level()
+}
+"""
+}
+
+/// `Mute` has its own `level` and is not `Loud`.
+fun bounded_crate(): TypedCrate {
+    val root = scratch_path("kf_query_bounded")
+    unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file(scratch_path("kf_query_bounded/kf.toml"), "[project]\nname = \"query_bounded\"\nkind = \"lib\"\n")
+    write_file(scratch_path("kf_query_bounded/src/main.kf"), bounded_source())
+    return typed_crate_for(scratch_path("kf_query_bounded/src/main.kf"))
+}
+
+fun after_the_bounded_dot(): uint32 {
+    return bounded_source().index_of("m.level()")!! as uint32 + 2
+}
+
+@test
+fun an_extension_whose_bound_the_receiver_misses_is_not_offered(): void {
+    val crate = bounded_crate()
+    val json = render_completion_json("main.kf", after_the_bounded_dot(), &crate)
+    assert_eq(json.as_str().contains("\"label\":\"boost\""), false, "a call on a `Mute` could not reach it")
+}
+
+@test
+fun a_types_own_method_is_offered_over_an_extension_of_its_name(): void {
+    val crate = bounded_crate()
+    val json = render_completion_json("main.kf", after_the_bounded_dot(), &crate)
+    val own = "\"label\":\"level\",\"kind\":\"method\",\"detail\":\"level(): int32\""
+    assert_eq(json.as_str().contains(own), true, "the method a call would pick")
+}
+
+@test
+fun hovering_a_method_shows_the_types_own_over_an_extension(): void {
+    val crate = bounded_crate()
+    val json = render_hover_json("main.kf", after_the_bounded_dot() + 1, &crate)
+    assert_eq(json.as_str().contains("\"signature\":\"level(): int32\""), true, "not `T.level`")
+}

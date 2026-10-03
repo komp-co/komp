@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.new_crate_id
 import kf_interface.interface_format_version
 import kf_interface.emit.emitted_dyn_interface
 import kf_interface.emit.dyn_type_to_source

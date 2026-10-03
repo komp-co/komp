@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.*
 
 /// `List.new()` in a `List<int32>` slot.

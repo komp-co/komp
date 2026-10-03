@@ -3,7 +3,8 @@
 // of such a value. A `str` use decides nothing, since a `String` serves it,
 // but it rules out the other types, which do not.
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.TAG_STR
 import kf_typecheck.types.kind_tag

@@ -1,6 +1,9 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.UnaryOp
 
 import kf_codegen.concat_all
 import kf_codegen.emit.c_type
@@ -77,7 +80,7 @@ fun pick_callee(raw: String, mangled: String): String {
     return mangled.clone()
 }
 
-fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: bool): String {
+fun emit_call(name: String, mangled: String, args: List<Expr>): String {
     val nstr = name.as_str()
     // Builtins dispatch on the raw name.
     when nstr {
@@ -89,40 +92,6 @@ fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: boo
         "alloc_i32" => return emit_alloc("int32_t", args)
         "free_ptr" => return emit_free(args)
         _ => { }
-    }
-    // Memory intrinsics carry their type in the callee (`alloc__Expr`).
-    // `take__T(x)` is an identity.
-    //
-    // CONSTRAINT: gated on the parser's flag, not the shape: `<crate>__<fn>`
-    // looks the same in a crate named `alloc`.
-    if is_intrinsic {
-        val mangled_len = mangled.as_str().byte_len()
-        if mangled_len > 0 {
-            val mstr = mangled.as_str()
-            if mstr.starts_with("alloc_array__") { return emit_alloc_array_generic(mstr, args) }
-            if mstr.starts_with("realloc_array__") { return emit_realloc_array_generic(mstr, args) }
-            if mstr.starts_with("drop_in_place__") { return emit_drop_in_place_generic(mstr, args) }
-            if mstr.starts_with("ptr_read__") { return emit_ptr_read(args) }
-            if mstr.starts_with("alloc__") { return emit_alloc_generic(mstr) }
-            if mstr.starts_with("sizeof__") { return emit_sizeof_generic(mstr) }
-            if mstr.starts_with("dealloc__") { return emit_free(args) }
-            if mstr.starts_with("take__") {
-                val arg0 = *args.at(0)
-                return arg0.emit_expr()
-            }
-        }
-        if nstr.starts_with("alloc_array__") { return emit_alloc_array_generic(nstr, args) }
-        if nstr.starts_with("realloc_array__") { return emit_realloc_array_generic(nstr, args) }
-        if nstr.starts_with("drop_in_place__") { return emit_drop_in_place_generic(nstr, args) }
-        if nstr.starts_with("ptr_read__") { return emit_ptr_read(args) }
-        if nstr.starts_with("clone_place__") { return emit_clone_place_generic(nstr, args) }
-        if nstr.starts_with("alloc__") { return emit_alloc_generic(nstr) }
-        if nstr.starts_with("sizeof__") { return emit_sizeof_generic(nstr) }
-        if nstr.starts_with("dealloc__") { return emit_free(args) }
-        if nstr.starts_with("take__") {
-            val arg0 = *args.at(0)
-            return arg0.emit_expr()
-        }
     }
     val callee = pick_callee(name, mangled)
     var parts = List.new<String>()

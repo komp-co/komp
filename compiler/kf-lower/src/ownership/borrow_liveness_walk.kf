@@ -7,6 +7,10 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_none
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 fun Stmt.stmt_returns(name: str, views: &List<String>): bool {
     when (self.kind) {
@@ -77,6 +81,7 @@ fun init_moves(init_opt: Ptr<Expr>?, origin: str, ptable: Ptr<List<ParamEntry>>)
 fun expr_moves(e: &Expr, origin: str, ptable: Ptr<List<ParamEntry>>): bool {
     when (e.kind) {
         Call(name, args) => return args_move(&args, origin, name.as_string(), 0, ptable)
+        Intrinsic(_i, args) => return args_move(&args, origin, String.from(""), 0, ptable)
         CallValue(_callee, args) => return args_move(&args, origin, String.from(""), 0, ptable)
         MethodCall(receiver, _m, args) => {
             if expr_moves(unsafe { &*receiver }, origin, ptable) { return true }
@@ -147,6 +152,7 @@ fun Expr.expr_mutates(origin: str, muts: &List<MutatingMethod>): bool {
             return list_mutates(&args, origin, muts)
         }
         Call(_name, args) => return list_mutates(&args, origin, muts)
+        Intrinsic(_i, args) => return list_mutates(&args, origin, muts)
         CallValue(_callee, args) => return list_mutates(&args, origin, muts)
         Binary(l, _op, r) => {
             if expr_mutates(unsafe { &*l }, origin, muts) { return true }
@@ -263,6 +269,7 @@ fun Expr.expr_mentions(name: str): bool {
             return exprs_mention(&args, name)
         }
         Call(_n, args) => return exprs_mention(&args, name)
+        Intrinsic(_i, args) => return exprs_mention(&args, name)
         CallValue(callee, args) => return expr_mentions(&*callee, name) || exprs_mention(&args, name)
         Binary(l, _op, r) => {
             if expr_mentions(unsafe { &*l }, name) { return true }

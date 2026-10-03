@@ -7,6 +7,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -21,6 +26,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.narrow_open_array(expected.clone(), ctx) { return true }
     if self.retarget_string_literal(expected.clone(), ctx) { return true }
     if self.retarget_array_literal(expected.clone(), ctx) { return true }
+    if self.lend_empty_list_literal(&expected, ctx) { return true }
     if self.lend_literal_as_slice(&expected, ctx) { return true }
     if self.convert_list_literal_from(expected.clone(), ctx) { return true }
     if self.convert_string_literal_from(expected.clone(), ctx) { return true }
@@ -307,7 +313,7 @@ mutating fun Expr.rewrite_null_to_none(inst: &GenericInst, ctx: &var TypeCtx): v
     note_null_typed(span, ctx)
     val base = ctx.option_name().as_string()
     val concrete = concrete_enum_name(base.clone(), &inst.args, ctx)
-    val recv = Box.new(new_expr(span, ExprKind.Variable(ctx.option_name())))
+    val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.option_name())))
     self.type_args = clone_type_args(&inst.args)
     self.ty = enum_ty_of(concrete.clone(), span)
     self.kind = ExprKind.FieldAccess(recv, intern("None"))
@@ -322,7 +328,7 @@ mutating fun Expr.rewrite_str_to_string(ctx: &var TypeCtx): void {
     val snapshot = *self
     var args = List.new<Expr>()
     args.push(snapshot)
-    val recv = Box.new(new_expr(span, ExprKind.Variable(ctx.string_name())))
+    val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.string_name())))
     self.kind = ExprKind.MethodCall(recv, intern("from"), args)
     self.reset_call_annotations()
     check_expr(self, ctx)
@@ -339,7 +345,7 @@ mutating fun Expr.wrap_in_some(inst: &GenericInst, ctx: &var TypeCtx): void {
     var payload_args = List.new<Expr>()
     payload_args.push(snapshot)
     val coerced = coerce_ctor_payloads(concrete.clone(), String.from("Some"), payload_args, ctx)
-    val recv = Box.new(new_expr(span, ExprKind.Variable(ctx.option_name())))
+    val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.option_name())))
     self.type_args = clone_type_args(&inst.args)
     self.ty = enum_ty_of(concrete.clone(), span)
     self.kind = ExprKind.MethodCall(recv, intern("Some"), coerced)

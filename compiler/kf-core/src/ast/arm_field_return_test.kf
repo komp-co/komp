@@ -7,6 +7,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 fun probe_decl(): TopDecl {
     var body = List.new<Stmt>()
@@ -14,7 +19,7 @@ fun probe_decl(): TopDecl {
     s.binder = Span { file_id: 1, start: 21, end: 26 }
     body.push(s)
     val rt: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rt = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *rt = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     return new_top_decl(no_span(), String.from("probe"), TopDeclKind.Function(List.new<Param>(), rt, body, true, false, false, false))
 }
 

@@ -7,6 +7,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 
 /// `is_expr` separates typed expressions from the declaration around them. A
 /// call carries its name and receiver type for signature help.
@@ -20,7 +24,7 @@ pub struct CoveringSpan {
 }
 
 fun plain_covering(span: Span, ty: Type, is_expr: bool): CoveringSpan {
-    return CoveringSpan { span: span, ty: ty, is_expr: is_expr, is_call: false, callee: intern(""), recv_ty: poison_ty() }
+    return CoveringSpan { span: span, ty: ty, is_expr: is_expr, is_call: false, callee: intern(""), recv_ty: Type.new_poison() }
 }
 
 /// `found` is false where nothing covers the offset: whitespace, a keyword,
@@ -32,7 +36,7 @@ pub struct ExprHit {
 }
 
 pub fun no_expr_hit(): ExprHit {
-    return ExprHit { found: false, span: no_span(), ty: poison_ty() }
+    return ExprHit { found: false, span: no_span(), ty: Type.new_poison() }
 }
 
 /// Everything covering `offset`, in walk order.
@@ -80,7 +84,7 @@ fun TopDecl.hit_decl(file_id: uint32, offset: uint32, found: &var List<CoveringS
     // The declaration's extent, not its first keyword.
     val extent = Span { file_id: self.span.file_id, start: self.span.start, end: self.decl_extent_end() }
     if extent.span_covers(file_id, offset) {
-        found.push(plain_covering(extent, poison_ty(), false))
+        found.push(plain_covering(extent, Type.new_poison(), false))
     }
     when (self.kind) {
         Function(_p, _r, body, _pub, _u, _mut, _st) => hit_stmt_list(body, file_id, offset, found)
@@ -99,8 +103,14 @@ fun hit_stmt_list(stmts: &List<Stmt>, file_id: uint32, offset: uint32, found: &v
 
 fun Stmt.hit_stmt(file_id: uint32, offset: uint32, found: &var List<CoveringSpan>): void {
     when (self.kind) {
-        LetVal(_n, _ann, init) => hit_expr_ptr(init.view(), file_id, offset, found)
-        LetVar(_n, _ann, init) => hit_expr_ptr(init.view(), file_id, offset, found)
+        LetVal(_n, _ann, init) => {
+            self.hit_binder(&init, file_id, offset, found)
+            hit_expr_ptr(init.view(), file_id, offset, found)
+        }
+        LetVar(_n, _ann, init) => {
+            self.hit_binder(&init, file_id, offset, found)
+            hit_expr_ptr(init.view(), file_id, offset, found)
+        }
         Assign(_n, e) => hit_expr_ptr(e, file_id, offset, found)
         AssignTo(place, e) => {
             hit_expr_ptr(place, file_id, offset, found)
@@ -138,6 +148,15 @@ fun Stmt.hit_stmt(file_id: uint32, offset: uint32, found: &var List<CoveringSpan
     }
 }
 
+/// The name a `val` or `var` binds, typed as what initializes it.
+fun Stmt.hit_binder(init: &Box<Expr>?, file_id: uint32, offset: uint32, found: &var List<CoveringSpan>): void {
+    if !self.binder.span_covers(file_id, offset) { return }
+    when (init) {
+        Some(e) => found.push(plain_covering(self.binder, e.ty.clone(), true))
+        None => { }
+    }
+}
+
 fun hit_arm_list(arms: &List<Arm>, file_id: uint32, offset: uint32, found: &var List<CoveringSpan>): void {
     while arm in &arms {
         hit_stmt_list(&arm.body, file_id, offset, found)
@@ -163,6 +182,7 @@ fun Expr.hit_expr(file_id: uint32, offset: uint32, found: &var List<CoveringSpan
         Unary(_op, inner) => hit_expr_ptr(inner, file_id, offset, found)
         Deref(inner) => hit_expr_ptr(inner, file_id, offset, found)
         Call(_name, args) => hit_expr_list(&args, file_id, offset, found)
+        Intrinsic(_intrinsic, args) => hit_expr_list(&args, file_id, offset, found)
         CallValue(callee, args) => {
             hit_expr_ptr(callee, file_id, offset, found)
             hit_expr_list(&args, file_id, offset, found)
@@ -202,7 +222,7 @@ fun Expr.hit_expr(file_id: uint32, offset: uint32, found: &var List<CoveringSpan
 fun Expr.covering_for_expr(): CoveringSpan {
     when (self.kind) {
         Call(name, _args) => {
-            return CoveringSpan { span: self.span, ty: self.ty, is_expr: true, is_call: true, callee: name, recv_ty: poison_ty() }
+            return CoveringSpan { span: self.span, ty: self.ty, is_expr: true, is_call: true, callee: name, recv_ty: Type.new_poison() }
         }
         MethodCall(recv, name, _args) => {
             return CoveringSpan { span: self.span, ty: self.ty, is_expr: true, is_call: true, callee: name, recv_ty: unsafe { recv.ty } }

@@ -2,14 +2,18 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.Field
+import kf_core.ast.declaration.new_field
 
 fun named_ref(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun storage_field(element: str, length: uint64): Field {
-    val storage = new_type_ref(no_span(), TypeRefKind.Array(Box.new(named_ref(element)), length))
+    val storage = TypeRef.new(no_span(), TypeRefKind.Array(Box.new(named_ref(element)), length))
     return new_field(no_span(), String.from("items"), Box.new(storage), true, false)
 }
 

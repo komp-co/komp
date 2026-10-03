@@ -1,6 +1,9 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.declaration.default_mark_target
 import kf_parse.parser.*
 
 impl Parser {
@@ -16,8 +19,7 @@ impl Parser {
             if self.take_op(Operator.DotDot) {
                 has_rest = true
             } else {
-                val param = self.parse_type_ref_ptr()
-                params.push(unsafe { *param })
+                params.push(self.parse_type_ref())
             }
             if !self.take_op(Operator.Comma) { break }
         }
@@ -29,10 +31,10 @@ impl Parser {
             self.parse_err(span, String.from("expected a function type after `on`, such as `(Request) -> Response`"))
             return default_mark_target(span)
         }
-        val ret: TypeRef = unsafe { *self.parse_type_ref_ptr() }
+        val ret = self.parse_type_ref()
         self.reject_misplaced_wildcards(&params, &ret)
         if !has_rest && !params.any_wildcard_slot() && !ret.is_wildcard_slot() {
-            return MarkTarget.Function(Box.new(new_type_ref(span, TypeRefKind.Function(params, Box.new(ret)))))
+            return MarkTarget.Function(Box.new(TypeRef.new(span, TypeRefKind.Function(params, Box.new(ret)))))
         }
         return MarkTarget.Signature(params, has_rest, Box.new(ret))
     }

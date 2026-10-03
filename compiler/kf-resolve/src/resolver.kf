@@ -1,4 +1,6 @@
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.TopDecl
 
 /// Register every top-level declaration, then stamp each name in each body
 /// with the declaration it refers to. Registering first is what lets a

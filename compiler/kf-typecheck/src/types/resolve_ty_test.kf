@@ -1,0 +1,37 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+
+fun transposed(): Type {
+    var names = List.new<String>()
+    names.push(String.from("A"))
+    names.push(String.from("B"))
+    var args = List.new<Type>()
+    args.push(Type.new_generic(String.from("B"), no_span()))
+    args.push(Type.new_generic(String.from("A"), no_span()))
+    return subst_all_generics(Type.new_generic(String.from("A"), no_span()), &names, &args)
+}
+
+// `Pair<B, A>` inside `impl Pair<A, B>`: the `B` put in for `A` is not then
+// replaced by the argument for `B`.
+@test fun parameters_are_substituted_at_once(): void {
+    assert_eq(mangle_type(transposed()).as_str(), "B", "A becomes B and stays B")
+}
+
+// The same inside a mangled instance name, `Pair__B__A`.
+@test fun parameters_in_an_instance_name_are_substituted_at_once(): void {
+    var names = List.new<String>()
+    names.push(String.from("A"))
+    names.push(String.from("B"))
+    var args = List.new<Type>()
+    args.push(Type.new_bool(no_span()))
+    args.push(Type.new_int32(no_span()))
+    val written = Type { kind: TypeKind.Struct(intern("Pair__B__A")), provenance: Provenance.Inferred(no_span()) }
+    val substituted = mangle_type(subst_all_generics(written, &names, &args))
+    assert_eq(substituted.as_str(), "Pair__int32__bool", "B is int32, A is bool")
+}

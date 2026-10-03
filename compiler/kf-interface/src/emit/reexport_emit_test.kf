@@ -1,7 +1,9 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_reexport
+import kf_core.ast.new_renaming_reexport
 import kf_core.span.no_span
 
 fun reexporting_module(): Module {

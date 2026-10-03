@@ -3,7 +3,9 @@
 // so anything not provably safe is refused with a reason.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.*
 import json.writer.*
 import kf_shared.absolutize

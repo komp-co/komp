@@ -3,7 +3,10 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.mark_kind_of
 import json.reader.*
 import kf_interface.parse.*
 
@@ -46,8 +49,7 @@ mutating fun JsonReader.read_kind_targets(): List<KindTarget>? {
         while self.array_has_next() {
             // CONSTRAINT: a local, as for the function type above.
             val source = self.read_string()
-            val parsed = parse_type_ptr(source.as_str())
-            bounds.push(unsafe { *parsed })
+            bounds.push(parse_type_value(source.as_str()))
         }
         if self.object_has_next() { return null }
         kinds.push(KindTarget { kind: kind, bounds: bounds })
@@ -66,8 +68,7 @@ mutating fun JsonReader.read_type_params(): List<TypeParam>? {
         while self.array_has_next() {
             // CONSTRAINT: a local, as for the function type above.
             val source = self.read_string()
-            val parsed = parse_type_ptr(source.as_str())
-            param.bounds.push(unsafe { *parsed })
+            param.bounds.push(parse_type_value(source.as_str()))
         }
         if self.object_has_next() { return null }
         params.push(param)

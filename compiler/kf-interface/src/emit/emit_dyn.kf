@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
 import json.writer.*
 import kf_core.ast.dyn_meta.*
 

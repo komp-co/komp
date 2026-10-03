@@ -2,7 +2,14 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.new_param
+import kf_core.ast.statement.*
 
 // Normally filled from core's `impl Drop for String`; these tests state it.
 fun rc_ctx_for_test(fn_name: str): RcCtx {
@@ -17,7 +24,7 @@ fun null_tr(): Ptr<TypeRef> {
 }
 
 fun mk_string_var_expr(name: String): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name.as_str())))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
     e.ty = intern("String").lang_struct_ty(no_span())
     return e
 }
@@ -38,13 +45,13 @@ fun binding_mode_tag(m: BindingMode): uint64 {
 
     var binders = List.new<Sym>()
     binders.push(intern("x"))
-    val sa = new_switch_arm(no_span(), SwitchTag.Variant(String.from("Some")), binders, null, List.new<Stmt>())
+    val sa = SwitchArm.new(no_span(), SwitchTag.Variant(String.from("Some")), binders, null, List.new<Stmt>())
     var arms = List.new<SwitchArm>()
     arms.push(sa)
-    val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
+    val subj = Expr.new(no_span(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
+    var s = Stmt.new(no_span(), StmtKind.Switch(sp, arms))
     s.rc_insert_stmt(&var ctx)
 
     when (s.kind) {
@@ -65,11 +72,11 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     var args = List.new<Expr>()
     val xv = mk_string_var_expr(String.from("x"))
     args.push(xv)
-    var call = new_expr(no_span(), ExprKind.Call(intern("take"), args))
+    var call = Expr.new(no_span(), ExprKind.Call(intern("take"), args))
     call.ty = intern("String").lang_struct_ty(no_span())
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = call }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("y"), null, cp))
+    var s = Stmt.new(no_span(), StmtKind.LetVal(intern("y"), null, cp))
     s.rc_insert_stmt(&var ctx)
 
     when (s.kind) {
@@ -88,7 +95,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
 @test fun returned_var_names_extracts_bare_var(): void {
     var ctx = rc_ctx_for_test("f")
     // return x  → ["x"]
-    val xv = new_expr(no_span(), ExprKind.Variable(intern("x")))
+    val xv = Expr.new(no_span(), ExprKind.Variable(intern("x")))
     val xp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *xp = xv }
     val names = returned_var_names(xp, &var ctx)
@@ -100,9 +107,9 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     var ctx = rc_ctx_for_test("f")
     // return f(l1, post)  -> ["l1", "post"]
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("l1"))))
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("post"))))
-    val cv = new_expr(no_span(), ExprKind.Call(intern("concat"), args))
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("l1"))))
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("post"))))
+    val cv = Expr.new(no_span(), ExprKind.Call(intern("concat"), args))
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = cv }
     val names = returned_var_names(cp, &var ctx)
@@ -114,7 +121,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
 @test fun returned_var_names_non_var_is_empty(): void {
     var ctx = rc_ctx_for_test("f")
     // return 5  → []  (LitInt is not a tracked local)
-    val lv = new_expr(no_span(), ExprKind.LitInt(5))
+    val lv = Expr.new(no_span(), ExprKind.LitInt(5))
     val lp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *lp = lv }
     val names = returned_var_names(lp, &var ctx)
@@ -169,12 +176,12 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("a"))
     ctx.add_heap_local(String.from("b"))
     // `a` needs a heap type, so the simple splice path is taken.
-    var av = new_expr(no_span(), ExprKind.Variable(intern("a")))
+    var av = Expr.new(no_span(), ExprKind.Variable(intern("a")))
     av.ty = intern("String").lang_struct_ty(no_span())
     val ap: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ap = av }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(ret_op(ap))))
+    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(ap))))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(b) spliced before Return")
@@ -191,7 +198,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val _w = ctx.push_frame(true)
     ctx.add_heap_local(String.from("x"))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Break))
+    body.push(Stmt.new(no_span(), StmtKind.Break))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(x) spliced before Break")
@@ -208,7 +215,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val _w = ctx.push_frame(true)
     ctx.add_heap_local(String.from("x"))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Continue))
+    body.push(Stmt.new(no_span(), StmtKind.Continue))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(x) spliced before Continue")
@@ -223,13 +230,13 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     var ctx = rc_ctx_for_test("main")
     val _i = ctx.push_frame(false)
 
-    val sa = new_switch_arm(no_span(), SwitchTag.Wildcard, List.new<Sym>(), null, List.new<Stmt>())
+    val sa = SwitchArm.new(no_span(), SwitchTag.Wildcard, List.new<Sym>(), null, List.new<Stmt>())
     var arms = List.new<SwitchArm>()
     arms.push(sa)
-    val subj = new_expr(no_span(), ExprKind.LitBool(true))
+    val subj = Expr.new(no_span(), ExprKind.LitBool(true))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
+    var s = Stmt.new(no_span(), StmtKind.Switch(sp, arms))
     s.rc_insert_stmt(&var ctx)
     assert_eq(true, true, "switch with no binders survives")
 }
@@ -241,7 +248,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val _i = ctx.push_frame(false)
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = mk_string_var_expr(String.from("y")) }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
+    var s = Stmt.new(no_span(), StmtKind.LetVal(intern("x"), null, yp))
     s.rc_insert_stmt(&var ctx)
     when (s.kind) {
         LetVal(_, _, init_ptr) => {
@@ -263,7 +270,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("y")) // simulate `val y = String.from(...)`
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = mk_string_var_expr(String.from("y")) }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
+    var s = Stmt.new(no_span(), StmtKind.LetVal(intern("x"), null, yp))
     s.rc_insert_stmt(&var ctx)
     val rels = ctx.pop_frame()
     assert_eq(rels.size() == 1, true, "only x released; y moved out")
@@ -280,12 +287,12 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     var ctx = rc_ctx_for_test("main")
     val _i = ctx.push_frame(false)
     val objp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *objp = new_expr(no_span(), ExprKind.Variable(intern("obj"))) }
-    var fa = new_expr(no_span(), ExprKind.FieldAccess(objp, intern("field")))
+    unsafe { *objp = Expr.new(no_span(), ExprKind.Variable(intern("obj"))) }
+    var fa = Expr.new(no_span(), ExprKind.FieldAccess(objp, intern("field")))
     fa.ty = intern("String").lang_struct_ty(no_span())
     val fap: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *fap = fa }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, fap))
+    var s = Stmt.new(no_span(), StmtKind.LetVal(intern("x"), null, fap))
     s.rc_insert_stmt(&var ctx)
     when (s.kind) {
         LetVal(_, _, init_ptr) => {
@@ -305,12 +312,12 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     var ctx = rc_ctx_for_test("main")
     val _i = ctx.push_frame(false)
     val pvar: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *pvar = new_expr(no_span(), ExprKind.Variable(intern("p"))) }
-    var deref = new_expr(no_span(), ExprKind.Deref(pvar))
+    unsafe { *pvar = Expr.new(no_span(), ExprKind.Variable(intern("p"))) }
+    var deref = Expr.new(no_span(), ExprKind.Deref(pvar))
     deref.ty = intern("String").lang_struct_ty(no_span())
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = deref }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("v"), null, ip))
+    var s = Stmt.new(no_span(), StmtKind.LetVal(intern("v"), null, ip))
     s.rc_insert_stmt(&var ctx)
     when (s.kind) {
         LetVal(_, _, init_ptr) => {
@@ -333,15 +340,15 @@ fun struct_ty_named(name: str): Type {
 
 fun mk_string_param(name: str): Param {
     val tr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *tr = new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    unsafe { *tr = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
     return new_param(no_span(), String.from(name), tr)
 }
 
 fun mk_ref_string_param(name: str): Param {
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *inner = new_type_ref(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    unsafe { *inner = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
     val tr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *tr = new_type_ref(no_span(), TypeRefKind.Reference(false, inner)) }
+    unsafe { *tr = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner)) }
     return new_param(no_span(), String.from(name), tr)
 }
 
@@ -376,12 +383,12 @@ fun mk_ref_string_param(name: str): Param {
     unsafe { *ap = av }
     val bp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *bp = bv }
-    var bin = new_expr(no_span(), ExprKind.Binary(ap, BinOp.Add, bp))
+    var bin = Expr.new(no_span(), ExprKind.Binary(ap, BinOp.Add, bp))
     bin.ty = intern("String").lang_struct_ty(no_span())
     val rp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *rp = bin }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(ret_op(rp))))
+    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(rp))))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 3, true, "temp + release + return")
@@ -405,7 +412,7 @@ fun mk_ref_string_param(name: str): Param {
     val rp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *rp = lv }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(ret_op(rp))))
+    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(rp))))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 3, true, "temp + release + return")
@@ -425,11 +432,11 @@ fun mk_ref_string_param(name: str): Param {
     val _i = ctx.push_frame(false)
     var args = List.new<Expr>()
     args.push(mk_string_var_expr(String.from("x")))
-    var call = new_expr(no_span(), ExprKind.Call(intern("render"), args))
+    var call = Expr.new(no_span(), ExprKind.Call(intern("render"), args))
     call.ty = intern("String").lang_struct_ty(no_span())
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = call }
-    var s = new_stmt(no_span(), StmtKind.Expression(cp))
+    var s = Stmt.new(no_span(), StmtKind.Expression(cp))
     s.rc_insert_stmt(&var ctx)
     when (s.kind) {
         LetVal(_, _, _) => assert_eq(true, true, "discarded result bound to a temp")
@@ -442,7 +449,7 @@ fun mk_ref_string_param(name: str): Param {
 @test fun canonical_struct_matches_move_only_display_name(): void {
     var ctx = rc_ctx_for_test("m")
     ctx.move_only_names.push(String.from("Unique"))
-    val identity = new_type_identity(new_crate_id("model"), intern("types"), intern("Unique"))
+    val identity = TypeIdentity.new(new_crate_id("model"), intern("types"), intern("Unique"))
     val ty = named_struct_ty(identity, no_span())
     assert_eq(ty.is_move_only(&var ctx), true, "canonical type matches move-only display name")
 }

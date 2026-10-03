@@ -6,6 +6,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
 
 import kf_core.ast.subst.subst_mangled_name
 import kf_core.ast.subst.subst_static_callee
@@ -93,7 +97,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             // A type-name receiver is respelled so codegen's receiver-name
             // comparison still matches.
             val sp: Span = e.span
-            unsafe { *ep = new_expr(sp, ExprKind.Variable(intern_string(hit))) }
+            unsafe { *ep = Expr.new(sp, ExprKind.Variable(intern_string(hit))) }
         }
         Binary(lp, _op, rp) => {
             qualify_expr_ptr(lp, names, repls, rename_types)
@@ -113,6 +117,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             qualify_expr_ptr(callee, names, repls, rename_types)
             qualify_expr_args(args, names, repls, rename_types)
         }
+        Intrinsic(_intrinsic, args) => qualify_expr_args(args, names, repls, rename_types)
         Call(_n, args) => {
             qualify_expr_args(args, names, repls, rename_types)
             if rename_types {

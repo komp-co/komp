@@ -2,7 +2,10 @@
 // order for codegen.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.FieldInit
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.resolve_type_ref
@@ -14,7 +17,7 @@ import kf_typecheck.note_import_use
 /// `prechecked` when the initializers were checked to infer the arguments.
 mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, prechecked: bool,
     ctx: &var TypeCtx): Type {
-    val ttr = new_type_ref(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
+    val ttr = TypeRef.new(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
     val rty = ttr.resolve_type_ref(ctx)
     val eff = struct_name_of(rty)
     val eff_empty = eff.as_str().equals("")
@@ -35,7 +38,7 @@ fun struct_name_of(t: Type): String {
 fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span, prechecked: bool,
     ctx: &var TypeCtx): Type {
     val sp = ctx.sigs
-    val layout = unsafe { sp.find_struct(struct_name, ctx.owner_crate) } ?: return poison_ty()
+    val layout = unsafe { sp.find_struct(struct_name, ctx.owner_crate) } ?: return Type.new_poison()
     // Naming a type in a literal is a use of its module's import.
     val lit_id = unsafe { sp.lookup_unique_type_identity(struct_name) }
     if !lit_id.crate.is_poison() { note_import_use(ctx.sigs, ctx.owner_file, lit_id.module) }
@@ -96,7 +99,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
             saw_error = true
         }
     }
-    if saw_error { return poison_ty() }
+    if saw_error { return Type.new_poison() }
     reorder_field_inits(fields, &layout)
     return Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(span) }
 }

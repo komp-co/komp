@@ -1,6 +1,10 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_typecheck.*
 import kf_typecheck.types.resolved_projection_type
 import kf_typecheck.check.decl.assoc_projection_registry
@@ -48,7 +52,7 @@ fun normalize_dyn_members(members: &var List<TopDecl>, self_name: str, projectio
 
 fun normalize_dyn_layout(layout: DynTraitLayout, self_name: str, projections: Ptr<SigTable>): DynTraitLayout {
     var args = List.new<Type>()
-    var type_args = new_type_vec()
+    var type_args = List.new<Type>()
     while arg in &layout.args {
         val argument = resolved_projection_type(arg, self_name, projections)
         args.push(argument.clone())
@@ -232,6 +236,9 @@ fun Expr.assert_dyn_expr_concrete(): void {
         Unary(_, inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Deref(inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Call(_, args) => { var i: uint64 = 0; while i < args.size() { assert_dyn_expr_concrete(args.at(i)); i = i + 1 } }
+        Intrinsic(_, args) => {
+            while arg in &args { assert_dyn_expr_concrete(arg) }
+        }
         CallValue(callee, args) => {
             assert_dyn_expr_concrete(&*callee)
             while arg in &args { assert_dyn_expr_concrete(arg) }

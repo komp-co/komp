@@ -7,6 +7,8 @@ import kf_assemble.no_overlay
 import kf_assemble.stage
 import kf_assemble.unstage
 import kf_core.diagnostic.*
+import kf_core.ast.types.TypingNodes
+import kf_core.ast.types.restore_type_nodes
 import kf_driver.build.CompileUnit
 import kf_driver.editor.TypedCrate
 import kf_driver.editor.typed_crate_with
@@ -121,7 +123,10 @@ impl ServeSession {
         if !self.typed[0].focus(params.path.as_str()) {
             return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")
         }
-        return result_line(id, typed_result(method, &params, &self.typed[0]).as_str())
+        val previous = self.typed[0].nodes.enter()
+        val answer = typed_result(method, &params, &self.typed[0])
+        restore_type_nodes(previous)
+        return result_line(id, answer.as_str())
     }
 
     mutating fun check(id: str, line: str): String {
@@ -139,8 +144,12 @@ impl ServeSession {
             name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
             dep_hashes: List.new<String>(), loads: params.loads.clone()
         }
+        // The check's types are its own, and go when it returns.
+        val nodes = TypingNodes.new()
+        val previous = nodes.enter()
         val interfaces = self.write_sources(&params)
         val checked = unit.check_crate(&interfaces, &self.buffers, &cfg)
+        restore_type_nodes(previous)
         if checked.failure.byte_len() > 0 { return error_line(id, "check_failed", checked.failure.as_str()) }
         var writer = JsonWriter.object()
         writer.field_int64("errors", (config_diags.size() + count_errors(&checked.diagnostics) as uint64) as int64)

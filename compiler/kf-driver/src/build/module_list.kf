@@ -4,7 +4,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.crate_id_poison
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_codegen.emit.glue.deep_clone_top_decl
 import kf_codegen.emit.glue.deep_clone_import
@@ -12,14 +15,8 @@ import kf_codegen.emit.glue.deep_clone_import
 import kf_driver.print_diag
 import kf_driver.cli.print_json_diag
 
-/// A heap sink for parse diagnostics.
-/// Owned by the caller; the passes it is handed to borrow it.
-pub fun fresh_diag_list(): Box<List<Diagnostic>> {
-    return Box.new(List.new<Diagnostic>())
-}
-
 /// Returns the count, so callers can gate on it.
-pub fun report_parse_errors(pdiags: Ptr<List<Diagnostic>>, smap: Ptr<SourceMap>, json: bool): int32 {
+pub fun report_parse_errors(pdiags: &var Diagnostics, smap: Ptr<SourceMap>, json: bool): int32 {
     var n = 0
     var i = 0
     while i < unsafe { pdiags.size() } {

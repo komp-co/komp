@@ -3,7 +3,10 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 import kf_core.span.no_span
 
 fun u64_ty(): Type {
@@ -25,18 +28,18 @@ fun joined_name(a: Type, b: Type): String {
 @test
 fun a_wider_second_arm_widens_the_result(): void {
     // `if c { 0 } else { big }`, literal first.
-    assert_eq(joined_name(int32_ty(no_span()), u64_ty()).as_str(), "uint64", "a uint64 arm is not narrowed to the int32 written before it")
+    assert_eq(joined_name(Type.new_int32(no_span()), u64_ty()).as_str(), "uint64", "a uint64 arm is not narrowed to the int32 written before it")
 }
 
 @test
 fun a_wider_first_arm_is_kept(): void {
-    assert_eq(joined_name(u64_ty(), int32_ty(no_span())).as_str(), "uint64", "the wider arm wins whichever side it is on")
+    assert_eq(joined_name(u64_ty(), Type.new_int32(no_span())).as_str(), "uint64", "the wider arm wins whichever side it is on")
 }
 
 @test
 fun equal_widths_keep_the_first_arm(): void {
     // Signedness stays permissive.
-    assert_eq(joined_name(int32_ty(no_span()), int32_ty(no_span())).as_str(), "int32", "identical types join to themselves")
+    assert_eq(joined_name(Type.new_int32(no_span()), Type.new_int32(no_span())).as_str(), "int32", "identical types join to themselves")
     assert_eq(joined_name(i64_ty(), u64_ty()).as_str(), "int64", "equal widths keep the first arm rather than inventing a rule")
 }
 
@@ -48,7 +51,7 @@ fun a_narrow_arm_never_narrows_a_wide_one(): void {
 
 @test
 fun unrelated_types_do_not_join(): void {
-    val j = join_arm_types(&int32_ty(no_span()), &intern("String").lang_struct_ty(no_span()), intern("String"))
+    val j = join_arm_types(&Type.new_int32(no_span()), &intern("String").lang_struct_ty(no_span()), intern("String"))
     assert_eq(j.is_poison(), true, "an int and a String have no join, and the caller reports it")
 }
 

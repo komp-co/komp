@@ -3,7 +3,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.FnParts
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -21,18 +27,18 @@ pub mutating fun Expr.name_function_value(name: Sym, ctx: &var TypeCtx): bool {
     if sig.generics.size() > 0 {
         val message = "generic function `${name.as_str()}` cannot be used as a value: a function value has one type"
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     val real = if sig.name.as_str().equals(name.as_str()) { name } else { intern(sig.name.as_str()) }
     self.kind = ExprKind.FnRef(real)
     val pinned = sigs.pinned_link_name(&sig)
     if pinned.byte_len() > 0 { self.mangled_callee = intern(pinned.as_str()) }
-    var params = new_type_vec()
+    var params = List.new<Type>()
     while param in &sig.params {
         params.push(param)
     }
-    self.ty = fn_ty(params, sig.ret, Provenance.Inferred(self.span))
+    self.ty = Type.new_fn(params, sig.ret, Provenance.Inferred(self.span))
     ctx.note_fn_type(&self.ty)
     return true
 }
@@ -57,7 +63,7 @@ pub mutating fun Expr.call_through_field(recv_ptr: Ptr<Expr>, recv_ty: Type, nam
     val field_ty = check_field_access(recv_ty, name.as_string(), self.span, ctx)
     ctx.quiet = was_quiet
     if field_ty.through_borrow().fn_parts() == null { return false }
-    var field = new_expr(self.span, ExprKind.FieldAccess(recv_ptr, name))
+    var field = Expr.new(self.span, ExprKind.FieldAccess(recv_ptr, name))
     field.ty = field_ty
     val callee = Box.new(field)
     self.ty = self.call_through(callee, args, ctx)
@@ -74,11 +80,11 @@ pub mutating fun Expr.check_call_value(callee_ptr: Box<Expr>, args: &var List<Ex
 /// The call's type, with `callee_ptr` already checked.
 mutating fun Expr.call_through(callee_ptr: Box<Expr>, args: &var List<Expr>, ctx: &var TypeCtx): Type {
     val callee_ty = callee_ptr.ty
-    if callee_ty.is_poison() { return poison_ty() }
-    val parts = callee_ty.through_borrow().fn_parts() ?: return poison_ty()
+    if callee_ty.is_poison() { return Type.new_poison() }
+    val parts = callee_ty.through_borrow().fn_parts() ?: return Type.new_poison()
     if callee_ty.type_is_borrow() {
         val span = callee_ptr.span
-        var through = new_expr(span, ExprKind.Deref(Box.new(*callee_ptr)))
+        var through = Expr.new(span, ExprKind.Deref(Box.new(*callee_ptr)))
         through.ty = parts_type(&parts, span)
         *callee_ptr = through
     }
@@ -87,13 +93,13 @@ mutating fun Expr.call_through(callee_ptr: Box<Expr>, args: &var List<Expr>, ctx
         val counts = "expected ${parts.params.size()}, found ${args.size()}"
         val message = "wrong number of arguments to a function value: ${counts}"
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        return poison_ty()
+        return Type.new_poison()
     }
     var saw_error = false
     while j in 0..args.size() {
         val expected = *parts.params.at(j)
         val outcome = coerce_call_arg(args, j, expected.clone(), ctx)
-        val found = if arg_tys.at(j).is_poison() { poison_ty() } else { args.at(j).ty.clone() }
+        val found = if arg_tys.at(j).is_poison() { Type.new_poison() } else { args.at(j).ty.clone() }
         if !outcome.valid {
             saw_error = true
         } else if !outcome.coerced && !found.type_eq(expected) && !ctx.fits(found, expected) {
@@ -103,14 +109,14 @@ mutating fun Expr.call_through(callee_ptr: Box<Expr>, args: &var List<Expr>, ctx
             ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
         }
     }
-    if saw_error { return poison_ty() }
+    if saw_error { return Type.new_poison() }
     return parts.ret
 }
 
 fun parts_type(parts: &FnParts, span: Span): Type {
-    var params = new_type_vec()
+    var params = List.new<Type>()
     while param in &parts.params {
         params.push(param)
     }
-    return fn_ty(params, parts.ret, Provenance.Inferred(span))
+    return Type.new_fn(params, parts.ret, Provenance.Inferred(span))
 }

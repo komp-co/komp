@@ -5,30 +5,31 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.crate_id_poison
+import kf_core.ast.intern
+import kf_core.ast.types.*
 import kf_core.diagnostic.*
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
+import kf_typecheck.leaked_diagnostics
 
 /// `Counter.Iter = CountIter`, with or without `next_ptr`.
 fun mk_iter_ctx(with_next_ptr: bool): TypeCtx {
-    val dp: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *dp = List.new<Diagnostic>() }
     val sp: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sp = new_sig_table() }
     val iter_ty = Type { kind: TypeKind.Struct(intern("CountIter")), provenance: Provenance.Inferred(no_span()) }
     unsafe { sp.insert_assoc_binding(AssocBindingInfo {
         type_name: String.from("Counter"), trait_name: String.from(""),
         trait_args: String.from(""), assoc_name: String.from("Iter"), chosen: iter_ty,
-        chosen_tref: new_type_ref(no_span(), TypeRefKind.Named(intern("CountIter"), List.new<TypeRef>())) }) }
+        chosen_tref: TypeRef.new(no_span(), TypeRefKind.Named(intern("CountIter"), List.new<TypeRef>())) }) }
     if with_next_ptr {
         unsafe { sp.insert(FnSignature {
             name: String.from("CountIter_next_ptr"), params: List.new<Type>(),
-            ret: void_ty(no_span()), generics: List.new<String>(), is_static: false,
+            ret: Type.new_void(no_span()), generics: List.new<String>(), is_static: false,
             is_mutating: true, owner_module: intern(""), owner_crate: crate_id_poison(),
             is_pub: true, borrows: -1, is_prelude: false, is_extern: false }) }
     }
-    return new_type_ctx(void_ty(no_span()), dp, Option.None, sp)
+    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, Option.None, sp)
 }
 
 fun counter_ty(): Type {

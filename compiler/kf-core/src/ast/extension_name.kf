@@ -1,4 +1,5 @@
 import alloc.replace
+import kf_core.ast.types.TypeRef
 
 /// `<name>_ext_<receiver>`, single underscores only (`area_ext_List_Point`):
 /// `__` is the generic-instance separator.

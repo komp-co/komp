@@ -2,6 +2,9 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.new_annotation
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import json.reader.*
@@ -115,6 +118,12 @@ fun parse_type_ptr(source: str): Ptr<TypeRef> {
     var parser = new_parser(tokens)
     val parsed = parser.parse_type_ref_ptr()
     return parsed
+}
+
+fun parse_type_value(source: str): TypeRef {
+    val tokens = tokenize(source, 0)
+    var parser = new_parser(tokens)
+    return parser.parse_type_ref()
 }
 
 /// `rename("id")`, as a member's annotation use is written without its `@`.

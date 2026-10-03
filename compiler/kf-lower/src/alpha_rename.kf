@@ -10,6 +10,12 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 // One scope's (original -> renamed) pairs; a non-shadowing binding maps to
 // itself.
@@ -104,6 +110,7 @@ fun rename_expr_ptr(p_opt: Ptr<Expr>?, ctx: &var RnCtx): void {
             rename_expr_list(&args, ctx)
         }
         Call(_nm, args) => rename_expr_list(&args, ctx)
+        Intrinsic(_i, args) => rename_expr_list(&args, ctx)
         CallValue(callee, args) => {
             rename_expr_ptr(callee, ctx)
             rename_expr_list(&args, ctx)

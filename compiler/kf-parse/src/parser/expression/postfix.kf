@@ -2,80 +2,13 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_parse.parser.*
-
-/// The memory intrinsics and `annotated`, which fold an explicit
-/// `<T>` into the callee name (`alloc<Expr>` is `alloc__Expr`). None is ever
-/// compared, so a following `<` is always a type-argument list.
-fun is_generic_call_name(s: str): bool {
-    return when s {
-        "alloc" => true
-        "alloc_array" => true
-        "realloc_array" => true
-        "dealloc" => true
-        "sizeof" => true
-        "take" => true
-        "drop_in_place" => true
-        "clone_place" => true
-        "ptr_read" => true
-        "annotated" => true
-        _ => false
-    }
-}
-
-fun tyref_is_poison(tr: TypeRef): bool {
-    return when (tr.kind) {
-        Named(_n, _a) => false
-        DynTrait(_n, _a) => false
-        Reference(_m, _i) => false
-        Function(_p, _r) => false
-        Array(_e, _n) => false
-        // `List.new<F.Out>()` is a type-argument list; the owner is the
-        // checker's concern.
-        Projection(_owner, _member) => false
-        Value(_v) => false
-        Poison => true
-    }
-}
-
-/// Matches kf-codegen's tyref_mangle and Mono's ty_to_mangle:
-/// `List<int32>` is `List__int32`.
-fun TypeRef.tyref_mangle_frag(): String {
-    when (self.kind) {
-        Named(n, a) => {
-            if a.size() == 0 { return n.as_string() }
-            var r = n.as_string()
-            while item in &a {
-                r = r + String.from("__") + (item).tyref_mangle_frag()
-            }
-            return r
-        }
-        DynTrait(n, a) => {
-            var r = "Dyn__${n.as_string()}"
-            while item in &a {
-                r = r + String.from("__") + (item).tyref_mangle_frag()
-            }
-            return r
-        }
-        Reference(is_mut, inner_ptr) => {
-            return borrow_frag(is_mut, (unsafe { &*inner_ptr }).tyref_mangle_frag().as_str())
-        }
-        Function(params, ret) => {
-            var frags = List.new<String>()
-            while param in &params {
-                frags.push(param.tyref_mangle_frag())
-            }
-            return fn_frag(&frags, ret.tyref_mangle_frag().as_str())
-        }
-        Array(_e, _n) => return String.from("array")
-        Projection(owner, member) => {
-            val inner = (unsafe { &*owner }).tyref_mangle_frag()
-            return projection_mangle_frag(inner.as_str(), member.as_str())
-        }
-        Value(v) => return value_frag(v)
-        Poison => return String.from("poison")
-    }
-}
 
 impl Parser {
     mutating fun parse_after_identifier(name: Sym, span: Span): Expr {
@@ -85,16 +18,15 @@ impl Parser {
 
     /// Postfix operators are handled by parse_postfix.
     mutating fun parse_identifier_head(name: Sym, span: Span): Expr {
-        // A memory intrinsic: the type args fold into the callee name.
         if is_op(self.peek(), Operator.Lt) {
-            if is_generic_call_name(name.as_str()) {
-                return self.parse_generic_ctor_call(name, span)
-            }
+            // An intrinsic is never compared, so its `<` opens a list.
+            val intrinsic = intrinsic_named(name.as_str())
+            if intrinsic != null { return self.parse_intrinsic_call(intrinsic!!, span) }
             // `Foo<...>(...)` or `Foo<...>{...}`: committed only if `(` or `{`
             // follows, otherwise rewound so `<` is a comparison.
             val save_pos: uint64 = self.pos
             var targs = List.new<TypeRef>()
-            val ok: bool = self.try_parse_type_args(&var targs)
+            val ok: bool = self.parse_type_argument_list(&var targs, true)
             if ok {
                 val lp: bool = is_op(self.peek(), Operator.LParen)
                 val lb: bool = is_op(self.peek(), Operator.LBrace)
@@ -123,88 +55,25 @@ impl Parser {
         if brace_next && struct_allowed {
             return self.parse_struct_lit(name, span)
         }
-        return new_expr(span, ExprKind.Variable(name))
+        return Expr.new(span, ExprKind.Variable(name))
     }
 
-    /// `alloc<T1, ...>(args)`: type args folded into `alloc__T1__...`.
-    mutating fun parse_generic_ctor_call(name: Sym, span: Span): Expr {
-        unsafe { self.advance() } // consume `<`
-        var mangled = name.as_string()
+    /// `alloc<T>(args)`, the intrinsic `name` names.
+    mutating fun parse_intrinsic_call(intrinsic: Intrinsic, span: Span): Expr {
         var type_args = List.new<TypeRef>()
-        while true {
-            if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>`
-                break
-            }
-            if self.at_eof() {
-                self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
-                break
-            }
-            val before: uint64 = self.pos
-            val arg_ptr = self.parse_type_ref_ptr()
-            val type_arg = unsafe { *arg_ptr }
-            val frag = type_arg.tyref_mangle_frag()
-            type_args.push(type_arg)
-            mangled = mangled + String.from("__") + frag
-            unsafe { dealloc<TypeRef>(arg_ptr) }
-            if is_op(self.peek(), Operator.Comma) {
-                unsafe { self.advance() }
-            }
-            // A token no type starts with was reported and not consumed.
-            if self.pos == before { break }
-        }
+        val _ = self.parse_type_argument_list(&var type_args, false)
         val arg_vec = if is_op(self.peek(), Operator.LParen) { self.parse_arg_list() } else { List.new<Expr>() }
-        var call = new_expr(self.span_through_last(span), ExprKind.Call(intern(mangled.as_str()), arg_vec))
+        var call = Expr.new(self.span_through_last(span), ExprKind.Intrinsic(intrinsic, arg_vec))
         call.name_span = span
         call.type_args = type_args
-        // Only the parser knows a call is an intrinsic; see Expr.is_intrinsic.
-        call.is_intrinsic = true
         return call
-    }
-
-    /// A speculative `<T, ...>` list. False (and the caller rewinds) unless it
-    /// is well-formed and closed by `>`.
-    pub mutating fun try_parse_type_args(out: &var List<TypeRef>): bool {
-        unsafe { self.advance() } // consume `<`
-        // Errors are suppressed: on failure `<` is re-read as a comparison.
-        val was_speculative: bool = self.speculative
-        self.speculative = true
-        var ok: bool = true
-        while true {
-            // Newlines are whitespace inside the brackets, but the `<` itself
-            // must follow the callee: a `<` opening a line is a comparison.
-            self.skip_newlines()
-            if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>` (empty/trailing)
-                break
-            }
-            val tr = self.parse_type_argument()
-            val is_poison: bool = tyref_is_poison(tr)
-            if is_poison {
-                ok = false
-                break
-            }
-            out.push(tr)
-            self.skip_newlines()
-            if is_op(self.peek(), Operator.Comma) {
-                unsafe { self.advance() }
-            } else if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>`
-                break
-            } else {
-                ok = false // not a type-arg list
-                break
-            }
-        }
-        self.speculative = was_speculative
-        return ok
     }
 
     /// `Name(args)`; `(` is next.
     mutating fun parse_call_args(name: Sym, span: Span): Expr {
         val arg_vec = self.parse_arg_list()
         // Taken before the span widens over the arguments.
-        var call = new_expr(self.span_through_last(span), ExprKind.Call(name, arg_vec))
+        var call = Expr.new(self.span_through_last(span), ExprKind.Call(name, arg_vec))
         call.name_span = span
         return call
     }
@@ -265,9 +134,9 @@ impl Parser {
                 unsafe { *value_ptr = self.parse_expr() }
             } else {
                 // `Point { x, y }` is `Point { x: x, y: y }`.
-                unsafe { *value_ptr = new_expr(name_span, ExprKind.Variable(intern(fname.as_str()))) }
+                unsafe { *value_ptr = Expr.new(name_span, ExprKind.Variable(intern(fname.as_str()))) }
             }
-            fields.push(new_field_init(name_span, fname, value_ptr))
+            fields.push(FieldInit.new(name_span, fname, value_ptr))
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }
             } else if is_op(self.peek(), Operator.RBrace) {
@@ -284,7 +153,7 @@ impl Parser {
         if is_op(self.peek(), Operator.RBrace) {
             unsafe { self.advance() }
         }
-        return new_expr(span, ExprKind.StructLit(name, fields))
+        return Expr.new(span, ExprKind.StructLit(name, fields))
     }
 
     /// A `.` opening the next line continues the chain; `.` cannot start a
@@ -321,7 +190,7 @@ impl Parser {
                 val binder = "__try_${self.try_ctr}"
                 self.try_ctr = self.try_ctr + 1
                 self.pending_try.push(PendingTry { name: binder.clone(), subject: take<Expr>(current), span: cur_span.merge(q_span) })
-                current = new_expr(cur_span.merge(q_span), ExprKind.Variable(intern(binder.as_str())))
+                current = Expr.new(cur_span.merge(q_span), ExprKind.Variable(intern(binder.as_str())))
             } else if is_op(self.peek(), Operator.BangBang) {
                 // `a!!` is `a.unwrap()`; typecheck checks the method exists.
                 val bang_span = self.peek().span
@@ -329,16 +198,16 @@ impl Parser {
                 val cur_span = current.span
                 val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *cur_ptr = take<Expr>(current) }
-                current = new_expr(cur_span.merge(bang_span), ExprKind.MethodCall(cur_ptr, intern("unwrap"), List.new<Expr>()))
+                current = Expr.new(cur_span.merge(bang_span), ExprKind.MethodCall(cur_ptr, intern("unwrap"), List.new<Expr>()))
             } else if is_op(self.peek(), Operator.LParen) {
                 // `pick(true)(5)`, `(h.on)(8)`: a call through the value.
                 val cur_span = current.span
                 val callee = Box.new(take<Expr>(current))
                 val call_args = self.parse_arg_list()
-                current = new_expr(self.span_through_last(cur_span), ExprKind.CallValue(callee, call_args))
+                current = Expr.new(self.span_through_last(cur_span), ExprKind.CallValue(callee, call_args))
             } else if is_op(self.peek(), Operator.LBracket) {
                 current = self.parse_index(take<Expr>(current))
-            } else if is_keyword(self.peek(), Keyword.As) {
+            } else if is_keyword(self.peek(), Keyword.As) && !self.cast_after_prefix {
                 val as_span = self.peek().span
                 unsafe { self.advance() } // consume `as`
                 val ty_ptr: Ptr<TypeRef> = self.parse_type_ref_ptr()
@@ -346,7 +215,7 @@ impl Parser {
                 val full_span: Span = cur_span.merge(as_span)
                 val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *cur_ptr = take<Expr>(current) }
-                current = new_expr(full_span, ExprKind.Cast(cur_ptr, ty_ptr))
+                current = Expr.new(full_span, ExprKind.Cast(cur_ptr, ty_ptr))
             } else {
                 break
             }
@@ -368,7 +237,7 @@ impl Parser {
         var m_targs = List.new<TypeRef>()
         if is_op(self.peek(), Operator.Lt) {
             val save: uint64 = self.pos
-            val ok: bool = self.try_parse_type_args(&var m_targs)
+            val ok: bool = self.parse_type_argument_list(&var m_targs, true)
             if !ok {
                 self.pos = save
                 m_targs = List.new<TypeRef>()
@@ -379,12 +248,12 @@ impl Parser {
         }
         if is_op(self.peek(), Operator.LParen) {
             val margs = self.parse_arg_list()
-            var mc = new_expr(self.span_through_last(full_span), ExprKind.MethodCall(recv_ptr, intern(fname.as_str()), margs))
+            var mc = Expr.new(self.span_through_last(full_span), ExprKind.MethodCall(recv_ptr, intern(fname.as_str()), margs))
             mc.type_args = m_targs
             mc.name_span = name_span
             return mc
         }
-        var fa = new_expr(full_span, ExprKind.FieldAccess(recv_ptr, intern(fname.as_str())))
+        var fa = Expr.new(full_span, ExprKind.FieldAccess(recv_ptr, intern(fname.as_str())))
         fa.name_span = name_span
         return fa
     }
@@ -407,20 +276,20 @@ impl Parser {
         val some_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
         unsafe { *some_pat = new_pattern(recv_span, PatternKind.Variant(intern("Some"), some_payloads)) }
 
-        var member = self.parse_member_access(new_expr(recv_span, ExprKind.Variable(bsym)))
+        var member = self.parse_member_access(Expr.new(recv_span, ExprKind.Variable(bsym)))
         member.is_safe_call_value = true
         val full: Span = recv_span.merge(member.span)
         val mptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *mptr = take<Expr>(member) }
         var some_body = List.new<Stmt>()
-        some_body.push(new_stmt(full, StmtKind.Expression(mptr)))
+        some_body.push(Stmt.new(full, StmtKind.Expression(mptr)))
 
         val none_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
         unsafe { *none_pat = new_pattern(full, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
         val nullp: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *nullp = new_expr(full, ExprKind.Variable(intern("null"))) }
+        unsafe { *nullp = Expr.new(full, ExprKind.Variable(intern("null"))) }
         var none_body = List.new<Stmt>()
-        none_body.push(new_stmt(full, StmtKind.Expression(nullp)))
+        none_body.push(Stmt.new(full, StmtKind.Expression(nullp)))
 
         var arms = List.new<Arm>()
         arms.push(new_arm(full, some_pat, null, some_body))
@@ -428,6 +297,6 @@ impl Parser {
 
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = recv }
-        return new_expr(full, ExprKind.WhenExpr(subj, arms))
+        return Expr.new(full, ExprKind.WhenExpr(subj, arms))
     }
 }

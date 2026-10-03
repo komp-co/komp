@@ -3,7 +3,8 @@
 // template's parameters with the receiver's arguments.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.mangle_segments
+import kf_core.ast.types.Type
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.mangle_suffix
@@ -127,13 +128,7 @@ pub fun recv_bindings_for_method(sname: String, span: Span, ctx: &var TypeCtx): 
 }
 
 pub fun subst_recv(t: Type, binding: &RecvBinding): Type {
-    var out = t
-    var i = 0
-    while i < binding.names.size() {
-        out = out.subst_generic(*binding.names.at(i), *binding.types.at(i))
-        i = i + 1
-    }
-    return out
+    return subst_all_generics(t, &binding.names, &binding.types)
 }
 
 /// A caller with no bindings must not claim the template's signature.

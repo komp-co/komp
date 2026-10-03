@@ -1,7 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 import kf_parse.parser.*
 
 impl Parser {
@@ -58,8 +62,7 @@ impl Parser {
         }
         unsafe { self.advance() } // consume `:`
         while true {
-            val sref = self.parse_type_ref_ptr()
-            supers.push(unsafe { *sref })
+            supers.push(self.parse_type_ref())
             if is_op(self.peek(), Operator.Plus) {
                 unsafe { self.advance() } // consume `+`, next supertrait
             } else if is_op(self.peek(), Operator.Comma) {
@@ -94,8 +97,7 @@ impl Parser {
                 unsafe { self.advance() } // consume `:`
                 while true {
                     self.skip_newlines()
-                    val bref = self.parse_type_ref_ptr()
-                    tp.bounds.push(unsafe { *bref })
+                    tp.bounds.push(self.parse_type_ref())
                     self.skip_newlines()
                     if is_op(self.peek(), Operator.Plus) {
                         unsafe { self.advance() } // consume `+`, next bound
@@ -164,7 +166,7 @@ impl Parser {
             return self.parse_type_ref_ptr()
         }
         val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-        unsafe { *ret = new_type_ref(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+        unsafe { *ret = TypeRef.new(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
         return ret
     }
 
@@ -212,15 +214,12 @@ impl Parser {
         val name_tok_span = self.peek().span
         val name = self.expect_name("parameter")
         unsafe { self.advance() }
-        var ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            ty = self.parse_type_ref_ptr()
-        } else {
-            self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name (every parameter needs a type annotation)"))
-            unsafe { *ty = type_ref_poison(name_tok_span) }
+            return new_param(name_tok_span, name, self.parse_type_ref_ptr())
         }
-        return new_param(name_tok_span, name, ty)
+        self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name (every parameter needs a type annotation)"))
+        return new_param(name_tok_span, name, poison_type_ref_at(name_tok_span))
     }
 
     /// `struct Name { val field1: Type, var field2: Type }`, consuming
@@ -320,9 +319,7 @@ impl Parser {
                 unsafe { self.advance() }
             } else {
                 while true {
-                    val tr_ptr = self.parse_type_ref_ptr()
-                    payloads.push(unsafe { *tr_ptr })
-                    unsafe { dealloc<TypeRef>(tr_ptr) }
+                    payloads.push(self.parse_type_ref())
                     if is_op(self.peek(), Operator.Comma) {
                         unsafe { self.advance() }
                     } else {
@@ -359,15 +356,11 @@ impl Parser {
         val name = self.expect_name("field")
         unsafe { self.advance() }
 
-        var ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            ty = self.parse_type_ref_ptr()
-        } else {
-            self.parse_err(self.peek().span, String.from("expected `:` and a type after the field name (every field needs a type annotation)"))
-            unsafe { *ty = type_ref_poison(name_span) }
+            return new_field(name_span, name, self.parse_type_ref_ptr(), is_var, is_field_pub)
         }
-
-        return new_field(name_span, name, ty, is_var, is_field_pub)
+        self.parse_err(self.peek().span, String.from("expected `:` and a type after the field name (every field needs a type annotation)"))
+        return new_field(name_span, name, poison_type_ref_at(name_span), is_var, is_field_pub)
     }
 }

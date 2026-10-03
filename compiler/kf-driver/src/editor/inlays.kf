@@ -3,7 +3,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.view
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import json.writer.*
 
 /// `{"schema_version":1,"file":..,"inlays":[{"byte_offset":N,"label":": T"}]}`

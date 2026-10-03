@@ -1,6 +1,12 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
 import alloc.list.*
 import kf_core.span.no_span
 
@@ -12,8 +18,8 @@ fun resolved_struct_name_is_owned_str(): void {
 
 fun inits_named(first: str, second: str): List<FieldInit> {
     var inits = List.new<FieldInit>()
-    inits.push(new_field_init(no_span(), String.from(first), Box.new(new_expr(no_span(), ExprKind.LitInt(1)))))
-    inits.push(new_field_init(no_span(), String.from(second), Box.new(new_expr(no_span(), ExprKind.LitInt(2)))))
+    inits.push(FieldInit.new(no_span(), String.from(first), Box.new(Expr.new(no_span(), ExprKind.LitInt(1)))))
+    inits.push(FieldInit.new(no_span(), String.from(second), Box.new(Expr.new(no_span(), ExprKind.LitInt(2)))))
     return inits
 }
 

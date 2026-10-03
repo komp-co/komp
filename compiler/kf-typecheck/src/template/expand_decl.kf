@@ -5,6 +5,9 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 
 fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>,

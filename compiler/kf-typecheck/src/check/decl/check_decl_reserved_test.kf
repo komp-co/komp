@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.ast.*
+import kf_core.ast.declaration.*
 import kf_resolve.new_decl_table
 import kf_core.span.no_span
 import kf_typecheck.typecheck_module

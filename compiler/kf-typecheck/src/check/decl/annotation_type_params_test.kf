@@ -2,19 +2,23 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.diagnostic.Diagnostics
 
 fun slot_ref(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun mutable_slot_ref(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Reference(true, Box.new(slot_ref(name))))
+    return TypeRef.new(no_span(), TypeRefKind.Reference(true, Box.new(slot_ref(name))))
 }
 
 /// `annotation NAME on (params) -> ret`.
 fun targeted(params: List<TypeRef>, ret: TypeRef): TopDecl {
-    val function = new_type_ref(no_span(), TypeRefKind.Function(params, Box.new(ret)))
+    val function = TypeRef.new(no_span(), TypeRefKind.Function(params, Box.new(ret)))
     val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), MarkTarget.Function(Box.new(function)), true)
     return new_top_decl(no_span(), String.from("handler"), kind)
 }
@@ -23,7 +27,7 @@ fun implicit_params(td: TopDecl): String {
     var types = List.new<String>()
     types.push(String.from("Request"))
     var decl = td
-    decl.add_target_params(&types, 0 as Ptr<List<Diagnostic>>)
+    decl.add_target_params(&types, 0 as &var Diagnostics)
     var out = String.from("")
     while param in &decl.generics {
         if out.byte_len() > 0 { out.append(",") }
@@ -74,6 +78,6 @@ fun uses_of(slot: TypeRef, name: str): String {
 @test fun a_type_argument_is_a_nested_use(): void {
     var args = List.new<TypeRef>()
     args.push(slot_ref("T"))
-    val listed = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), args))
+    val listed = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
     assert_eq(uses_of(listed, "T").as_str(), "0/1", "inside `List<T>`")
 }

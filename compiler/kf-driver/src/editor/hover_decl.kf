@@ -9,7 +9,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.types.Type
+import kf_interface.emit.tyref_to_source
 
 pub struct HoverDecl {
     pub val found: bool
@@ -32,24 +35,21 @@ pub fun TypedCrate.hover_decl_at(offset: uint32): HoverDecl {
 fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     val src = self.source.as_str()
     val start = word_start_at(src, offset)
-    if start == 0 { return no_hover_decl() }
+    if start < 2 { return no_hover_decl() }
     if src.byte_at((start - 1) as uint64) != 46 { return no_hover_decl() }
     val name = word_at(src, offset)
     if name.as_str() == "" { return no_hover_decl() }
-    val owner = self.member_owner_before(start - 1)
+    // Tried as a declared type first: `Point` in `Point.new` is not an
+    // expression, and reaches only static members.
+    val recv = word_at(src, start - 2)
+    if recv.as_str() != "" && self.module.names_a_type(recv.as_str()) {
+        return self.member_named(recv.as_str(), name.as_str(), &Type.new_poison())
+    }
+    val hit = self.module.innermost_expr_at(self.file_id, start - 2)
+    if !hit.found || hit.ty.is_poison() { return no_hover_decl() }
+    val owner = hit.ty.type_base_name()
     if owner.as_str() == "" { return no_hover_decl() }
-    return self.member_named(owner.as_str(), name.as_str())
-}
-
-/// The type whose members a `.` at `dot` reaches. Tried as a declared type
-/// first: `Point` in `Point.new` is not an expression and types as poison.
-fun TypedCrate.member_owner_before(dot: uint32): String {
-    val src = self.source.as_str()
-    val recv = word_at(src, dot - 1)
-    if recv.as_str() != "" && self.module.names_a_type(recv.as_str()) { return recv }
-    val hit = self.module.innermost_expr_at(self.file_id, dot - 1)
-    if !hit.found || hit.ty.is_poison() { return "" }
-    return hit.ty.type_base_name()
+    return self.member_named(owner.as_str(), name.as_str(), &hit.ty)
 }
 
 fun Module.names_a_type(name: str): bool {
@@ -66,13 +66,40 @@ fun Module.names_a_type(name: str): bool {
     return false
 }
 
-/// From any impl naming `owner`, inherent or trait.
-fun TypedCrate.member_named(owner: str, name: str): HoverDecl {
+/// From any impl naming `owner`, inherent or trait, then its fields, then
+/// the extension a call on `receiver` would pick; a poison `receiver` reaches
+/// no extension.
+fun TypedCrate.member_named(owner: str, name: str, receiver: &Type): HoverDecl {
     val own = self.impl_member_named(owner, name)
     if own.found { return own }
+    val field = self.field_named(owner, name)
+    if field.found { return field }
+    if receiver.is_poison() { return no_hover_decl() }
+    val links = self.callable_extensions(receiver)
     while td in &self.module.decls {
-        if td.extension_applies_to(owner) && td.ext_name.as_str() == name {
+        if td.is_extension_in(&links) && td.ext_name.as_str() == name {
             return HoverDecl { found: true, label: td.signature_of().label, doc: td.span.doc_for_span(self) }
+        }
+    }
+    return no_hover_decl()
+}
+
+/// `val x: int32`, as the struct declares it.
+fun TypedCrate.field_named(owner: str, name: str): HoverDecl {
+    while td in &self.module.decls {
+        if td.name.as_str() == owner {
+            when (td.kind) {
+                Struct(fields, _pub) => {
+                    while f in &fields {
+                        if f.name.as_str() == name {
+                            val keyword = if f.is_var { "var" } else { "val" }
+                            val label = "${keyword} ${name}: ${f.ty.tyref_to_source()}"
+                            return HoverDecl { found: true, label: label, doc: f.span.doc_for_span(self) }
+                        }
+                    }
+                }
+                _ => { }
+            }
         }
     }
     return no_hover_decl()

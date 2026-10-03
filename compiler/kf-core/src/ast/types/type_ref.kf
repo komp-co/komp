@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 
 // CONSTRAINT: TypeRef and TypeRefKind share this file so their typedefs are
 // emitted in source order.

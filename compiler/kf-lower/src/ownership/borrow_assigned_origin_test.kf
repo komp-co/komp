@@ -1,0 +1,48 @@
+import core.assert.assert_eq
+import alloc.list.*
+import kf_core.span.no_span
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+import kf_core.ast.types.*
+
+/// `var t: str` then, in an `if`, `t = <value>` in each branch.
+fun str_temp_filled_by(value: Expr): List<Stmt> {
+    val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *ann = TypeRef.new(no_span(), TypeRefKind.Named(intern("str"), List.new<TypeRef>())) }
+    var stmts = List.new<Stmt>()
+    stmts.push(Stmt.new(no_span(), StmtKind.LetVar(intern("t"), ann, null)))
+    var literal = Expr.new(no_span(), ExprKind.LitStr(String.from("zero")))
+    literal.ty = str_type()
+    var then_body = List.new<Stmt>()
+    then_body.push(Stmt.new(no_span(), StmtKind.Assign(intern("t"), boxed_expr(literal))))
+    var else_body = List.new<Stmt>()
+    else_body.push(Stmt.new(no_span(), StmtKind.Assign(intern("t"), boxed_expr(value))))
+    val cond = Expr.new(no_span(), ExprKind.LitBool(true))
+    stmts.push(Stmt.new(no_span(), StmtKind.If(boxed_expr(cond), then_body, else_body)))
+    return stmts
+}
+
+@test fun a_str_declared_without_a_value_takes_one_later(): void {
+    val stmts = str_temp_filled_by(Expr.new(no_span(), ExprKind.LitStr(String.from("many"))))
+    assert_eq((stmts.at(0)).declares_borrow_without_value(&List.new<String>()), true, "`var t: str` is filled later")
+}
+
+@test fun a_temporary_filled_by_literals_borrows_no_local(): void {
+    var many = Expr.new(no_span(), ExprKind.LitStr(String.from("many")))
+    many.ty = str_type()
+    val stmts = str_temp_filled_by(many)
+    val origin = assigned_borrow_origin(&stmts, 1, "t", &List.new<String>())
+    assert_eq(origin.as_str(), "", "literals outlive the function")
+}
+
+@test fun a_temporary_filled_from_a_local_borrows_it(): void {
+    var call = Expr.new(no_span(), ExprKind.MethodCall(boxed_expr(var_expr("owned", string_type())), intern("as_str"),
+        List.new<Expr>()))
+    call.ty = str_type()
+    val stmts = str_temp_filled_by(call)
+    val origin = assigned_borrow_origin(&stmts, 1, "t", &List.new<String>())
+    assert_eq(origin.as_str(), "owned", "one branch borrows `owned`")
+}

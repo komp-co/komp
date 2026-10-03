@@ -1,7 +1,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.any_kind_target
 import kf_parse.parser.*
 
 impl Parser {
@@ -75,8 +77,7 @@ impl Parser {
         var bounds = List.new<TypeRef>()
         if self.take_op(Operator.Colon) {
             while true {
-                val bound = self.parse_type_ref_ptr()
-                bounds.push(unsafe { *bound })
+                bounds.push(self.parse_type_ref())
                 if !self.take_op(Operator.Plus) { break }
             }
             if !marked.takes_bounds() {

@@ -1,6 +1,8 @@
 // `alias.name(args)`: a call through `import a.b as alias`.
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.alias_admission
+import kf_core.ast.expression.Expr
 
 /// The admission of the alias this method call's receiver names in the
 /// caller's file, or poison. A local of that name shadows the alias.

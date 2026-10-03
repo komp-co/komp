@@ -4,13 +4,13 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.new_crate_id
-import kf_core.ast.void_ty
+import kf_core.ast.types.Type
 
 fun metadata_test_slot(name: str, slot: uint64): DynMethodSlot {
     return DynMethodSlot {
         name: intern(name),
         params: [],
-        ret: void_ty(no_span()),
+        ret: Type.new_void(no_span()),
         is_mutating: false,
         slot: slot
     }

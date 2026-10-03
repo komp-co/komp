@@ -1,6 +1,4 @@
-import kf_core.ast.crate_id_poison
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.ast.*
 
 /// A user-defined type's identity: name, crate and module. The name alone is
 /// kept for diagnostics and unity C emission.
@@ -16,7 +14,7 @@ impl TypeIdentity {
         return Self { crate: crate, module: module, name: name }
     }
 
-    pub fun new_poison(): Self {
+    pub static fun new_poison(): Self {
         return Self { crate: crate_id_poison(), module: intern(""), name: intern("") }
     }
 }

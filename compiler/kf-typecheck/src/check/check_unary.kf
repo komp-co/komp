@@ -1,17 +1,19 @@
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.UnaryOp
 import kf_typecheck.types.type_eq
 
 fun check_unary(op: UnaryOp, inner: Expr, span: Span, ctx: &var TypeCtx): Type {
-    if inner.ty.is_poison() { return poison_ty() }
+    if inner.ty.is_poison() { return Type.new_poison() }
     when (op) {
         Neg => {
-            if !is_numeric(inner.ty) { return poison_ty() }
+            if !is_numeric(inner.ty) { return Type.new_poison() }
             return inner.ty
         }
         Not => {
-            val expected = bool_ty(no_span())
-            if !inner.ty.type_eq(expected) { return poison_ty() }
+            val expected = Type.new_bool(no_span())
+            if !inner.ty.type_eq(expected) { return Type.new_poison() }
             return inner.ty
         }
     }

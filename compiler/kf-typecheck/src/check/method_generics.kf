@@ -4,9 +4,15 @@
 // the method's bounds are written in the impl's terms.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.*
 import kf_core.ast.subst.monomorphized_type_name
+import kf_typecheck.check.borrow.reject_kept_temporary
+import kf_typecheck.check.borrow.may_keep_argument
 
 /// The receiver's bindings and their bounds. Trait impl methods never reach
 /// `check_method_generics`, so the check rides here.
@@ -52,7 +58,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
     var mbindings = List.new<Type>()
     while gb in 0..mgnames.size() {
         val gname = *mgnames.at(gb)
-        var bound = poison_ty()
+        var bound = Type.new_poison()
         if gb < call.type_args.size() {
             bound = (*call.type_args.at(gb)).resolve_type_ref(ctx)
         }
@@ -82,9 +88,14 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
             }
             sb = sb + 1
         }
-        if !check_method_arg(args, &arg_tys, i, expected, method_name.clone(), _span, ctx) { saw_error = true }
+        val kept = self.may_keep_argument(i + 1)
+        if kept && args.at(i).reject_kept_temporary(&expected, method_name.as_str(), ctx) {
+            saw_error = true
+        } else if !check_method_arg(args, &arg_tys, i, expected, method_name.clone(), _span, ctx) {
+            saw_error = true
+        }
     }
-    if saw_error { return poison_ty() }
+    if saw_error { return Type.new_poison() }
     // CONSTRAINT: written back, since mono materializes only from explicit
     // type args.
     if mgnames.size() > 0 {
@@ -109,13 +120,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
         val callee = sname + String.from("_") + callee_seg
         call.mangled_callee = intern(callee.as_str())
     }
-    var ret = subst_recv(self.ret, recv)
-    while ri in 0..mgnames.size() {
-        val bt = *mbindings.at(ri)
-        if !bt.is_poison() {
-            ret = ret.subst_generic(*mgnames.at(ri), bt.clone())
-        }
-    }
+    val ret = subst_all_generics(subst_recv(self.ret, recv), &mgnames, &bound_or_left(&mgnames, &mbindings))
     // A return type naming an instance of the receiver's generic needs it to
     // exist.
     if recv.recv_is_instance() { materialize_method_return_instance(ret.clone(), recv, &mgnames, &mbindings, _span, ctx) }
@@ -181,7 +186,7 @@ pub fun infer_static_method_type_args(sig: &FnSignature, n_recv: uint64, type_ar
     var gi: uint64 = n_recv
     while gi < sig.generics.size() {
         val gname = *sig.generics.at(gi)
-        var bound = poison_ty()
+        var bound = Type.new_poison()
         while bk in 0..args.size() {
             if bk < sig.params.size() {
                 // No `self`: argument i faces parameter i.
@@ -213,7 +218,7 @@ pub fun infer_static_method_type_args(sig: &FnSignature, n_recv: uint64, type_ar
         val arg = if values.at(i).is_value() {
             values.at(i).type_to_type_ref(span)
         } else {
-            new_type_ref(span, TypeRefKind.Named(intern(flats.at(i).as_str()), List.new<TypeRef>()))
+            TypeRef.new(span, TypeRefKind.Named(intern(flats.at(i).as_str()), List.new<TypeRef>()))
         }
         type_args.push(arg)
     }
@@ -225,4 +230,15 @@ fun Type.is_value(): bool {
         Value(_v) => true
         _ => false
     }
+}
+
+/// Each binding, or the parameter itself where none was found, so
+/// substituting leaves an unbound parameter as written.
+fun bound_or_left(names: &List<String>, bindings: &List<Type>): List<Type> {
+    var out = List.new<Type>()
+    while i in 0..names.size() {
+        val bound = if i < bindings.size() { bindings.at(i).clone() } else { Type.new_poison() }
+        out.push(if bound.is_poison() { Type.new_generic(names.at(i).clone(), no_span()) } else { bound })
+    }
+    return out
 }

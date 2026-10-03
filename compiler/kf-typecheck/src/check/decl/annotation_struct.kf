@@ -4,7 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 
 /// For this crate's annotations; a dependency's struct arrives with its

@@ -3,6 +3,9 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
@@ -136,7 +139,7 @@ fun an_ordinary_type_parameter_is_accepted(): void {
 
 fun header_trait_impl(trait_name: str, target: str, crate: str): TopDecl {
     val tref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *tref = new_type_ref(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())) }
+    unsafe { *tref = TypeRef.new(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())) }
     return header_decl(new_top_decl(no_span(), String.from(target), TopDeclKind.TraitImpl(tref, List.new<TopDecl>())), crate)
 }
 

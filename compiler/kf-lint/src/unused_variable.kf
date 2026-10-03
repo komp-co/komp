@@ -5,7 +5,7 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
 import kf_core.diagnostic.*
 
 /// The locals one function binds, and every name it reads. A name read

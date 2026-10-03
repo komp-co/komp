@@ -1,5 +1,7 @@
 import alloc.list.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 // Generic substitution and monomorphized-name mangling over TypeRef.
 // CONSTRAINT: in kf-core because kf-typecheck, upstream of kf-mono,
@@ -103,31 +105,31 @@ pub fun TypeRef.subst_type_ref(names: &var List<String>, repls: &var List<TypeRe
             while arg in &args {
                 new_args.push(arg.subst_type_ref(names, repls))
             }
-            return new_type_ref(self.span, TypeRefKind.Named(n, new_args))
+            return TypeRef.new(self.span, TypeRefKind.Named(n, new_args))
         }
         DynTrait(n, args) => {
-            return new_type_ref(self.span, TypeRefKind.DynTrait(n, subst_tref_list(&args, names, repls)))
+            return TypeRef.new(self.span, TypeRefKind.DynTrait(n, subst_tref_list(&args, names, repls)))
         }
         Reference(is_mut, inner) => {
             val sub = subst_type_ref(unsafe { &*inner }, names, repls)
             val q: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *q = sub }
-            return new_type_ref(self.span, TypeRefKind.Reference(is_mut, q))
+            return TypeRef.new(self.span, TypeRefKind.Reference(is_mut, q))
         }
         Function(params, ret) => {
             val result = Box.new(subst_type_ref(&*ret, names, repls))
-            return new_type_ref(self.span, TypeRefKind.Function(subst_tref_list(&params, names, repls), result))
+            return TypeRef.new(self.span, TypeRefKind.Function(subst_tref_list(&params, names, repls), result))
         }
         Array(_elem, _n) => return self.clone_type_ref()
-        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
+        Value(v) => return TypeRef.new(self.span, TypeRefKind.Value(v))
         // Only the owner is substituted; the impl chooses the member.
         Projection(owner, member) => {
             val osub = subst_type_ref(unsafe { &*owner }, names, repls)
             val oq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *oq = osub }
-            return new_type_ref(self.span, TypeRefKind.Projection(oq, member))
+            return TypeRef.new(self.span, TypeRefKind.Projection(oq, member))
         }
-        Poison => return type_ref_poison(self.span)
+        Poison => return TypeRef.new_poison(self.span)
     }
 }
 
@@ -140,16 +142,16 @@ pub fun TypeRef.clone_type_ref(): TypeRef {
             while arg in &args {
                 new_args.push(arg.clone_type_ref())
             }
-            return new_type_ref(self.span, TypeRefKind.Named(n, new_args))
+            return TypeRef.new(self.span, TypeRefKind.Named(n, new_args))
         }
         DynTrait(n, args) => {
-            return new_type_ref(self.span, TypeRefKind.DynTrait(n, clone_tref_vec(&args)))
+            return TypeRef.new(self.span, TypeRefKind.DynTrait(n, clone_tref_vec(&args)))
         }
         Reference(is_mut, inner) => {
             val sub = clone_type_ref(unsafe { &*inner })
             val q: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *q = sub }
-            return new_type_ref(self.span, TypeRefKind.Reference(is_mut, q))
+            return TypeRef.new(self.span, TypeRefKind.Reference(is_mut, q))
         }
         Function(ps, ret) => {
             var new_ps = List.new<TypeRef>()
@@ -159,13 +161,13 @@ pub fun TypeRef.clone_type_ref(): TypeRef {
             val rsub = clone_type_ref(unsafe { &*ret })
             val rq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *rq = rsub }
-            return new_type_ref(self.span, TypeRefKind.Function(new_ps, rq))
+            return TypeRef.new(self.span, TypeRefKind.Function(new_ps, rq))
         }
         Array(elem, n) => {
             val esub = clone_type_ref(unsafe { &*elem })
             val eq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *eq = esub }
-            return new_type_ref(self.span, TypeRefKind.Array(eq, n))
+            return TypeRef.new(self.span, TypeRefKind.Array(eq, n))
         }
         // A clone copies. Poisoning a projection here would erase it from every
         // signature, since modules are deep-cloned before typecheck.
@@ -173,10 +175,10 @@ pub fun TypeRef.clone_type_ref(): TypeRef {
             val osub = clone_type_ref(unsafe { &*owner })
             val oq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *oq = osub }
-            return new_type_ref(self.span, TypeRefKind.Projection(oq, member))
+            return TypeRef.new(self.span, TypeRefKind.Projection(oq, member))
         }
-        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
-        Poison => return type_ref_poison(self.span)
+        Value(v) => return TypeRef.new(self.span, TypeRefKind.Value(v))
+        Poison => return TypeRef.new_poison(self.span)
     }
 }
 

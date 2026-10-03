@@ -16,6 +16,13 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_typecheck.types.type_to_type_ref
 
 /// Per-function counter, so two block values get distinct temporaries.
@@ -126,20 +133,20 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
         If(cond_ptr, then_body, else_body) => {
             val nt = block_expr_stmt_list(&then_body, temps)
             val ne = block_expr_stmt_list(&else_body, temps)
-            out.push(new_stmt(s.span, StmtKind.If(cond_ptr, nt, ne)))
+            out.push(Stmt.new(s.span, StmtKind.If(cond_ptr, nt, ne)))
         }
         While(cond_ptr, body) => {
-            out.push(new_stmt(s.span, StmtKind.While(cond_ptr, block_expr_stmt_list(&body, temps))))
+            out.push(Stmt.new(s.span, StmtKind.While(cond_ptr, block_expr_stmt_list(&body, temps))))
         }
         ForEach(binder, subj_ptr, body) => {
-            out.push(new_stmt(s.span, StmtKind.ForEach(binder, subj_ptr, block_expr_stmt_list(&body, temps))))
+            out.push(Stmt.new(s.span, StmtKind.ForEach(binder, subj_ptr, block_expr_stmt_list(&body, temps))))
         }
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
                 new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(), block_expr_stmt_list(&a.body, temps)))
             }
-            out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
+            out.push(Stmt.new(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
         Assign(name, value_ptr) => {
             if !value_ptr.carries_a_block() {
@@ -147,7 +154,7 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
                 return
             }
             val value = expand_block_value(value_ptr, s.span, temps, out)
-            out.push(new_stmt(s.span, StmtKind.Assign(name, value)))
+            out.push(Stmt.new(s.span, StmtKind.Assign(name, value)))
         }
         AssignTo(place, value_ptr) => {
             if !value_ptr.carries_a_block() {
@@ -155,7 +162,7 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
                 return
             }
             val value = expand_block_value(value_ptr, s.span, temps, out)
-            out.push(new_stmt(s.span, StmtKind.AssignTo(place, value)))
+            out.push(Stmt.new(s.span, StmtKind.AssignTo(place, value)))
         }
         Expression(_) => out.push(s)
         Switch(_, _) => out.push(s)
@@ -180,9 +187,9 @@ fun expand_block_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?
     }
     val vp = expand_block_value(ip, s.span, temps, out)
     if is_val {
-        out.push(new_stmt(s.span, StmtKind.LetVal(name, ty, vp)))
+        out.push(Stmt.new(s.span, StmtKind.LetVal(name, ty, vp)))
     } else {
-        out.push(new_stmt(s.span, StmtKind.LetVar(name, ty, vp)))
+        out.push(Stmt.new(s.span, StmtKind.LetVar(name, ty, vp)))
     }
 }
 
@@ -195,7 +202,7 @@ fun expand_block_value(value: Ptr<Expr>, span: Span, temps: &var BlockTemps, out
     // Declared without a value; the annotation is required.
     val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *ann = type_to_type_ref(&value_ty, span) }
-    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+    out.push(Stmt.new(span, StmtKind.LetVar(temp, ann, null)))
 
     val expanded = value_stmts(value, false, temp, temps)
     while item in &expanded {
@@ -203,7 +210,7 @@ fun expand_block_value(value: Ptr<Expr>, span: Span, temps: &var BlockTemps, out
     }
 
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var v = new_expr(span, ExprKind.Variable(temp))
+    var v = Expr.new(span, ExprKind.Variable(temp))
     v.ty = value_ty
     unsafe { *vp = v }
     return vp
@@ -253,7 +260,7 @@ fun value_stmts(ep: Ptr<Expr>, to_return: bool, temp: Sym, temps: &var BlockTemp
         IfExpr(c_ptr, t_ptr, e_ptr) => {
             val then_body = value_stmts(t_ptr, to_return, temp, temps)
             val else_body = value_stmts(e_ptr, to_return, temp, temps)
-            out.push(new_stmt(unsafe { ep.span }, StmtKind.If(c_ptr, then_body, else_body)))
+            out.push(Stmt.new(unsafe { ep.span }, StmtKind.If(c_ptr, then_body, else_body)))
             return out
         }
         WhenExpr(subj_ptr, arms) => {
@@ -263,7 +270,7 @@ fun value_stmts(ep: Ptr<Expr>, to_return: bool, temp: Sym, temps: &var BlockTemp
                 new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(),
                     sink_into_list(&a.body, to_return, temp, temps)))
             }
-            out.push(new_stmt(unsafe { ep.span }, StmtKind.When(subj_ptr, new_arms)))
+            out.push(Stmt.new(unsafe { ep.span }, StmtKind.When(subj_ptr, new_arms)))
             return out
         }
         _ => {
@@ -309,7 +316,7 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
             if else_body.size() == 0 { return out }
             val nt = sink_into_list(&then_body, to_return, temp, temps)
             val ne = sink_into_list(&else_body, to_return, temp, temps)
-            out.push(new_stmt(self.span, StmtKind.If(cond_ptr, nt, ne)))
+            out.push(Stmt.new(self.span, StmtKind.If(cond_ptr, nt, ne)))
         }
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
@@ -317,7 +324,7 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
                 new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(),
                     sink_into_list(&a.body, to_return, temp, temps)))
             }
-            out.push(new_stmt(self.span, StmtKind.When(subj_ptr, new_arms)))
+            out.push(Stmt.new(self.span, StmtKind.When(subj_ptr, new_arms)))
         }
         _ => {
             if self.is_jump() { out.push(*self) }
@@ -329,12 +336,12 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
 fun sink_stmt(vp: Ptr<Expr>, to_return: bool, temp: Sym): Stmt {
     val span = unsafe { vp.span }
     if is_never_produced(vp) {
-        return new_stmt(span, StmtKind.Expression(vp))
+        return Stmt.new(span, StmtKind.Expression(vp))
     }
     if to_return {
-        return new_stmt(span, StmtKind.Return(Option.Some(vp)))
+        return Stmt.new(span, StmtKind.Return(Option.Some(vp)))
     }
-    return new_stmt(span, StmtKind.Assign(temp, vp))
+    return Stmt.new(span, StmtKind.Assign(temp, vp))
 }
 
 mutating fun BlockTemps.fresh_block_temp(): Sym {

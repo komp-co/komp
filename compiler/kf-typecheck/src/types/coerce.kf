@@ -1,10 +1,15 @@
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.rebuilt
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 import kf_typecheck.traits.key_segments
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.ty_from_frag_in_scope
 import kf_typecheck.check.lent_slice_name
 import kf_core.span.no_span
 import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.ast.types.type_node
 
 /// Binds `gname` from one param/argument pair through reference layers:
 /// a `&A` param routinely faces a bare `A` argument, and must bind so the
@@ -14,7 +19,7 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
     val ptag: uint64 = pk.kind_tag()
     if ptag == TAG_GENERIC() {
         if pk.generic_name().as_str().equals(gname) { return (*arg) }
-        return poison_ty()
+        return Type.new_poison()
     }
     val ak: TypeKind = arg.kind
     val atag: uint64 = ak.kind_tag()
@@ -57,15 +62,15 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
             return bind_generic_from_instance(pk.struct_name(), ak.struct_name(), gname, ctx)
         }
     }
-    return poison_ty()
+    return Type.new_poison()
 }
 
 /// `(T) -> T` against `(int32) -> int32`: the first parameter, then the
 /// result, that binds.
 fun Type.bind_generic_through_fn(arg: &Type, gname: str, ctx: &var TypeCtx): Type {
-    val want = self.fn_parts() ?: return poison_ty()
-    val have = arg.fn_parts() ?: return poison_ty()
-    if want.params.size() != have.params.size() { return poison_ty() }
+    val want = self.fn_parts() ?: return Type.new_poison()
+    val have = arg.fn_parts() ?: return Type.new_poison()
+    if want.params.size() != have.params.size() { return Type.new_poison() }
     while i in 0..want.params.size() {
         val bound = want.params.at(i).bind_generic_from_param(have.params.at(i), gname, ctx)
         if !bound.is_poison() { return bound }
@@ -77,11 +82,11 @@ fun Type.bind_generic_through_fn(arg: &Type, gname: str, ctx: &var TypeCtx): Typ
 /// instance splits ambiguously and fails to bind rather than binding wrongly.
 fun bind_generic_from_instance(pname: String, aname: String, gname: str, ctx: &var TypeCtx): Type {
     if !mangle_base_name(pname.clone()).as_str().equals(mangle_base_name(aname.clone()).as_str()) {
-        return poison_ty()
+        return Type.new_poison()
     }
     val psegs = key_segments(pname.as_str())
     val asegs = key_segments(aname.as_str())
-    if psegs.size() != asegs.size() { return poison_ty() }
+    if psegs.size() != asegs.size() { return Type.new_poison() }
     var i = 1
     while i < psegs.size() {
         if psegs.at(i).as_str().equals(gname) {
@@ -92,7 +97,7 @@ fun bind_generic_from_instance(pname: String, aname: String, gname: str, ctx: &v
         }
         i = i + 1
     }
-    return poison_ty()
+    return Type.new_poison()
 }
 
 // `name` -> `with_ty`, also inside mangled names (`Buffer__T` ->
@@ -115,7 +120,7 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
             return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: self.provenance }
         }
         DynTraitTy(object) => {
-            var args = new_type_vec()
+            var args = List.new<Type>()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {
@@ -128,35 +133,31 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
         }
         PtrTo(p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         FnTy(_) => {
             val parts = self.fn_parts() ?: return (*self)
-            var params = new_type_vec()
+            var params = List.new<Type>()
             while param in &parts.params {
                 params.push(param.subst_generic(name.clone(), with_ty.clone()))
             }
-            return fn_ty(params, parts.ret.subst_generic(name, with_ty), self.provenance)
+            return Type.new_fn(params, parts.ret.subst_generic(name, with_ty), self.provenance)
         }
         // `Self.Out` read through `C: Producer` means `C.Out` here.
         Projection(owner, member) => {
             val inner = subst_generic(unsafe { *owner }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
         }
         _ => return (*self)
@@ -235,7 +236,7 @@ pub fun Type.join_arm_types(b: &Type, string_name: Sym): Type {
     }
     if b.can_coerce(self, string_name) { return self.clone() }
     if self.can_coerce(b, string_name) { return b.clone() }
-    return poison_ty()
+    return Type.new_poison()
 }
 
 /// `string_name` is the type a `str` converts up into.

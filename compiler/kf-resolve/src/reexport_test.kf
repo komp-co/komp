@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.span.no_span
 
 fun whole_module(owner: str, target: str): Reexport {

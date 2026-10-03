@@ -1,10 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
-import kf_core.ast.new_type_ref
-import kf_core.ast.crate_id_poison
-import kf_core.ast.linkage_source
+import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 
 // CONSTRAINT: TopDecl and its supporting structs share this file because
 // cross-file struct typedef order follows file names; one file keeps them in
@@ -115,8 +116,8 @@ pub enum MarkTarget {
 
 /// What a bare `annotation NAME` marks: a `() -> void` function.
 pub fun default_mark_target(span: Span): MarkTarget {
-    val void_ref = Box.new(new_type_ref(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())))
-    return MarkTarget.Function(Box.new(new_type_ref(span, TypeRefKind.Function(List.new<TypeRef>(), void_ref))))
+    val void_ref = Box.new(TypeRef.new(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())))
+    return MarkTarget.Function(Box.new(TypeRef.new(span, TypeRefKind.Function(List.new<TypeRef>(), void_ref))))
 }
 
 /// CONSTRAINT: the name lives on this outer struct, not in the kind's
@@ -240,7 +241,14 @@ impl TopDecl {
 }
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
-    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""), resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern("") }
+    return TopDecl {
+        span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(),
+        module_path: intern(""), decl: null, generics: List.new<TypeParam>(),
+        annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(),
+        link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
+        dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
+        resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern("")
+    }
 }
 
 /// Stamps the owner onto nested methods too, which are checked as

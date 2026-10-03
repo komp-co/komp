@@ -6,7 +6,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.span.*
 
 /// A type a use decided, for the body's next check. The binding is found by

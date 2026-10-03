@@ -10,7 +10,6 @@ import kf_typecheck.typecheck_module
 import kf_core.diagnostic.*
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
-import kf_driver.build.fresh_diag_list
 import kf_driver.editor.innermost_expr_at
 import kf_driver.editor.written_type
 import kf_driver.editor.path_for_file_id
@@ -325,8 +324,8 @@ pub fun probe(): int32 {
 fun unused_fixture_diags(): List<Diagnostic> {
     prepare_unused_fixture()
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
-    var merged = assemble_project(scratch_path("kf_unused_import"), smap, pdiags)
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(scratch_path("kf_unused_import"), smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }
 

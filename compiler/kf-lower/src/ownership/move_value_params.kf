@@ -4,7 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Param
 import kf_core.ast.subst.mangle_tyref
 
 // A by-value move-only parameter is owned by its callee, so the move checker

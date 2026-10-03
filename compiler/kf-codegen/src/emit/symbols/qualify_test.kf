@@ -4,6 +4,12 @@ import core.assert.fail
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_codegen.ret_op
 
 @test
@@ -25,7 +31,7 @@ struct QualifyFixture {
 
 fun ty_ptr_named(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
     return rp
 }
 
@@ -38,9 +44,9 @@ fun stamp_owner(td: TopDecl): TopDecl {
 
 fun build_fixture(): QualifyFixture {
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.Call(intern("helper"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.Call(intern("helper"), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(ret_op(call))))
+    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(call))))
     var params = List.new<Param>()
     params.push(new_param(no_span(), String.from("p"), ty_ptr_named("Point")))
     val answer_kind = TopDeclKind.Function(params, ty_ptr_named("int32"), body, true, false, false, false)
@@ -123,14 +129,14 @@ fun type_phase_preserves_a_qualified_compound_type(): void {
 @test
 fun type_phase_rebuilds_a_generic_static_callee(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("List"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("List"))) }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("new"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("new"), List.new<Expr>())) }
     unsafe { call.is_static_call = true }
     unsafe { call.mangled_callee = intern("List__Point_new") }
-    unsafe { call.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))) }
+    unsafe { call.type_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     var decls = List.new<TopDecl>()
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(List.new<Field>(), true))))
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("make"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("void"), body, true, false, false, false))))
@@ -142,12 +148,12 @@ fun type_phase_rebuilds_a_generic_static_callee(): void {
 @test
 fun type_phase_qualifies_an_instance_method_callee(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("point"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("point"))) }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("sum"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("sum"), List.new<Expr>())) }
     unsafe { call.mangled_callee = intern("Point_sum") }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     var decls = List.new<TopDecl>()
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(List.new<Field>(), true))))
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("use_point"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("void"), body, true, false, false, false))))
@@ -159,13 +165,13 @@ fun type_phase_qualifies_an_instance_method_callee(): void {
 @test
 fun type_phase_qualifies_a_stamped_generic_instance_method_callee(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("option"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("option"))) }
     unsafe { (*recv).ty = Type { kind: TypeKind.EnumTy(intern("Option__Point")), provenance: Provenance.Inferred(no_span()) } }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("is_none"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("is_none"), List.new<Expr>())) }
     unsafe { call.mangled_callee = intern("Option__Point_is_none") }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     var decls = List.new<TopDecl>()
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(List.new<Field>(), true))))
     decls.push(stamp_owner(new_top_decl(no_span(), String.from("use_option"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("void"), body, true, false, false, false))))
@@ -175,19 +181,18 @@ fun type_phase_qualifies_a_stamped_generic_instance_method_callee(): void {
 }
 
 @test
-fun type_phase_qualifies_a_folded_generic_intrinsic(): void {
+fun type_phase_qualifies_an_intrinsic_type_argument(): void {
     var fixture = build_fixture()
-    unsafe { (*fixture.call).mangled_callee = intern("alloc__Point") }
-    unsafe { (*fixture.call).type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))) }
+    unsafe { (*fixture.call).kind = ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()) }
+    unsafe { (*fixture.call).type_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))) }
     fixture.module.qualify_type_symbols()
-    val callee_ok = unsafe { (*fixture.call).mangled_callee.as_str() } == "alloc__aa__Point"
     val arg = unsafe { *(*fixture.call).type_args.at(0) }
     var arg_ok = false
     when (arg.kind) {
         Named(name, _args) => { arg_ok = name.as_str() == "aa__Point" }
         _ => {}
     }
-    assert_eq(callee_ok && arg_ok, true, "generic intrinsic fragments and type arguments use qualified types")
+    assert_eq(arg_ok, true, "an intrinsic's type argument uses the qualified type")
 }
 
 @test
@@ -218,10 +223,10 @@ fun function_phase_retargets_call_mangles(): void {
 @test
 fun call_nested_under_an_if_is_retargeted(): void {
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.Call(intern("helper"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.Call(intern("helper"), List.new<Expr>())) }
     unsafe { call.mangled_callee = intern("helper") }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.If(call, List.new<Stmt>(), List.new<Stmt>())))
+    body.push(Stmt.new(no_span(), StmtKind.If(call, List.new<Stmt>(), List.new<Stmt>())))
     val fn_kind = TopDeclKind.Function(List.new<Param>(), ty_ptr_named("int32"), body, true, false, false, false)
     val helper_kind = TopDeclKind.Function(List.new<Param>(), ty_ptr_named("int32"), List.new<Stmt>(), true, false, false, false)
     var decls = List.new<TopDecl>()
@@ -254,11 +259,11 @@ fun function_phase_preserves_imported_method_links(): void {
 @test
 fun function_phase_recovers_a_unique_raw_method_call(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("point"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("point"))) }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("sum"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("sum"), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     val method = stamp_owner(new_top_decl(no_span(), String.from("sum"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("int32"), List.new<Stmt>(), true, false, false, false)))
     var methods = List.new<TopDecl>()
     methods.push(method)
@@ -273,11 +278,11 @@ fun function_phase_recovers_a_unique_raw_method_call(): void {
 @test
 fun function_phase_recovers_a_normalized_trait_method_call(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("point"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("point"))) }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("score"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("score"), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     val method = stamp_owner(new_top_decl(no_span(), String.from("score__Score"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("int32"), List.new<Stmt>(), true, false, false, false)))
     var methods = List.new<TopDecl>()
     methods.push(method)
@@ -292,11 +297,11 @@ fun function_phase_recovers_a_normalized_trait_method_call(): void {
 @test
 fun function_phase_does_not_guess_a_runtime_method_owner(): void {
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("text"))) }
+    unsafe { *recv = Expr.new(no_span(), ExprKind.Variable(intern("text"))) }
     val call: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call = new_expr(no_span(), ExprKind.MethodCall(recv, intern("as_str"), List.new<Expr>())) }
+    unsafe { *call = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("as_str"), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call)))
     val method = stamp_owner(new_top_decl(no_span(), String.from("as_str"), TopDeclKind.Function(List.new<Param>(), ty_ptr_named("str"), List.new<Stmt>(), true, false, false, false)))
     var methods = List.new<TopDecl>()
     methods.push(method)
@@ -491,9 +496,9 @@ fun a_function_type_respells_its_parameters(): void {
     var repls = List.new<TypeRef>()
     push_rename(String.from("Point"), String.from("aa__Point"), &var names, &var repls)
     val point = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) }
-    var params = new_type_vec()
+    var params = List.new<Type>()
     params.push(point)
-    val function = fn_ty(params, point, Provenance.Inferred(no_span()))
+    val function = Type.new_fn(params, point, Provenance.Inferred(no_span()))
     val qualified = qualify_type(function, &var names, &var repls)
     val parts = qualified.fn_parts() ?: return
     val shown = "${parts.params.at(0).named()} ${parts.ret.named()}"

@@ -4,7 +4,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
 import kf_codegen.emit.glue.is_box_tref
 import kf_codegen.emit.c_type
 import kf_codegen.emit.release_fn_for_ctype

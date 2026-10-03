@@ -5,7 +5,8 @@ import core.assert.assert_eq
 import core.assert.fail
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 
 // `e.field = rhs` is an AssignTo on a FieldAccess.

@@ -1,0 +1,9 @@
+//! run: exit 0
+//! deps: core, alloc
+// `&[]` takes its element type from the `&List<T>` it is lent to.
+
+import alloc.list.*
+
+fun count(xs: &List<String>): int32 { return xs.size() as int32 }
+
+fun main(): int32 { return count(&[]) }

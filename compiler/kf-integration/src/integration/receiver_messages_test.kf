@@ -1,0 +1,65 @@
+// What the checker says about a receiver: a variant it lacks, or a borrow it
+// cannot lend.
+
+import core.assert.assert_eq
+
+@test
+fun elvis_on_a_result_names_the_written_type(): void {
+    val said = reports("kf_recv_elvis_result", """import alloc.list.*
+pub fun first(xs: Result<List<int32>, int32>): uint64 {
+    val v = xs ?: return 0
+    return v.size()
+}
+""", "no variant `Some` on `Result<List<int32>, int32>` — `Some`, `None` and `?:` take an optional")
+    assert_eq(said, true, "the message spells the type as written")
+}
+
+@test
+fun elvis_on_a_result_is_not_also_non_exhaustive(): void {
+    val said = reports("kf_recv_elvis_cascade", """import alloc.list.*
+pub fun first(xs: Result<List<int32>, int32>): uint64 {
+    val v = xs ?: return 0
+    return v.size()
+}
+""", "non-exhaustive")
+    assert_eq(said, false, "the arm that names no variant is the one error")
+}
+
+@test
+fun a_mutating_extension_on_a_shared_self_asks_for_mutating(): void {
+    val said = reports("kf_recv_mutating_ext", """struct Opts { var n: int32 }
+mutating fun Opts.set(n: int32): void { self.n = n }
+pub fun Opts.bad(): void { self.set(3) }
+""", "cannot call mutating method `set` on `self` here; mark the enclosing method `mutating`")
+    assert_eq(said, true, "an extension is reported as an impl's method is")
+}
+
+@test
+fun a_val_field_borrowing_mutably_lends_to_a_mutating_call(): void {
+    val said = reports("kf_recv_val_ref_field", """import alloc.list.*
+pub struct Sink { var items: List<int32> }
+impl Sink {
+    pub mutating fun emit(x: int32): void { self.items.push(x) }
+}
+pub view struct Ctx { val sink: &var Sink }
+impl Ctx {
+    pub mutating fun report(x: int32): void { self.sink.emit(x) }
+}
+""", "needs a mutable receiver")
+    assert_eq(said, false, "the call changes the borrowed sink, not the field")
+}
+
+@test
+fun a_val_field_borrowing_mutably_still_needs_a_writable_owner(): void {
+    val said = reports("kf_recv_ref_field_shared", """import alloc.list.*
+pub struct Sink { var items: List<int32> }
+impl Sink {
+    pub mutating fun emit(x: int32): void { self.items.push(x) }
+}
+pub view struct Ctx { val sink: &var Sink }
+impl Ctx {
+    pub fun report(x: int32): void { self.sink.emit(x) }
+}
+""", "mutating")
+    assert_eq(said, true, "a shared `self` cannot lend what it holds mutably")
+}

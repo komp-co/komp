@@ -1,0 +1,20 @@
+//! asan: clean
+// `lookup()?.label()` lends the binder's text to the `when` it desugars to;
+// the subject is dropped after the statement that reads it, not in the arm.
+
+struct Named {
+    val name: String
+}
+
+fun Named.label(): str {
+    return self.name.as_str()
+}
+
+fun lookup(): Named? {
+    return Option.Some(Named { name: String.from("yes") })
+}
+
+fun main(): int32 {
+    val n = (lookup()?.label() ?: "").byte_len()
+    return n as int32 - 3
+}

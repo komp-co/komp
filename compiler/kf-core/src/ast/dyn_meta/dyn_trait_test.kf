@@ -1,22 +1,21 @@
 import core.assert.assert_eq
 
 import kf_core.span.no_span
-import kf_core.ast.int32_ty
 import kf_core.ast.intern
-import kf_core.ast.new_type_vec
+import kf_core.ast.types.Type
 
 fun test_dynamic_sink(argument: Type): Type {
-    var args = new_type_vec()
+    var args = List.new<Type>()
     args.push(argument)
     return dyn_trait_type(intern("sample::api::Sink"), args, no_span())
 }
 
 @test fun dyn_trait_identity_is_canonical(): void {
-    val sink = test_dynamic_sink(int32_ty(no_span()))
+    val sink = test_dynamic_sink(Type.new_int32(no_span()))
     assert_eq(sink.dyn_trait_identity().as_str(), "sample::api::Sink__int32", "dynamic identity includes canonical principal and arguments")
 }
 
 @test fun dyn_trait_wrapper_name_is_nominal(): void {
-    val sink = test_dynamic_sink(int32_ty(no_span()))
+    val sink = test_dynamic_sink(Type.new_int32(no_span()))
     assert_eq(sink.dyn_wrapper_name().as_str(), "Dyn__sample::api::Sink__int32", "wrapper name is derived from canonical identity")
 }

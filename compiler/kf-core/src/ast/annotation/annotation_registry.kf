@@ -2,6 +2,7 @@
 // annotation" message both read this registry.
 
 import alloc.list.*
+import kf_core.ast.declaration.TopDecl
 
 /// The declaration kinds an annotation may sit on.
 pub enum AnnotationTarget {

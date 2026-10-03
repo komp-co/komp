@@ -1,7 +1,12 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeIdentity
+import kf_core.ast.types.TypeRef
 import kf_typecheck.types.runtime_prelude_declares
 import kf_core.span.no_span
 import kf_core.ast.subst.clone_type_ref
@@ -162,12 +167,12 @@ impl SigTable {
                 if identity.crate.raw == crate.raw && identity.module.id == module.id { return identity }
             }
         }
-        return type_identity_poison()
+        return TypeIdentity.new_poison()
     }
 
     /// Only when exactly one declaration exports the name.
     pub fun lookup_unique_type_identity(name: str): TypeIdentity {
-        var found = type_identity_poison()
+        var found = TypeIdentity.new_poison()
         var count: uint64 = 0
         while identity in &self.type_identities {
             if identity.name.as_str().equals(name) {
@@ -176,7 +181,7 @@ impl SigTable {
             }
         }
         if count == 1 { return found }
-        return type_identity_poison()
+        return TypeIdentity.new_poison()
     }
 
     /// A lookup from that crate answers only with its own declaration.
@@ -267,7 +272,7 @@ impl SigTable {
         while ab in &self.assoc_bindings {
             if ab.assoc_binding_matches(type_name, assoc_name, trait_name, trait_args) { return ab.chosen }
         }
-        return poison_ty()
+        return Type.new_poison()
     }
 
     /// An independent copy, since it is spliced into the AST and dropped
@@ -282,7 +287,7 @@ impl SigTable {
                 return clone_type_ref(&ab.chosen_tref)
             }
         }
-        return type_ref_poison(no_span())
+        return TypeRef.new_poison(no_span())
     }
 
     pub mutating fun insert_method_link(link: MethodLink): void {

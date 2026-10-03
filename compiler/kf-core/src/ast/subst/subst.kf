@@ -2,6 +2,10 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+import kf_core.ast.statement.SwitchArm
 import kf_core.ast.dyn_meta.dyn_trait_type
 
 /// A deep copy: the rebuilt arm and the original both drop their pattern.
@@ -129,7 +133,7 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
         Struct(n) => return subst_named_type(n.as_string(), self, names, repls, true)
         EnumTy(n) => return subst_named_type(n.as_string(), self, names, repls, false)
         DynTraitTy(object) => {
-            var args = new_type_vec()
+            var args = List.new<Type>()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {
@@ -141,35 +145,31 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
         }
         PtrTo(p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         FnTy(_) => {
-            val parts = self.fn_parts() ?: return poison_ty()
-            var params = new_type_vec()
+            val parts = self.fn_parts() ?: return Type.new_poison()
+            var params = List.new<Type>()
             while param in &parts.params {
                 params.push(param.subst_type(names, repls))
             }
-            return fn_ty(params, parts.ret.subst_type(names, repls), self.provenance)
+            return Type.new_fn(params, parts.ret.subst_type(names, repls), self.provenance)
         }
         // Only the owner is substituted; the impl chooses the member.
         Projection(owner, member) => {
             val inner = subst_type(unsafe { &*owner }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
         }
         _ => return unsafe { *self }
@@ -198,7 +198,7 @@ fun lookup_repl_type(n: String, names: &var List<String>, repls: &var List<TypeR
             }
         }
     }
-    return ReplLookup { found: false, ty: poison_ty() }
+    return ReplLookup { found: false, ty: Type.new_poison() }
 }
 
 // Sufficient because Mono's replacement type arguments are already concrete.
@@ -225,20 +225,19 @@ fun TypeRef.tref_to_type_shallow(): Type {
         }
         Reference(is_mut, inner) => {
             val it = tref_to_type_shallow(unsafe { &*inner })
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = it }
+            val np = type_node(it)
             return Type { kind: TypeKind.RefTo(is_mut, np), provenance: Provenance.Inferred(no_span()) }
         }
         Function(params, ret) => {
-            var values = new_type_vec()
+            var values = List.new<Type>()
             while param in &params {
                 values.push(param.tref_to_type_shallow())
             }
             val result = tref_to_type_shallow(&*ret)
-            return fn_ty(values, result, Provenance.Inferred(no_span()))
+            return Type.new_fn(values, result, Provenance.Inferred(no_span()))
         }
         Value(v) => return Type { kind: TypeKind.Value(v), provenance: Provenance.Inferred(no_span()) }
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
 }
 

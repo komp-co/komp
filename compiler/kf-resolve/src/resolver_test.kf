@@ -3,12 +3,18 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 // Fixtures are built by hand: kf-resolve cannot depend on kf-parse.
 
 fun make_fun_decl(name: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = type_ref_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret_ptr, List.new<Stmt>(), false, false, false, false)
     return new_top_decl(no_span(), String.from(name), kind)
 }
@@ -25,7 +31,7 @@ fun make_enum_decl(name: str): TopDecl {
 
 fun make_extern_decl(name: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = type_ref_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
     val kind = TopDeclKind.Extern(List.new<Param>(), ret_ptr, false, false)
     return new_top_decl(no_span(), String.from(name), kind)
 }
@@ -136,11 +142,11 @@ fun module_with_decls(decls: List<TopDecl>): Module {
 /// A function whose body is one statement: a call to `callee`.
 fun make_caller(name: str, callee: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = type_ref_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call_ptr = new_expr(no_span(), ExprKind.Call(intern(callee), List.new<Expr>())) }
+    unsafe { *call_ptr = Expr.new(no_span(), ExprKind.Call(intern(callee), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Expression(call_ptr)))
+    body.push(Stmt.new(no_span(), StmtKind.Expression(call_ptr)))
     val kind = TopDeclKind.Function(List.new<Param>(), ret_ptr, body, false, false, false, false)
     return new_top_decl(no_span(), String.from(name), kind)
 }

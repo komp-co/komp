@@ -10,7 +10,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.names_contains
 
 /// Everything an assignment needs to know before its RHS is marked.
@@ -58,7 +62,7 @@ pub fun assign_ownership_after(name: Sym, span: Span, before: &AssignOwnership, 
         // Unless the rhs reads the binding; then `self_read_assign_old`
         // releases the old value after the store.
         if !before.rhs_reads_target {
-            out.push(new_stmt(span, StmtKind.Release(name)))
+            out.push(Stmt.new(span, StmtKind.Release(name)))
         }
         return out
     }
@@ -97,10 +101,10 @@ pub fun self_read_assign_old(name: Sym, rhs_ptr: Ptr<Expr>, before: &AssignOwner
     ctx.block_counter = tmp_id + 1
     val tmp_name = "__old_${u64_to_str(tmp_id)}"
     val tmp_sym = intern(tmp_name.as_str())
-    var v = new_expr(span, ExprKind.Variable(name))
+    var v = Expr.new(span, ExprKind.Variable(name))
     v.ty = unsafe { (*rhs_ptr).ty }
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *vp = v }
-    out.push(new_stmt(span, StmtKind.LetVal(tmp_sym, null, vp)))
+    out.push(Stmt.new(span, StmtKind.LetVal(tmp_sym, null, vp)))
     return tmp_sym
 }

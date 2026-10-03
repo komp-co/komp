@@ -1,0 +1,36 @@
+import kf_core.span.*
+import kf_core.ast.types.Type
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.types.TAG_PTR
+import kf_typecheck.types.kind_tag
+import kf_typecheck.types.mangle_type
+import kf_typecheck.types.display_type
+
+// Casts `as` refuses although C would perform them.
+
+/// `opt as uint64` is rejected: it reads an enum's representation, and is
+/// the shape a null-sentinel test takes after migration to an Option.
+fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeCtx): void {
+    if from.is_poison() { return }
+    if !is_numeric(to) { return }
+    if !from.type_is_enum_layout(ctx) { return }
+    val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — " +
+        "test it with `.is_some()` / `.is_none()`, or match it"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+/// An integer becomes an address only from `uint64`, the width of one; a
+/// narrower integer would be widened into a pointer nobody took.
+fun reject_integer_to_pointer_cast(from: &Type, to: &Type, span: Span, ctx: &var TypeCtx): void {
+    if to.kind.kind_tag() != TAG_PTR() { return }
+    if !is_integer_type(from.clone()) { return }
+    val pointer_wide = when (from.kind) {
+        UInt64 => true
+        _ => false
+    }
+    if pointer_wide { return }
+    val msg = "only a `uint64` casts to a pointer, and this is `${from.display_type(ctx)}`; " +
+        "to take an address, write `(&x) as Ptr<T>`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}

@@ -6,7 +6,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.new_type_param
+import kf_core.ast.annotation.new_annotation
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_typecheck.check.edit_distance
@@ -25,7 +31,7 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
     unsafe { sigs.insert(sig) }
 }
 
-pub mutating fun Module.prepare_extensions(diags: Ptr<List<Diagnostic>>): void {
+pub mutating fun Module.prepare_extensions(diags: &var Diagnostics): void {
     val types = self.declared_type_names()
     val traits = self.declared_trait_names()
     while i in 0..self.decls.size() {
@@ -67,7 +73,7 @@ struct ReceiverParams {
     var spans: List<Span>
 }
 
-mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: &var Diagnostics): void {
     val receiver = self.receiver_type_ref() ?: return
     var found = ReceiverParams { names: List.new<String>(), spans: List.new<Span>() }
     val recorded = self.annotation_words("receiver_params")
@@ -114,7 +120,7 @@ mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<Stri
     var tp = new_type_param(receiver.span, param.clone())
     tp.bounds.push(receiver.clone())
     self.generics.push(tp)
-    self.point_self_at(new_type_ref(receiver.span, TypeRefKind.Named(intern(param.as_str()), List.new<TypeRef>())))
+    self.point_self_at(TypeRef.new(receiver.span, TypeRefKind.Named(intern(param.as_str()), List.new<TypeRef>())))
 }
 
 fun TopDecl.fresh_receiver_name(types: &List<String>): String {
@@ -200,7 +206,7 @@ fun TopDecl.declares_generic(name: str): bool {
 }
 
 /// `List<Pont>` with `Point` in scope is likelier a typo than a parameter.
-fun ReceiverParams.warn_near_type_names(types: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun ReceiverParams.warn_near_type_names(types: &List<String>, diags: &var Diagnostics): void {
     var i: uint64 = 0
     while i < self.names.size() {
         val name = *self.names.at(i)
@@ -208,7 +214,7 @@ fun ReceiverParams.warn_near_type_names(types: &List<String>, diags: Ptr<List<Di
         if near.byte_len() > 0 {
             val why = "`${name.as_str()}` is not a type in scope, so it makes this extension generic over a parameter"
             val message = "${why} named `${name.as_str()}`; did you mean `${near.as_str()}`?"
-            unsafe { diags.push(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message))) }
+            diags.emit(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message)))
         }
         i = i + 1
     }
@@ -231,7 +237,7 @@ fun nearest_type_name(name: str, types: &List<String>): String {
     return best
 }
 
-fun TopDecl.reject_nested_extensions(diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.reject_nested_extensions(diags: &var Diagnostics): void {
     when (self.kind) {
         ImplBlock(methods) => reject_extension_methods(&methods, diags)
         TraitDecl(methods, _is_pub, _supers) => reject_extension_methods(&methods, diags)
@@ -240,11 +246,11 @@ fun TopDecl.reject_nested_extensions(diags: Ptr<List<Diagnostic>>): void {
     }
 }
 
-fun reject_extension_methods(methods: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): void {
+fun reject_extension_methods(methods: &List<TopDecl>, diags: &var Diagnostics): void {
     while method in &methods {
         if !method.ext_name.as_str().equals("") {
             val message = "an extension function is declared at the top level, not inside `impl` or `trait`"
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label((&method).decl_name_span(), message))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label((&method).decl_name_span(), message)))
         }
     }
 }

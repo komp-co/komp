@@ -14,6 +14,11 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_typecheck.traits.trait_ref_head_name
 import kf_typecheck.traits.trait_ref_args_key
 import kf_typecheck.traits.assoc_owner_key
@@ -172,6 +177,7 @@ fun subst_proj_expr_ptr_opt(p_opt: Ptr<Expr>?, self_name: str, trait_name: str, 
         Retain(ip) => subst_proj_expr_ptr_opt(ip, self_name, trait_name, trait_args, sigs)
         FieldAccess(rp, _f) => subst_proj_expr_ptr_opt(rp, self_name, trait_name, trait_args, sigs)
         Call(_n, args) => subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)
+        Intrinsic(_i, args) => subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)
         CallValue(_callee, args) => subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)
         MethodCall(rp, _mn, args) => {
             subst_proj_expr_ptr_opt(rp, self_name, trait_name, trait_args, sigs)
@@ -213,7 +219,7 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
             return chosen
         }
         DynTraitTy(object) => {
-            var args = new_type_vec()
+            var args = List.new<Type>()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {
@@ -226,20 +232,17 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
         }
         PtrTo(p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         // As a type argument the projection lives in the instance name.
@@ -321,8 +324,7 @@ fun joined_segments(segs: &List<String>, start: uint64, end: uint64): String {
 
 /// A fresh owner node: the caller's Type is dropped independently.
 fun Type.rebuilt_projection(owner: Type, member: Sym): Type {
-    val np: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *np = owner }
+    val np = type_node(owner)
     return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
 }
 

@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
 import kf_typecheck.*
 
 /// Types are offered crate-graph-wide, since types resolve globally whatever

@@ -44,3 +44,23 @@ fun first_syntax_message(src: str): String {
     val source = "fun f(): void { val p = unsafe { alloc<int32 ; > }\n}"
     assert_eq(expression_syntax_diags(source) > 0, true, "the parse ends")
 }
+
+@test fun an_operator_needs_a_right_operand_before_a_closing_paren(): void {
+    val diags = expression_syntax_diags("fun f(n: int32): int32 { return (n +) }")
+    assert_eq(diags, 1, "`(n +)` is missing its right operand")
+}
+
+@test fun an_interpolation_slot_needs_its_right_operand(): void {
+    val diags = expression_syntax_diags("fun f(n: int32): void { val s = \"x \${n +}\" }")
+    assert_eq(diags, 1, "the slot is cut off by its operator")
+}
+
+@test fun a_closing_token_after_an_operator_is_reported_once(): void {
+    val diags = expression_syntax_diags("fun f(n: int32): void { g(n *, 1) }")
+    assert_eq(diags, 1, "the comma ends the operand that `*` needs")
+}
+
+@test fun an_empty_index_is_reported_once(): void {
+    val diags = expression_syntax_diags("fun f(): void {\n    var names = String[]\n}")
+    assert_eq(diags, 1, "`[]` after a name holds no index")
+}

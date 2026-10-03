@@ -1,4 +1,6 @@
 import alloc.list.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TypeParam
 
 /// The type a value parameter holds, or None for a type parameter. A value
 /// parameter's one bound names a type rather than a trait: a primitive

@@ -3,12 +3,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// Each impl of this crate for another crate's sealed trait, reported at the
 /// trait it names.
-pub fun Module.check_sealed_impls(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_sealed_impls(diags: &var Diagnostics): void {
     while td in &self.decls {
         if td.crate.raw != self.crate.raw { continue }
         val implemented = td.implemented_trait() ?: continue
@@ -21,7 +24,7 @@ pub fun Module.check_sealed_impls(diags: Ptr<List<Diagnostic>>): void {
         // A trait read from an interface has no source to point at.
         val at = sealed.decl_name_span()
         if !at.is_none() { diag.secondary.push(new_label(at, "sealed here")) }
-        (*diags).push(diag)
+        diags.emit(diag)
     }
 }
 

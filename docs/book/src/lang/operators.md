@@ -126,6 +126,22 @@ val wide = narrow as int32    // ok: widening
 val back = wide as int8       // ok: narrowing
 ```
 
+Inside `unsafe`, `as` also takes an address as a raw pointer. A prefix `&`,
+`&var` or `*` binds tighter than `as`, so `&var x as Ptr<int32>` is the
+address of `x`:
+
+```kflat
+fun main(): int32 {
+    var x: int32 = 30
+    val p = unsafe { &var x as Ptr<int32> }
+    unsafe { *p = 42 }
+    return x
+}
+```
+
+An integer becomes a pointer only from a `uint64`, the width of an address;
+casting an `int32` to a `Ptr<T>` is an error.
+
 ## Mixed-width arithmetic
 
 Operators require both operands to have the same type. If you need to combine

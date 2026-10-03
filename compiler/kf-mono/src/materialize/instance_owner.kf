@@ -3,7 +3,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
 
 /// A call on `self` inside a clone names the template as its owner; from
 /// `from` on, such instances belong to `instance`.

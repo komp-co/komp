@@ -1,6 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 
 // A lambda may only be the direct value passed to a call.
 mutating fun Expr.check_call_argument(ctx: &var TypeCtx): void {
@@ -26,7 +27,7 @@ fun type_call_arguments(args: &var List<Expr>, ctx: &var TypeCtx): List<Type> {
     while i in 0..args.size() {
         val a = args.at_mut(i)
         if a.lambda_wants_expectation() {
-            arg_tys.push(poison_ty())
+            arg_tys.push(Type.new_poison())
         } else {
             if i >= pretyped { a.check_call_argument(ctx) }
             arg_tys.push(a.ty.clone())

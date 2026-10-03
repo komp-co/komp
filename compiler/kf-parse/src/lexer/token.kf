@@ -1,5 +1,5 @@
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
 
 // CONSTRAINT: TokenKind and Token share this file so their typedefs are
 // emitted in source order.

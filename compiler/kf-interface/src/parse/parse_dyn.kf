@@ -2,6 +2,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import json.reader.*
@@ -146,26 +147,26 @@ mutating fun JsonReader.load_dyn_symbols(): DynSymbolLoad {
 pub fun parse_dyn_metadata_type(source: str): Type {
     val tokens = tokenize(source, 0)
     var parser = new_parser(tokens)
-    val parsed = parser.parse_type_ref_ptr()
-    if parser.diags.size() > 0 { return poison_ty() }
-    return dyn_type_from_ref(unsafe { *parsed })
+    val parsed = parser.parse_type_ref()
+    if parser.diags.size() > 0 { return Type.new_poison() }
+    return dyn_type_from_ref(parsed)
 }
 
 fun dyn_type_from_ref(reference: TypeRef): Type {
     when (reference.kind) {
         Named(name, args) => return name.dyn_named_type(&args)
         DynTrait(principal, args) => {
-            var resolved = new_type_vec()
+            var resolved = List.new<Type>()
             while arg in &args {
                 val argument = dyn_type_from_ref(arg)
-                if argument.is_poison() { return poison_ty() }
+                if argument.is_poison() { return Type.new_poison() }
                 resolved.push(argument)
             }
             return dyn_trait_type(principal, resolved, no_span())
         }
         Reference(mutable, inner) => return dyn_reference_type(mutable, dyn_type_from_ref(unsafe { *inner }))
         Function(params, ret) => return dyn_function_type(&params, unsafe { *ret })
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
 }
 
@@ -174,7 +175,7 @@ fun Sym.dyn_named_type(args: &List<TypeRef>): Type {
     if args.size() == 0 { return self.dyn_primitive_or_struct() }
     if spelling.equals("Ptr") && args.size() == 1 { return dyn_pointer_type(dyn_type_from_ref(*args.at(0)), false) }
     if spelling.equals("Box") && args.size() == 1 { return dyn_pointer_type(dyn_type_from_ref(*args.at(0)), true) }
-    val mangled = mangle_tyref(&new_type_ref(no_span(), TypeRefKind.Named(Sym { id: self.id }, args.clone())))
+    val mangled = mangle_tyref(&TypeRef.new(no_span(), TypeRefKind.Named(Sym { id: self.id }, args.clone())))
     return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Inferred(no_span()) }
 }
 
@@ -201,30 +202,28 @@ fun Sym.dyn_primitive_or_struct(): Type {
 }
 
 fun dyn_reference_type(mutable: bool, inner: Type): Type {
-    if inner.is_poison() { return poison_ty() }
-    val pointer: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointer = inner }
+    if inner.is_poison() { return Type.new_poison() }
+    val pointer = type_node(inner)
     return Type { kind: TypeKind.RefTo(mutable, pointer), provenance: Provenance.Inferred(no_span()) }
 }
 
 fun dyn_pointer_type(inner: Type, boxed: bool): Type {
-    if inner.is_poison() { return poison_ty() }
-    val pointer: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointer = inner }
+    if inner.is_poison() { return Type.new_poison() }
+    val pointer = type_node(inner)
     if boxed { return Type { kind: TypeKind.BoxOf(pointer), provenance: Provenance.Inferred(no_span()) } }
     return Type { kind: TypeKind.PtrTo(pointer), provenance: Provenance.Inferred(no_span()) }
 }
 
 fun dyn_function_type(params: &List<TypeRef>, ret: TypeRef): Type {
-    var values = new_type_vec()
+    var values = List.new<Type>()
     while param in &params {
         val parameter = dyn_type_from_ref(param)
-        if parameter.is_poison() { return poison_ty() }
+        if parameter.is_poison() { return Type.new_poison() }
         values.push(parameter)
     }
     val result = dyn_type_from_ref(ret)
-    if result.is_poison() { return poison_ty() }
-    return fn_ty(values, result, Provenance.Inferred(no_span()))
+    if result.is_poison() { return Type.new_poison() }
+    return Type.new_fn(values, result, Provenance.Inferred(no_span()))
 }
 
 pub fun attach_imported_dyn_metadata(modules: &var List<Module>, layouts: &List<DynTraitLayout>, tables: &List<DynVTableInstance>, crate: CrateId): void {

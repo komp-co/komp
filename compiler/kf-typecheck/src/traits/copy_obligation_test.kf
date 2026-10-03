@@ -4,17 +4,17 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
-import kf_core.diagnostic.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.declaration.*
 import kf_typecheck.*
+import kf_typecheck.leaked_diagnostics
 
 fun ctx_for_copy_test(): TypeCtx {
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = List.new<Diagnostic>() }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = new_sig_table() }
     val no_table: Ptr<DeclTable>? = Option.None<Ptr<DeclTable>>()
-    return new_type_ctx(void_ty(no_span()), diag_ptr, no_table, sig_ptr)
+    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, no_table, sig_ptr)
 }
 
 fun pointee(t: Type): Ptr<Type> {
@@ -32,7 +32,7 @@ fun impl_over_t(bound: str): TopDecl {
     var td = new_top_decl(no_span(), String.from("Pair"), TopDeclKind.Poison)
     var tp = new_type_param(no_span(), String.from("T"))
     if !bound.equals("") {
-        tp.bounds.push(new_type_ref(no_span(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
+        tp.bounds.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
     }
     td.generics.push(tp)
     return td
@@ -45,25 +45,25 @@ fun is_copy(t: Type, td: TopDecl): bool {
 
 @test
 fun a_raw_pointer_field_is_copy(): void {
-    val t = of_kind(TypeKind.PtrTo(pointee(int32_ty(no_span()))))
+    val t = of_kind(TypeKind.PtrTo(pointee(Type.new_int32(no_span()))))
     assert_eq(is_copy(t, impl_over_t("")), true, "a raw pointer owns nothing")
 }
 
 @test
 fun a_shared_borrow_field_is_copy(): void {
-    val t = of_kind(TypeKind.RefTo(false, pointee(int32_ty(no_span()))))
+    val t = of_kind(TypeKind.RefTo(false, pointee(Type.new_int32(no_span()))))
     assert_eq(is_copy(t, impl_over_t("")), true, "two shared borrows of one place are fine")
 }
 
 @test
 fun a_mutable_borrow_field_is_not_copy(): void {
-    val t = of_kind(TypeKind.RefTo(true, pointee(int32_ty(no_span()))))
+    val t = of_kind(TypeKind.RefTo(true, pointee(Type.new_int32(no_span()))))
     assert_eq(is_copy(t, impl_over_t("")), false, "`&var` is exclusive, so it cannot be duplicated")
 }
 
 @test
 fun a_box_field_is_not_copy(): void {
-    val t = of_kind(TypeKind.BoxOf(pointee(int32_ty(no_span()))))
+    val t = of_kind(TypeKind.BoxOf(pointee(Type.new_int32(no_span()))))
     assert_eq(is_copy(t, impl_over_t("")), false, "a Box owns its pointee")
 }
 
@@ -81,6 +81,6 @@ fun an_unbounded_type_parameter_is_not_copy(): void {
 
 @test
 fun a_primitive_without_a_copy_impl_is_not_copy(): void {
-    val copies = is_copy(int32_ty(no_span()), impl_over_t(""))
+    val copies = is_copy(Type.new_int32(no_span()), impl_over_t(""))
     assert_eq(copies, false, "Copy is an impl, not something the compiler assumes")
 }

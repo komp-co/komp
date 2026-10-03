@@ -3,6 +3,12 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 fun mk_some_x_arm(): Arm {
     val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))
@@ -12,7 +18,7 @@ fun mk_some_x_arm(): Arm {
     val sp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *sp = some_pat }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
     return new_arm(no_span(), sp, null, body)
 }
 
@@ -21,7 +27,7 @@ fun mk_none_arm(): Arm {
     val np: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *np = none_pat }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
     return new_arm(no_span(), np, null, body)
 }
 
@@ -29,10 +35,10 @@ fun mk_none_arm(): Arm {
     var arms = List.new<Arm>()
     arms.push(mk_some_x_arm())
     arms.push(mk_none_arm())
-    val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
+    val subj = Expr.new(no_span(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var rewritten = new_stmt(no_span(), StmtKind.When(sp, arms))
+    var rewritten = Stmt.new(no_span(), StmtKind.When(sp, arms))
     rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {
@@ -57,15 +63,15 @@ fun mk_none_arm(): Arm {
     val wp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *wp = wild }
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
     val arm = new_arm(no_span(), wp, null, body)
     var arms = List.new<Arm>()
     arms.push(arm)
 
-    val subj = new_expr(no_span(), ExprKind.LitBool(true))
+    val subj = Expr.new(no_span(), ExprKind.LitBool(true))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var rewritten = new_stmt(no_span(), StmtKind.When(sp, arms))
+    var rewritten = Stmt.new(no_span(), StmtKind.When(sp, arms))
     rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {

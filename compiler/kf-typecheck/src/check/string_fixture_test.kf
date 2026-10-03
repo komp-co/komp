@@ -1,7 +1,9 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.crate_id_poison
+import kf_core.ast.intern
+import kf_core.ast.types.Type
 
 /// With `Equal` and `impl From<str> for String`.
 pub fun register_string_with_equal_and_from(sp: Ptr<SigTable>): void {
@@ -13,7 +15,7 @@ pub fun register_string_with_equal_and_from(sp: Ptr<SigTable>): void {
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("String"), receiver_identity: intern("String"),
         trait_name: String.from("From"), trait_args: String.from("str"), generics: "", arg_count: 1 }) }
     var params = List.new<Type>()
-    params.push(str_ty(no_span()))
+    params.push(Type.new_str(no_span()))
     val from_name = String.from("String_from__From__str")
     unsafe { sp.insert(FnSignature { name: from_name, params: params, ret: intern("String").lang_struct_ty(no_span()),
         generics: List.new<String>(), is_static: true, is_mutating: false, owner_module: intern(""),

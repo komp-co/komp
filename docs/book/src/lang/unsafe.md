@@ -203,3 +203,10 @@ $ komp check .
 src/main.kf:2:34: error: wrong number of arguments to `alloc_array`: expected 1, found 0
 ```
 
+Each names exactly one type, the one it works on:
+
+```console
+$ komp check .
+src/main.kf:2:22: error: `alloc` takes one type argument, found 2
+```
+

@@ -2,6 +2,8 @@
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.traits.trait_method_in
@@ -54,6 +56,7 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
         }
         MethodCall(_, _, _) => return self.ty.result_is_mutable_place()
         Call(_, _) => return self.ty.result_is_mutable_place()
+        Intrinsic(_, _) => return self.ty.result_is_mutable_place()
         CallValue(_callee, _) => return self.ty.result_is_mutable_place()
         DynCoerce(_, _) => return self.ty.result_is_mutable_place()
         _ => return false

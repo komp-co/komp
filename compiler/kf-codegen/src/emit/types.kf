@@ -3,6 +3,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
 import kf_core.ast.dyn_meta.dyn_trait_identity
 import kf_codegen.concat
 
@@ -327,7 +328,7 @@ fun member_owns_heap(t: TypeRef, m: &Module): bool {
 /// Where a value is stored: `void` is a value and needs storage. In return
 /// position `c_type` still gives C `void`.
 pub fun TypeRef.c_value_type(): String {
-    if type_ref_is_void(self) { return String.from("kf_unit") }
+    if self.is_void() { return String.from("kf_unit") }
     return self.c_type()
 }
 

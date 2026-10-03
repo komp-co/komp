@@ -6,6 +6,12 @@ import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.span.no_span
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.AnnotationArg
+import kf_core.ast.declaration.TopDecl
 
 pub fun lang_string_key(): str { return "string" }
 
@@ -96,7 +102,7 @@ pub fun known_lang_keys_summary(): String {
 /// `@lang("key")`, for a declaration read back from an interface.
 pub fun lang_annotation(key: str): Annotation {
     var args = List.new<AnnotationArg>()
-    val literal = new_expr(no_span(), ExprKind.LitStr(String.from(key)))
+    val literal = Expr.new(no_span(), ExprKind.LitStr(String.from(key)))
     args.push(AnnotationArg { name: intern(""), value: Box.new(literal) })
     return Annotation { name: intern("lang"), args: args, has_parens: true, span: no_span() }
 }

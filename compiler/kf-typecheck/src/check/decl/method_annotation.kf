@@ -5,7 +5,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.annotation.annotation_is_known
 import kf_core.diagnostic.*
 import kf_typecheck.*
 import kf_typecheck.types.trait_method_suffix
@@ -40,7 +43,7 @@ pub fun TopDecl.listed_name(owner: &MethodOwner): String {
     return "${owner.type_name.as_str()}.${self.name.as_str()}"
 }
 
-pub fun TopDecl.validate_member_annotations(diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.validate_member_annotations(diags: &var Diagnostics): void {
     when (self.kind) {
         ImplBlock(methods) => validate_members(&methods, diags)
         TraitImpl(_trait, methods) => validate_members(&methods, diags)
@@ -49,7 +52,7 @@ pub fun TopDecl.validate_member_annotations(diags: Ptr<List<Diagnostic>>): void 
     }
 }
 
-fun validate_members(members: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): void {
+fun validate_members(members: &List<TopDecl>, diags: &var Diagnostics): void {
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()
@@ -58,7 +61,7 @@ fun validate_members(members: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): voi
                 member.validate_allow_names(&annotation.words(), diags)
             } else {
                 val message = "`@${kind}` cannot annotate a method"
-                unsafe { diags.push(new_diagnostic(Severity.Error, new_label(member.decl_name_span(), message))) }
+                diags.emit(new_diagnostic(Severity.Error, new_label(member.decl_name_span(), message)))
             }
         }
     }
@@ -66,7 +69,7 @@ fun validate_members(members: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): voi
 
 /// Each declared annotation on this declaration's members: registered for an
 /// impl's method, reported for a trait's, checked on a field or a variant.
-pub fun TopDecl.register_member_annotations(sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>,
+pub fun TopDecl.register_member_annotations(sigs: Ptr<SigTable>, pass_diags: &var Diagnostics,
     table: &var SigTable, diags: &var List<Diagnostic>): void {
     val is_generic = self.generics.size() > 0
     when (self.kind) {
@@ -87,7 +90,7 @@ pub fun TopDecl.register_member_annotations(sigs: Ptr<SigTable>, pass_diags: Ptr
 }
 
 fun register_members(members: &List<TopDecl>, owner: &MethodOwner, sigs: Ptr<SigTable>,
-    pass_diags: Ptr<List<Diagnostic>>, table: &var SigTable, diags: &var List<Diagnostic>): void {
+    pass_diags: &var Diagnostics, table: &var SigTable, diags: &var List<Diagnostic>): void {
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()

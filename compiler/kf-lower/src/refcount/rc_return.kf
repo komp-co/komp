@@ -2,7 +2,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.*
 
 /// Narrows the locals a return path must not release.
 fun refine_return_exclusions(ep: Ptr<Expr>?, ctx: &var RcCtx, exclude: &var List<String>): void {
@@ -52,6 +53,7 @@ fun Expr.collect_escaping_names(ctx: &var RcCtx, out: &var List<String>): void {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
         Call(_n, args) => escaping_names_in_list(&args, ctx, out)
+        Intrinsic(_i, args) => escaping_names_in_list(&args, ctx, out)
         CallValue(_callee, args) => escaping_names_in_list(&args, ctx, out)
         StructLit(_n, finits) => {
             while fi in &finits {

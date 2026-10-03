@@ -6,7 +6,13 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 fun expand_stmts(stmts: &List<Stmt>, x: &var Expansion): List<Stmt> {
     var out = List.new<Stmt>()
@@ -116,7 +122,7 @@ fun Stmt.stray_jump_in(): Span? {
 
 /// `if true { body }`: a block with its own scope.
 fun Stmt.scope(body: List<Stmt>): Stmt {
-    val always = new_expr(self.span, ExprKind.LitBool(true))
+    val always = Expr.new(self.span, ExprKind.LitBool(true))
     return self.rekinded(StmtKind.If(Box.new(always), body, List.new<Stmt>()))
 }
 

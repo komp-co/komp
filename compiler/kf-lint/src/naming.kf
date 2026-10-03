@@ -3,7 +3,7 @@
 // constant, so UPPER_SNAKE_CASE also names it.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
 import kf_core.diagnostic.*
 
 /// Lowercase letters, digits and `_`.

@@ -4,8 +4,6 @@ import core.assert.ptr_is_null
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
-
 fun literal_parts(toks: &List<Token>): String {
     var out = String.from("")
     var first = true

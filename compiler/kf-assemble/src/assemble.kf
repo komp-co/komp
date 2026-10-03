@@ -5,6 +5,8 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.stamp_decl_owner
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
@@ -18,9 +20,9 @@ extern "C" fun join(a: str, b: str): String
 extern "C" fun read_file(path: str): String
 extern "C" fun write_file(path: str, content: str): void
 
-mutating fun Parser.drain_parse_diags(pdiags: Ptr<List<Diagnostic>>): void {
+mutating fun Parser.drain_parse_diags(pdiags: &var Diagnostics): void {
     while diag in &self.diags {
-        unsafe { pdiags.push(diag) }
+        pdiags.emit(diag)
     }
 }
 
@@ -110,14 +112,14 @@ pub fun module_path_for(file_path: str, src_root: str, crate_name: String): List
 }
 
 /// One `Module` per non-test `.kf` file; zero modules on error.
-pub fun assemble_crate(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>): Crate {
+pub fun assemble_crate(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: &var Diagnostics): Crate {
     val none = no_overlay()
     return assemble_crate_inc(crate_root, crate_name, smap, pdiags, false, &none)
 }
 
 /// Includes `_test.kf` files: for the test driver, `check` and `query`,
 /// which answer for the whole crate.
-pub fun assemble_crate_tests(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>): Crate {
+pub fun assemble_crate_tests(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: &var Diagnostics): Crate {
     val none = no_overlay()
     return assemble_crate_inc(crate_root, crate_name, smap, pdiags, true, &none)
 }
@@ -128,13 +130,13 @@ pub fun assemble_crate_tests(crate_root: str, crate_name: String, smap: Ptr<Sour
 /// CONSTRAINT: once per crate per SourceMap. A second assembly registers
 /// every file twice, and path lookups then answer with FileIds the modules'
 /// spans do not carry.
-pub fun assemble_crate_inc(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>, include_tests: bool, overlay: &Overlay): Crate {
+pub fun assemble_crate_inc(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: &var Diagnostics, include_tests: bool, overlay: &Overlay): Crate {
     var c = new_crate(String.from(crate_name.as_str()))
     val src_root: String = join(crate_root, "src")
     if !is_dir(src_root.as_str()) {
         // A crate with no src/ must be an error: otherwise the build emits a
         // program with none of the project's code and exits 0.
-        unsafe { pdiags.push(error_at(no_span(), "crate `${crate_name}` has no src/ directory (expected ${src_root}); sources beside kf.toml are not read")) }
+        pdiags.emit(error_at(no_span(), "crate `${crate_name}` has no src/ directory (expected ${src_root}); sources beside kf.toml are not read"))
         return c
     }
     var paths = List.new<String>()

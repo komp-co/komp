@@ -1,7 +1,9 @@
 // Consumed-move marking for the refcount pass.
 
 import alloc.list.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.*
 import kf_lower.ownership.param_lookup
 
 // After a move the source owns nothing, so no frame drops it.
@@ -102,6 +104,12 @@ fun Expr.mark_consumed_moves(ctx: &var RcCtx): void {
             val callee = self.mangled_callee.as_string()
             while i in 0..args.size() {
                 mark_arg_if_consumed(args.at_mut(i), callee.clone(), i, ctx)
+                mark_consumed_moves(*args.at(i), ctx)
+            }
+        }
+        Intrinsic(_intrinsic, args) => {
+            while i in 0..args.size() {
+                mark_arg_if_consumed(args.at_mut(i), String.from(""), i, ctx)
                 mark_consumed_moves(*args.at(i), ctx)
             }
         }

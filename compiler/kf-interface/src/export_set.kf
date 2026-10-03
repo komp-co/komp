@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import kf_interface.*
 
 // Public non-generic functions, structs, enums and traits, impls of exported

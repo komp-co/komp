@@ -3,7 +3,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Intrinsic
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 pub struct TypedWalk {
@@ -81,6 +85,9 @@ fun Expr.visit_typed(walk: &var TypedWalk): void {
         Unary(_op, inner) => inner.visit_typed(walk)
         Deref(inner) => inner.visit_typed(walk)
         Call(_name, args) => {
+            while arg in &args { arg.visit_typed(walk) }
+        }
+        Intrinsic(_intrinsic, args) => {
             while arg in &args { arg.visit_typed(walk) }
         }
         CallValue(callee, args) => {

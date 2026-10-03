@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.import_is_written
+import kf_core.ast.declaration.TopDecl
 import json.writer.*
 
 /// `{"schema_version":1,"file":..,"ranges":[..]}`

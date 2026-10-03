@@ -4,7 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.SwitchArm
 import kf_codegen.concat_all
 import kf_codegen.emit.expr.emit_expr
 

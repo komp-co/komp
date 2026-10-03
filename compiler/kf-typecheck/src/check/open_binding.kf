@@ -7,7 +7,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.open_call_pending
 import kf_typecheck.types.type_to_type_ref
@@ -40,7 +44,7 @@ mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx
         if bound.is_poison() { return args.size() }
         type_args.push(bound.type_to_type_ref(self.span))
     }
-    val written = new_type_ref(self.span, TypeRefKind.Named(intern(base.as_str()), type_args.clone()))
+    val written = TypeRef.new(self.span, TypeRefKind.Named(intern(base.as_str()), type_args.clone()))
     if self.decides_on_recheck(init.span, written.resolve_type_ref(ctx), ctx) { return args.size() }
     val inst = GenericInst { mangled: String.from(""), base: base.clone(), args: type_args }
     if !init.rebind_static_call(&inst, ctx) { return args.size() }
@@ -135,5 +139,5 @@ fun FnSignature.bind_from_args(gname: str, args: &List<Expr>, ctx: &var TypeCtx)
             if !bound.is_poison() { return bound }
         }
     }
-    return poison_ty()
+    return Type.new_poison()
 }

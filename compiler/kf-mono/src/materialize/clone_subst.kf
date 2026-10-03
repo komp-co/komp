@@ -1,7 +1,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 import kf_core.ast.subst.*
 
 pub fun new_owned_top_decl(owner: CrateId, span: Span, name: str, kind: TopDeclKind): TopDecl {

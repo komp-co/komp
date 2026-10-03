@@ -1,6 +1,9 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_typecheck.types.*
 import kf_typecheck.*
@@ -10,12 +13,12 @@ import kf_core.ast.dyn_meta.*
 import kf_typecheck.check.decl.no_mangle_type_recorded
 import kf_typecheck.check.decl.trait_arg_params
 
-mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (trait_ref.kind) {
         Named(trait_sym, trait_args) => {
             var receiver = self.name
             if !self.crate.is_poison() {
-                receiver = canonical_type_identity(new_type_identity(self.crate, self.module_path, self.name))
+                receiver = canonical_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name))
             }
             val type_name = self.name.as_string()
             val trait_name = trait_sym.as_string()
@@ -33,7 +36,7 @@ mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable
                 Some(first) => {
                     val where_first = first.where_the_first_impl_is(self)
                     val message = "duplicate impl ${trait_name.as_str()} for ${type_name.as_str()}${where_first.as_str()}"
-                    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+                    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
                 }
                 None => {
                     unsafe { sigs.note_impl_param_bounds(type_name.clone(), trait_name.clone(), &self.generics) }
@@ -78,14 +81,14 @@ fun Sym.identity_crate_name(): String {
     return String.from("")
 }
 
-pub mutating fun TopDecl.register_dyn_vtable_decl(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+pub mutating fun TopDecl.register_dyn_vtable_decl(sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         TraitImpl(trait_ref, members) => self.register_concrete_dyn_vtable(unsafe { *trait_ref }, &members, sigs, diags)
         _ => { }
     }
 }
 
-mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &List<TopDecl>, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &List<TopDecl>, sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     // One vtable per length, which the impl does not have until a call names it.
     if self.trait_arg_params().size() > 0 { return }
     when (trait_ref.kind) {
@@ -94,7 +97,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
                 None => return
                 Some(info) => {
                     if !info.trait_info_is_object_safe() { return }
-                    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+                    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
                     ctx.owner_crate = self.crate
                     ctx.owner_module = self.module_path
                     ctx.owner_file = self.span.file_id
@@ -103,7 +106,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
                     // visible, or `F` in `impl Iterator<F.Out> for MapIter<I, F>`
                     // resolves as a nominal type.
                     ctx.seed_generics(type_param_names(self.generics))
-                    var args = new_type_vec()
+                    var args = List.new<Type>()
                     while argument in &type_refs {
                         args.push(argument.resolve_type_ref(&var ctx))
                     }
@@ -123,7 +126,7 @@ fun insert_dyn_vtable(td: &var TopDecl, trait_ref: TypeRef, members: &List<TopDe
     sigs: Ptr<SigTable>): void {
     var receiver_identity = td.name
     if !td.crate.is_poison() {
-        receiver_identity = canonical_type_identity(new_type_identity(td.crate, td.module_path, td.name))
+        receiver_identity = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, td.name))
     }
     val receiver = Type { kind: TypeKind.Struct(receiver_identity), provenance: Provenance.Declared(td.span) }
     val symbol = receiver.dyn_vtable_symbol(layout)
@@ -175,7 +178,7 @@ fun TopDecl.dyn_adapter_symbol(members: &List<TopDecl>, receiver: &Type, method:
 /// Resolved in the impl's own scope, where its parameters mean something. A
 /// second binding of the same name is not an error here: two traits may each
 /// declare `Item`; resolution reports the ambiguity.
-pub fun TopDecl.register_assoc_bindings_decl(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.register_assoc_bindings_decl(sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         TraitImpl(tref, members) => {
             self.register_assoc_bindings(unsafe { *tref }, members, type_param_names(self.generics), sigs, diags)
@@ -184,13 +187,13 @@ pub fun TopDecl.register_assoc_bindings_decl(sigs: Ptr<SigTable>, diags: Ptr<Lis
     }
 }
 
-fun TopDecl.register_assoc_bindings(trait_ref: TypeRef, members: List<TopDecl>, impl_generics: List<String>, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.register_assoc_bindings(trait_ref: TypeRef, members: List<TopDecl>, impl_generics: List<String>, sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     val trait_name = trait_ref_head_name(trait_ref)
     val trait_args = trait_ref_args_key(trait_ref)
     while member in &members {
         when (member.kind) {
             AssocTypeBinding(chosen_ptr) => {
-                var ctx0 = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+                var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
                 ctx0.owner_crate = self.crate
                 ctx0.owner_module = self.module_path
                 ctx0.owner_file = self.span.file_id

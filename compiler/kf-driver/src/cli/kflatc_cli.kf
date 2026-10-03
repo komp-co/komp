@@ -13,11 +13,13 @@
 //
 // Exit 0 on success, 1 when the crate has errors, 2 on a malformed line.
 
+import kf_core.diagnostic.new_diagnostics
 import alloc.list.*
 import core.args.arg_at
 import core.args.arg_count
 
-import kf_driver.*
+import kf_driver.note_crate_being_built
+import kf_driver.print_lint_table
 import kf_driver.build.*
 import kf_driver.serve.kflatc_serve
 import kf_interface.interface_compiler_abi
@@ -107,14 +109,13 @@ pub fun kflatc_cli(): int32 {
     if command == "check" {
         return if crate.check_against_interfaces(out, as_json, summary) == 0 { 0 } else { 1 }
     }
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
+    var errors = new_diagnostics()
     if with_tests {
         unsafe { kf_mute_warnings(1) }
-        if !crate.write_test_sources(out, errp) { return 1 }
+        if !crate.write_test_sources(out, &var errors) { return 1 }
         return 0
     }
-    if !crate.write_crate_sources(out, is_bin, errp) {
+    if !crate.write_crate_sources(out, is_bin, &var errors) {
         println("kflatc: errors found; ${name} not written")
         return 1
     }

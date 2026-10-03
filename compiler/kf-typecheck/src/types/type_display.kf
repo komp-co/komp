@@ -1,4 +1,8 @@
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.projection_mangle_display
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.type_identity_display
 import kf_core.ast.dyn_meta.dyn_trait_name
 import kf_core.ast.dyn_meta.dyn_trait_args
 import kf_typecheck.check.bound_shown

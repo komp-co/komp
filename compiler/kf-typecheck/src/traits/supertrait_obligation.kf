@@ -4,14 +4,19 @@
 import alloc.list.*
 
 import kf_core.diagnostic.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.is_container_type_name
+import kf_core.ast.is_runtime_type_name
+import kf_core.ast.types.TypeIdentity
+import kf_core.ast.types.canonical_type_identity
+import kf_core.ast.declaration.TopDecl
 import kf_typecheck.types.trait_args_key
 
 /// Every implementor of a trait implements what it requires. Walks this
 /// module's own impls (for spans; dependencies were checked in their crate);
 /// the satisfying impl may come from anywhere. Arguments must match:
 /// `impl Sink<int32>` owes `Drain<int32>`.
-pub fun Module.check_supertrait_obligations(sigs: &SigTable, diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_supertrait_obligations(sigs: &SigTable, diags: &var Diagnostics): void {
     while td in &self.decls {
         when (td.kind) {
             TraitImpl(tref, _methods) => {
@@ -26,7 +31,7 @@ pub fun Module.check_supertrait_obligations(sigs: &SigTable, diags: Ptr<List<Dia
     }
 }
 
-fun TopDecl.check_one_impl(trait_name: str, impl_args: str, sigs: &SigTable, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.check_one_impl(trait_name: str, impl_args: str, sigs: &SigTable, diags: &var Diagnostics): void {
     // A cycle is left to check_supertrait_cycles.
     if sigs.supertrait_cycle_from(trait_name) { return }
     val required = sigs.supertrait_closure_reqs(trait_name, impl_args)
@@ -43,7 +48,7 @@ fun TopDecl.check_one_impl(trait_name: str, impl_args: str, sigs: &SigTable, dia
             message.append(shown.as_str())
             message.append(" for ")
             message.append(self.name.as_str())
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
         }
     }
 }
@@ -67,7 +72,7 @@ fun render_trait_ref(name: str, args: str): String {
 fun TopDecl.receiver_implements(trait_name: str, needed_args: str, sigs: &SigTable): bool {
     var identity = self.name
     if !self.crate.is_poison() {
-        identity = canonical_type_identity(new_type_identity(self.crate, self.module_path, self.name))
+        identity = canonical_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name))
     }
     // Runtime and `@no_mangle` types belong to no crate: core's
     // `impl Add for int32` and a program's `impl Num for int32` name one type
@@ -105,7 +110,7 @@ fun shares_one_namespace(name: str, sigs: &SigTable): bool {
 /// An associated type may be declared once across a trait and its
 /// supertraits; a redeclaration would make `T.Out` name two things. This
 /// module's own traits only.
-pub fun Module.check_supertrait_assoc_shadowing(sigs: &SigTable, diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_supertrait_assoc_shadowing(sigs: &SigTable, diags: &var Diagnostics): void {
     while td in &self.decls {
         when (td.kind) {
             TraitDecl(_methods, _is_pub, _supers) => check_trait_assoc_shadowing(td.name.as_str(), sigs, diags)
@@ -116,7 +121,7 @@ pub fun Module.check_supertrait_assoc_shadowing(sigs: &SigTable, diags: Ptr<List
 
 /// Public: the walk above only picks which traits to check, and a table is
 /// cheaper to build in a test than a Module.
-pub fun check_trait_assoc_shadowing(name: str, sigs: &SigTable, diags: Ptr<List<Diagnostic>>): void {
+pub fun check_trait_assoc_shadowing(name: str, sigs: &SigTable, diags: &var Diagnostics): void {
     // A cycle is left to check_supertrait_cycles.
     if sigs.supertrait_cycle_from(name) { return }
     when (sigs.find_unique_trait(name)) {
@@ -127,7 +132,7 @@ pub fun check_trait_assoc_shadowing(name: str, sigs: &SigTable, diags: Ptr<List<
                 while item in &required {
                     if sigs.trait_declares_assoc(item.as_str(), own.name.as_str()) {
                         val message = "trait ${name} redeclares associated type ${own.name.as_str()}, already declared by ${item.as_str()}"
-                        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(own.span, message))) }
+                        diags.emit(new_diagnostic(Severity.Error, new_label(own.span, message)))
                     }
                 }
             }
@@ -148,11 +153,11 @@ fun SigTable.trait_declares_assoc(trait_name: str, assoc: str): bool {
 }
 
 /// Runs before the obligation check, whose answer is meaningless on a cycle.
-pub fun SigTable.check_supertrait_cycles(diags: Ptr<List<Diagnostic>>): void {
+pub fun SigTable.check_supertrait_cycles(diags: &var Diagnostics): void {
     while info in &self.traits {
         if self.supertrait_cycle_from(info.name.as_str()) {
             val message = "trait ${info.name.as_str()}'s supertraits form a cycle"
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(info.span, message))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label(info.span, message)))
         }
     }
 }

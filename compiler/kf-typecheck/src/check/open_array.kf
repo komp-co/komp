@@ -5,7 +5,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.resolve_type_ref
 
@@ -47,7 +50,7 @@ mutating fun Expr.narrow_open_array_receiver(method: str, ctx: &var TypeCtx): vo
     if !type_has_method_named(list_name.as_str(), method, ctx) { return }
     var args = List.new<TypeRef>()
     args.push(shape.element.written_instance(self.span, ctx))
-    val list = new_type_ref(self.span, TypeRefKind.Named(ctx.list_name(), args)).resolve_type_ref(ctx)
+    val list = TypeRef.new(self.span, TypeRefKind.Named(ctx.list_name(), args)).resolve_type_ref(ctx)
     if self.conflicts_with_narrowing(&list, "an array", ctx) { return }
     self.settle_open_array(init_ptr, list, ctx)
 }

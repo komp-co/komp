@@ -1,0 +1,60 @@
+// A `str` kept by the callee, `xs.push(s)` into a `List<str>`, points into
+// whatever text it was taken from. Taken from a temporary `String`, that text
+// is freed when the statement ends and the kept `str` dangles.
+
+import alloc.list.*
+
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.diagnostic.error_at
+import kf_typecheck.check.mentions_any
+
+/// Reports a temporary `String` passed to a callee that keeps it as a
+/// `str`, true when it did. Only the caller knows whether the slot keeps its
+/// argument: a parameter declared `str` borrows it for the call, while an
+/// element or one reached through a type parameter is stored.
+pub fun Expr.reject_kept_temporary(expected: &Type, callee: str, ctx: &var TypeCtx): bool {
+    when (expected.kind) {
+        StrTy => { }
+        _ => return false
+    }
+    if !self.ty.is_lang_struct(ctx.string_name()) || self.is_place() { return false }
+    var message = "`${callee}` keeps this `str`, which points into a `String` freed at the end of "
+    message.append("the statement; keep the `String` in a local first, or store `String`s")
+    ctx.emit(error_at(self.span, message))
+    return true
+}
+
+/// Whether a call can keep argument `index`, declared with a type parameter:
+/// only somewhere mutable, a `mutating` receiver or a `&var` or `Ptr`
+/// parameter, or by returning it. `assert_eq<T>(a: T, b: T)` keeps nothing.
+pub fun FnSignature.may_keep_argument(index: uint64): bool {
+    if index >= self.params.size() { return false }
+    var names = List.new<String>()
+    when (self.params.at(index).kind) {
+        Generic(name) => names.push(name.as_string())
+        _ => return false
+    }
+    if self.is_mutating || self.ret.mentions_any(&names) { return true }
+    while param in &self.params {
+        when (param.kind) {
+            RefTo(is_mutable, _inner) => {
+                if is_mutable { return true }
+            }
+            PtrTo(_inner) => return true
+            _ => { }
+        }
+    }
+    return false
+}
+
+/// A binding, or a field or pointee of one: storage that outlives the
+/// statement.
+fun Expr.is_place(): bool {
+    return when (self.kind) {
+        Variable(_) => true
+        FieldAccess(owner, _) => owner.is_place()
+        Deref(_) => true
+        _ => false
+    }
+}

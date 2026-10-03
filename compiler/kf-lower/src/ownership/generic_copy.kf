@@ -5,7 +5,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.new_module
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_core.ast.subst.clone_type_ref
 import kf_core.ast.subst.subst_stmt_list
@@ -17,7 +21,7 @@ import kf_lower.new_reached
 /// Adds an `unauthorized_copy` to `lints` for each copy of an under-bounded
 /// type parameter. `m` is not changed: the templates are checked as copies.
 pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym, copy_trait: Sym,
-    lints: Ptr<List<Diagnostic>>): void {
+    lints: &var Diagnostics): void {
     var templates = new_module(m.path.clone())
     templates.crate = m.crate
     while td in &m.decls {
@@ -32,7 +36,7 @@ pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym,
         warned: List.new<Span>(), reached: new_reached(), prune: false,
         clone_names: List.new<String>(), lints: List.new<Diagnostic>()
     }
-    var discarded = List.new<Diagnostic>()
+    var discarded = new_diagnostics()
     var moves_out_of_borrows = MobCount { n: 0 }
     val bounds = TemplateBounds { clone_trait: clone_trait, copy_trait: copy_trait, supers: m.trait_supers() }
     while td in &templates.decls {
@@ -40,7 +44,7 @@ pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym,
             &var moves_out_of_borrows, smap, &var warnings)
     }
     while d in &warnings.lints {
-        if d.code.as_str().equals("unauthorized_copy") { unsafe { lints.push(d.clone()) } }
+        if d.code.as_str().equals("unauthorized_copy") { lints.emit(d.clone()) }
     }
 }
 
@@ -135,7 +139,7 @@ fun decl_is_template(td: &TopDecl): bool {
 }
 
 /// `outer` is the enclosing impl block's parameters, bounds included.
-fun check_template(td: &TopDecl, outer: &List<TypeParam>, bounds: &TemplateBounds, diags: Ptr<List<Diagnostic>>,
+fun check_template(td: &TopDecl, outer: &List<TypeParam>, bounds: &TemplateBounds, diags: &var Diagnostics,
     table: Ptr<List<ParamEntry>>, mob: Ptr<MobCount>, smap: Ptr<SourceMap>,
     warn: Ptr<WarnState>): void {
     when (td.kind) {

@@ -9,34 +9,6 @@ import kf_tool.build.build_project_separate_in
 import kf_integration.integration.run
 import kf_integration.harness.*
 
-/// core.string has no `contains`.
-fun case_str_contains(haystack: str, needle: str): bool {
-    val n: uint64 = haystack.byte_len()
-    val m: uint64 = needle.byte_len()
-    if m > n {
-        return false
-    }
-    var start: uint64 = 0
-    while start + m <= n {
-        var i: uint64 = 0
-        var same = true
-        while i < m {
-            val a: uint8 = haystack.byte_at(start + i)
-            val b: uint8 = needle.byte_at(i)
-            if a != b {
-                same = false
-                break
-            }
-            i = i + 1
-        }
-        if same {
-            return true
-        }
-        start = start + 1
-    }
-    return false
-}
-
 @test
 fun spec_reads_run_and_deps(): void {
     val src = "//! run: exit 3\n//! deps: core, alloc\nfun main(): int32 { return 3 }\n"
@@ -88,15 +60,15 @@ fun spec_flags_an_unknown_key(): void {
 @test
 fun manifest_wires_each_dep_to_libs(): void {
     val toml = case_manifest("demo", "core, alloc")
-    assert_eq(case_str_contains(toml.as_str(), "name = \"demo\""), true, "the project takes the case name")
-    assert_eq(case_str_contains(toml.as_str(), "core = { path = \"../../../libs/core\" }"), true, "core resolves to libs/core")
-    assert_eq(case_str_contains(toml.as_str(), "alloc = { path = \"../../../libs/alloc\" }"), true, "alloc resolves to libs/alloc")
+    assert_eq(toml.contains("name = \"demo\""), true, "the project takes the case name")
+    assert_eq(toml.contains("core = { path = \"../../../libs/core\" }"), true, "core resolves to libs/core")
+    assert_eq(toml.contains("alloc = { path = \"../../../libs/alloc\" }"), true, "alloc resolves to libs/alloc")
 }
 
 @test
 fun manifest_omits_the_dependencies_table_when_there_are_none(): void {
     val toml = case_manifest("bare", "")
-    assert_eq(case_str_contains(toml.as_str(), "[dependencies]"), false, "no deps means no [dependencies] table")
+    assert_eq(toml.contains("[dependencies]"), false, "no deps means no [dependencies] table")
 }
 
 @test
@@ -134,7 +106,7 @@ fun build_cases_out_of_process(dirs: &List<String>): List<int32> {
             val d = dirs.at(at + j).as_str()
             runtime_println(read_file("${d}/build.log").as_str())
             val status = read_file("${d}/build.status")
-            val trimmed = case_str_trim(status.as_str())
+            val trimmed = status.trim()
             statuses.push(if trimmed.byte_len() == 0 { 1 } else { case_parse_int32(trimmed.as_str()) })
         }
         at = at + k

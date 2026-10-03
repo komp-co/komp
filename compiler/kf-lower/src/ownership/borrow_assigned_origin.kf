@@ -1,0 +1,64 @@
+// A borrow declared without a value, as a `when` or block value's temporary
+// is, takes its value from the assignments in the arms after it, and borrows
+// what they borrow.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.ast.statement.Stmt
+
+/// `var t: str` and the like: a borrow whose value comes later.
+fun Stmt.declares_borrow_without_value(views: &List<String>): bool {
+    return when (self.kind) {
+        LetVar(_n, ty, init) => init == null && ty != null && ty!!.spells_a_borrow(views)
+        _ => false
+    }
+}
+
+fun TypeRef.spells_a_borrow(views: &List<String>): bool {
+    return when (self.kind) {
+        Reference(_m, _inner) => true
+        Named(name, _args) => name.as_str() == "str" || names_view(views, name.as_str())
+        _ => false
+    }
+}
+
+/// The first local an assignment to `name` in `stmts[from..]` borrows, or
+/// "" when none borrows a local.
+fun assigned_borrow_origin(stmts: &List<Stmt>, from: uint64, name: str, views: &List<String>): String {
+    var i = from
+    while i < stmts.size() {
+        val found = (stmts.at(i)).assignment_origin(name, views)
+        if found.as_str() != "" { return found }
+        i = i + 1
+    }
+    return String.from("")
+}
+
+fun Stmt.assignment_origin(name: str, views: &List<String>): String {
+    when (self.kind) {
+        Assign(target, value) => {
+            if target.as_str() != name { return String.from("") }
+            return value.borrow_root_in(views)
+        }
+        If(_c, then_body, else_body) => {
+            val in_then = assigned_borrow_origin(&then_body, 0, name, views)
+            if in_then.as_str() != "" { return in_then }
+            return assigned_borrow_origin(&else_body, 0, name, views)
+        }
+        When(_s, arms) => {
+            while arm in &arms {
+                val found = assigned_borrow_origin(arm.body, 0, name, views)
+                if found.as_str() != "" { return found }
+            }
+        }
+        Switch(_s, arms) => {
+            while arm in &arms {
+                val found = assigned_borrow_origin(arm.body, 0, name, views)
+                if found.as_str() != "" { return found }
+            }
+        }
+        _ => { }
+    }
+    return String.from("")
+}

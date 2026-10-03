@@ -7,11 +7,16 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TypeParam
+import kf_core.ast.declaration.new_type_param
 import kf_core.diagnostic.*
 import kf_typecheck.*
 
-pub mutating fun Module.prepare_annotation_params(diags: Ptr<List<Diagnostic>>): void {
+pub mutating fun Module.prepare_annotation_params(diags: &var Diagnostics): void {
     val types = self.declared_type_names()
     while i in 0..self.decls.size() {
         val td = self.decls.at_mut(i)
@@ -21,7 +26,7 @@ pub mutating fun Module.prepare_annotation_params(diags: Ptr<List<Diagnostic>>):
     }
 }
 
-mutating fun TopDecl.add_target_params(types: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.add_target_params(types: &List<String>, diags: &var Diagnostics): void {
     val slots = self.target_slots()
     var found = ReceiverParams { names: List.new<String>(), spans: List.new<Span>() }
     while slot in &slots {
@@ -89,14 +94,14 @@ fun TypeRef.collect_target_params(td: &TopDecl, types: &List<String>, out: &var 
 }
 
 /// `(Pont) -> bool` with `Point` in scope is likelier a typo than a parameter.
-fun ReceiverParams.warn_near_annotation_types(types: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun ReceiverParams.warn_near_annotation_types(types: &List<String>, diags: &var Diagnostics): void {
     while i in 0..self.names.size() {
         val name = self.names.at(i).as_str()
         val near = nearest_type_name(name, types)
         if near.byte_len() > 0 {
             val why = "`${name}` is not a type in scope, so it makes this annotation generic over a parameter"
             val message = "${why} named `${name}`; did you mean `${near.as_str()}`?"
-            unsafe { diags.push(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message))) }
+            diags.emit(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message)))
         }
     }
 }

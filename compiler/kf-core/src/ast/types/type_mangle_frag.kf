@@ -3,10 +3,7 @@
 // identity, so two types sharing one are one type. Keep exactly one copy.
 
 import kf_core.ast.dyn_meta.dyn_trait_identity
-import kf_core.ast.fn_frag
-import kf_core.ast.projection_mangle_frag
-import kf_core.ast.borrow_frag_marker
-import kf_core.ast.value_frag
+import kf_core.ast.*
 
 impl Type {
     /// A pointer-shaped wrapper contributes its marker and its pointee:
@@ -35,22 +32,8 @@ impl Type {
             Generic(n) => String.from(n.as_str())
             PtrTo(p) => wrapped_type_frag("Ptr__", p)
             BoxOf(p) => wrapped_type_frag("Box__", p)
-            RefTo(is_mut, p) => {
-                // `&dyn Trait` is a fat value already named by its dyn identity.
-                val pointee = unsafe { *p }
-                when (pointee.kind) {
-                    DynTraitTy(_) => return pointee.mangle_frag()
-                    _ => {}
-                }
-                // Reserved-prefixed and carrying mutability; see c_names.kf.
-                return wrapped_type_frag(borrow_frag_marker(is_mut), p)
-            }
-            FnTy(_) => {
-                val parts = self.fn_parts() ?: return String.from("poison")
-                var params = parts.params.map(|param| param.mangle_frag())
-
-                fn_frag(&params, parts.ret.mangle_frag().as_str())
-            }
+            RefTo(is_mut, p) => borrow_type_frag(is_mut, p)
+            FnTy(_) => self.function_type_frag()
             // Kept, not poisoned, so `F` stays a segment substitution can reach.
             Projection(owner, member) => {
                 val inner = unsafe { *owner }.mangle_frag()
@@ -80,6 +63,25 @@ impl Type {
             _ => ""
         }
     }
+}
+
+/// `&dyn Trait` is a fat value already named by its dyn identity; any other
+/// borrow is reserved-prefixed and carries its mutability (see c_names.kf).
+fun borrow_type_frag(is_mut: bool, p: Ptr<Type>): String {
+    val pointee = unsafe { *p }
+    when (pointee.kind) {
+        DynTraitTy(_) => return pointee.mangle_frag()
+        _ => return wrapped_type_frag(borrow_frag_marker(is_mut), p)
+    }
+}
+
+fun Type.function_type_frag(): String {
+    val parts = self.fn_parts() ?: return String.from("poison")
+    var params = List.new<String>()
+    while param in &parts.params {
+        params.push(param.mangle_frag())
+    }
+    return fn_frag(&params, parts.ret.mangle_frag().as_str())
 }
 
 fun wrapped_type_frag(marker: str, p: Ptr<Type>): String {

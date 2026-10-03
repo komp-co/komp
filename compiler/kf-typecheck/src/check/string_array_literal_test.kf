@@ -2,14 +2,18 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 fun uint8_ty(): Type {
     return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(no_span()) }
 }
 
 fun string_literal(text: str): Expr {
-    return new_expr(no_span(), ExprKind.LitStr(String.from(text)))
+    return Expr.new(no_span(), ExprKind.LitStr(String.from(text)))
 }
 
 @test fun a_byte_array_counts_the_utf8_bytes(): void {
@@ -18,12 +22,12 @@ fun string_literal(text: str): Expr {
 }
 
 @test fun a_char_array_counts_the_characters(): void {
-    val length = string_literal("héllo").text_literal_length(&char_ty(no_span()))
+    val length = string_literal("héllo").text_literal_length(&Type.new_char(no_span()))
     assert_eq(length, Option.Some(5 as uint64), "é is one character")
 }
 
 @test fun an_array_of_another_element_takes_no_text(): void {
-    val length = string_literal("abc").text_literal_length(&int32_ty(no_span()))
+    val length = string_literal("abc").text_literal_length(&Type.new_int32(no_span()))
     assert_eq(length == null, true, "an int32 array is not text")
 }
 

@@ -5,7 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.duplicate
+import kf_core.ast.declaration.MarkKind
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// A checked template and the annotation it belongs to, by index into the

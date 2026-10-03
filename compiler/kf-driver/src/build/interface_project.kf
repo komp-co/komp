@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_crate_id
 import kf_core.diagnostic.*
 import kf_assemble.*
 import kf_codegen.*
@@ -57,7 +58,7 @@ pub struct CrateCheck {
 /// before Resolve.
 pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay, cfg: &LintConfig): CrateCheck {
     val smap = fresh_source_map()
-    val parse_diags = fresh_diag_list()
+    var parse_diags = new_diagnostics()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = interfaces.path_of(dependency.as_str())
@@ -69,9 +70,9 @@ pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay,
         append_modules(&var modules, &loaded.modules)
     }
     val name = String.from(self.name.as_str())
-    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, parse_diags, true, overlay)
+    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, &var parse_diags, true, overlay)
     append_modules(&var modules, &source_crate.modules)
-    val parsed: List<Diagnostic> = unsafe { (*parse_diags).clone() }
+    val parsed: List<Diagnostic> = parse_diags.items.clone()
     if parsed.size() > 0 { return CrateCheck { failure: "", diagnostics: parsed, smap: smap } }
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
@@ -101,20 +102,20 @@ pub struct CrateCompileResult {
 /// The loaded interfaces stand in for the dependencies; the crate's own
 /// `.kfi` is emitted between TypeCheck and Mono, as on the source path.
 pub fun CompileUnit.compile_crate_against_interfaces(artifacts: str, is_bin_root: bool,
-    errp: Ptr<ErrCount>): CrateCompileResult {
-    return self.compile_crate_mode(artifacts, is_bin_root, false, errp)
+    errors: &var Diagnostics): CrateCompileResult {
+    return self.compile_crate_mode(artifacts, is_bin_root, false, errors)
 }
 
 /// With `_test.kf` files and a synthetic test main; dependencies stay
 /// bodyless interfaces.
-pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errp: Ptr<ErrCount>): CrateCompileResult {
-    return self.compile_crate_mode(artifacts, true, true, errp)
+pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errors: &var Diagnostics): CrateCompileResult {
+    return self.compile_crate_mode(artifacts, true, true, errors)
 }
 
 fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool,
-    errp: Ptr<ErrCount>): CrateCompileResult {
+    errors: &var Diagnostics): CrateCompileResult {
     val smap = fresh_source_map()
-    val diagnostics = fresh_diag_list()
+    var diagnostics = new_diagnostics()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = crate_interface_path(artifacts, dependency.as_str())
@@ -122,22 +123,22 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         if !loaded.ok {
             val message = "kflatc: failed to load ${path.as_str()}: ${loaded.error.as_str()}"
             runtime_println(message.as_str())
-            unsafe { errp.n = errp.n + 1 }
+            errors.count_errors(1)
             return empty_compile_result()
         }
         append_modules(&var modules, &loaded.modules)
     }
     val source_crate = if include_tests {
-        assemble_crate_tests(self.root.as_str(), String.from(self.name.as_str()), smap, diagnostics)
+        assemble_crate_tests(self.root.as_str(), String.from(self.name.as_str()), smap, &var diagnostics)
     } else {
-        assemble_crate(self.root.as_str(), String.from(self.name.as_str()), smap, diagnostics)
+        assemble_crate(self.root.as_str(), String.from(self.name.as_str()), smap, &var diagnostics)
     }
     append_modules(&var modules, &source_crate.modules)
     var diagnostic_index = 0
-    while diagnostic_index < unsafe { diagnostics.size() } {
-        val diagnostic = unsafe { diagnostics.at(diagnostic_index) }
+    while diagnostic_index < diagnostics.size() {
+        val diagnostic = diagnostics.at(diagnostic_index)
         diagnostic.print_diag(smap)
-        unsafe { errp.n = errp.n + 1 }
+        errors.count_errors(1)
         diagnostic_index = diagnostic_index + 1
     }
     if include_tests {
@@ -152,17 +153,15 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     var merged = merge_module_list(modules)
     // Separate mode: instances become this TU's static support.
     merged.crate = new_crate_id(self.name.as_str())
-    merged.run_interface_passes(errp, smap)
+    merged.run_interface_passes(errors, smap)
     val own = new_crate_id(self.name.as_str())
     val closure_errors = export_closure_diagnostics(&merged, own)
     while closure_error in &closure_errors {
         runtime_println(closure_error.as_str())
-        unsafe { errp.n = errp.n + 1 }
+        errors.count_errors(1)
     }
     val interface_text = emit_interface_full(&merged, String.from(self.name.as_str()), &self.deps, &self.dep_hashes, smap)
-    merged.run_separate_after_typecheck(errp, smap)
-    // Codegen assumes a well-typed, lowered tree; the caller writes nothing.
-    if has_errors(errp) {
+    if !merged.run_middle_passes(separate_passes(), errors, smap) {
         return CrateCompileResult { output: empty_codegen_output(), interface_text: interface_text }
     }
     // The test TU includes `<crate>_tests.h`, not the library header.

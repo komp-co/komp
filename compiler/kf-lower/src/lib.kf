@@ -2,13 +2,14 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
 import kf_lower.ownership.*
 import kf_lower.refcount.rc_insert_module
 
 /// Returns every diagnostic the sub-passes raise.
 pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List<Diagnostic> {
-    var discarded = List.new<Diagnostic>()
+    var discarded = new_diagnostics()
     // Counts move-out-of-borrow errors. The analysis-only channel (discarded)
     // carries use-after-move and friends, which are not liveness-accurate and
     // are discarded.
@@ -21,7 +22,7 @@ pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List
     self.alpha_rename_module()
     // The diagnostics that are kept, opened before the move check so its
     // registered lints land here.
-    var live = List.new<Diagnostic>()
+    var live = new_diagnostics()
     self.move_check_module(&var discarded, &var moves_out_of_borrows, smap, &var live, list_name)
     self.borrow_liveness_module(&var live)
     // An auto-clone of a type whose `drop` frees a raw pointer would be
@@ -31,5 +32,5 @@ pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List
     // Move-out-of-borrow is repaired with an auto-clone and a warning.
     self.desugar_module()
     self.rc_insert_module(list_name)
-    return live
+    return live.items
 }

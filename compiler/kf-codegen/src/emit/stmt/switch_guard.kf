@@ -4,15 +4,18 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.SwitchArm
+import kf_core.ast.statement.SwitchTag
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_codegen.emit.expr.emit_expr
+import kf_core.ast.c_local_name
 
 pub fun arms_have_guard(arms: List<SwitchArm>): bool {
     while arm in &arms {
-        if switch_arm_has_guard(arm) { return true }
+        if arm.has_guard() { return true }
     }
     return false
 }
@@ -64,7 +67,7 @@ fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: b
 /// Binders are plain reads of `__when_subj`, so declaring them again in the
 /// body is free.
 fun chain_guard_test(a: SwitchArm, through_ref: bool, by_address: bool, indent: uint64, env: &var LocalEnv): String {
-    if !switch_arm_has_guard(&a) { return "" }
+    if !a.has_guard() { return "" }
     var parts = List.new<String>()
     parts.push(String.from(" && ({ "))
     val decls = chain_binder_decls(a, through_ref, by_address)

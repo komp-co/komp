@@ -6,6 +6,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.ast.subst.clone_expr_ptr
 import kf_core.ast.subst.clone_expr_ptr_opt
 import kf_core.ast.subst.fresh_pattern_box
@@ -15,9 +20,9 @@ import kf_typecheck.check.control.list_tail_ty
 /// CONSTRAINT: after the body is checked; each path is adapted to the joined
 /// type, as a block expression's are.
 fun lambda_value_type(body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
-    if !list_yields_value(body) { return void_ty(span) }
-    if body.at(body.size() - 1).is_jump() { return void_ty(span) }
-    if list_tail_has_void(body) { return void_ty(span) }
+    if !list_yields_value(body) { return Type.new_void(span) }
+    if body.at(body.size() - 1).is_jump() { return Type.new_void(span) }
+    if list_tail_has_void(body) { return Type.new_void(span) }
     val joined = list_tail_ty(body, ctx.string_name())
     apply_list_tail_ty(body, &joined, true, ctx)
     return joined
@@ -54,13 +59,13 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
     when (self.kind) {
         Expression(expr_ptr) => {
             val operand: Box<Expr>? = clone_expr_ptr(expr_ptr, &var names, &var repls)
-            return new_stmt(span, StmtKind.Return(operand))
+            return Stmt.new(span, StmtKind.Return(operand))
         }
         If(cond, then_body, else_body) => {
             val then_returned = returned_tail(&then_body, span)
             val else_returned = returned_tail(&else_body, span)
             val condition = clone_expr_ptr(cond, &var names, &var repls)
-            return new_stmt(self.span, StmtKind.If(condition, then_returned, else_returned))
+            return Stmt.new(self.span, StmtKind.If(condition, then_returned, else_returned))
         }
         When(subject, arms) => {
             var narms = List.new<Arm>()
@@ -68,7 +73,7 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
                 val guard = clone_expr_ptr_opt(arm.guard.view(), &var names, &var repls)
                 narms.push(arm.rebuilt(fresh_pattern_box(arm.pattern), guard, returned_tail(&arm.body, span)))
             }
-            return new_stmt(self.span, StmtKind.When(clone_expr_ptr(subject, &var names, &var repls), narms))
+            return Stmt.new(self.span, StmtKind.When(clone_expr_ptr(subject, &var names, &var repls), narms))
         }
         _ => return self.clone()
     }

@@ -4,12 +4,14 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_typecheck.types.tref_name_key
 
-pub fun check_satisfies(trait_ref: TypeRef, target: str, gnames: List<String>, methods: List<TopDecl>, span: Span, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>, ctx: &var TypeCtx): void {
+pub fun check_satisfies(trait_ref: TypeRef, target: str, gnames: List<String>, methods: List<TopDecl>, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>, ctx: &var TypeCtx): void {
     if impl_has_parse_poison(&methods) { return }
     val tname = trait_ref_name(trait_ref)
     when (unsafe { sigs.find_trait(tname.as_str()) }) {
@@ -28,7 +30,7 @@ fun impl_has_parse_poison(methods: &List<TopDecl>): bool {
     return false
 }
 
-fun check_impl_contract(ti: TraitInfo, tname: String, trait_ref: TypeRef, target: str, gnames: List<String>, methods: List<TopDecl>, span: Span, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>, ctx: &var TypeCtx): void {
+fun check_impl_contract(ti: TraitInfo, tname: String, trait_ref: TypeRef, target: str, gnames: List<String>, methods: List<TopDecl>, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>, ctx: &var TypeCtx): void {
     val self_ty = impl_self_type(target, &gnames, span, ctx)
     while req in &ti.methods {
         if !req.has_default {
@@ -57,7 +59,7 @@ fun check_impl_contract(ti: TraitInfo, tname: String, trait_ref: TypeRef, target
 
 /// Every declared associated type bound exactly once, nothing extra, and each
 /// choice within its bounds.
-fun check_assoc_types(ti: TraitInfo, tname: String, target: str, trait_args: &List<String>, trait_args_k: str, methods: List<TopDecl>, span: Span, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
+fun check_assoc_types(ti: TraitInfo, tname: String, target: str, trait_args: &List<String>, trait_args_k: str, methods: List<TopDecl>, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     while req in &ti.assoc_types {
         if !impl_binds_assoc(methods, req.name.as_str()) {
             emit_trait_err(diags, span, "impl of trait `${tname}` is missing associated type `${req.name}`")
@@ -80,7 +82,7 @@ fun check_assoc_types(ti: TraitInfo, tname: String, target: str, trait_args: &Li
 }
 
 /// The choice is read back from the sig table, resolved in the impl's scope.
-fun check_assoc_bounds(req: TraitAssocReq, tname: String, target: str, trait_params: &List<String>, trait_args: &List<String>, trait_args_k: str, assoc_name: str, span: Span, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
+fun check_assoc_bounds(req: TraitAssocReq, tname: String, target: str, trait_params: &List<String>, trait_args: &List<String>, trait_args_k: str, assoc_name: str, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     if req.bounds.size() == 0 { return }
     // This impl's own instantiation's choice.
     val chosen = unsafe { sigs.lookup_assoc_binding_in(target, tname.as_str(), trait_args_k, assoc_name) }
@@ -153,9 +155,9 @@ fun trait_has_method(ti: TraitInfo, name: str): bool {
     return false
 }
 
-fun emit_trait_err(diags: Ptr<List<Diagnostic>>, span: Span, msg: String): void {
+fun emit_trait_err(diags: &var Diagnostics, span: Span, msg: String): void {
     val lab = new_label(span, msg)
-    unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+    diags.emit(new_diagnostic(Severity.Error, lab))
 }
 
 /// `type Item` / `type Item = T`, which share the member list.
@@ -191,7 +193,7 @@ fun trait_ref_arg_names(trait_ref: TypeRef): List<String> {
 }
 
 /// Arity already matches.
-fun TraitMethodReq.check_named_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, methods: List<TopDecl>, diags: Ptr<List<Diagnostic>>, ctx: &var TypeCtx): void {
+fun TraitMethodReq.check_named_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, methods: List<TopDecl>, diags: &var Diagnostics, ctx: &var TypeCtx): void {
     while method in &methods {
         if method.name.as_str().equals(self.name.as_str()) {
             // The method's own parameters, `N` lifted from the trait's

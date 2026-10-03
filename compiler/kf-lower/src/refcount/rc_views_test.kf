@@ -2,7 +2,11 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_clone
+import kf_core.ast.statement.*
 
 fun string_var(name: str): Ptr<Expr> {
     val p: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -15,7 +19,7 @@ fun string_var(name: str): Ptr<Expr> {
     val _i = ctx.push_frame(false)
     ctx.add_view_local(String.from("d"))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVar(intern("lowered"), null, string_var("d"))))
+    body.push(Stmt.new(no_span(), StmtKind.LetVar(intern("lowered"), null, string_var("d"))))
     rc_insert_stmts(&var body, &var ctx)
     assert_eq(ctx.rc_owning_frame("lowered") < 0, true, "not registered as owning what `d` only borrows")
     assert_eq(ctx.is_view_local("lowered"), true, "and a view itself, so the next binding from it is one too")
@@ -26,7 +30,7 @@ fun string_var(name: str): Ptr<Expr> {
     val _i = ctx.push_frame(false)
     ctx.add_heap_local(String.from("a"))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, string_var("a"))))
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("b"), null, string_var("a"))))
     rc_insert_stmts(&var body, &var ctx)
     assert_eq(ctx.rc_owning_frame("b") >= 0, true, "the new binding owns the value")
     assert_eq(ctx.rc_owning_frame("a") < 0, true, "and the source no longer does")
@@ -59,8 +63,8 @@ fun string_var(name: str): Ptr<Expr> {
     binders.push(intern("payload"))
     binders.push(intern("_"))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("kept"), null, string_var("payload"))))
-    val arm = new_switch_arm(no_span(), SwitchTag.Variant(String.from("Some")), binders, null, body)
+    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("kept"), null, string_var("payload"))))
+    val arm = SwitchArm.new(no_span(), SwitchTag.Variant(String.from("Some")), binders, null, body)
     val _vi = ctx.push_frame(false)
     arm.rc_add_binder_views(&List.new<String>(), &var ctx)
     assert_eq(ctx.is_view_local("payload"), true, "the binder reads the subject's payload in place")

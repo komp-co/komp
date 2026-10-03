@@ -5,9 +5,13 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.annotation_target_allows
+import kf_core.ast.annotation.lookup_annotation
 import kf_core.diagnostic.*
+import kf_core.ast.annotation.annotation_target_phrase
 
-pub fun Module.validate_annotations(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.validate_annotations(diags: &var Diagnostics): void {
     while td in &self.decls {
         // Each annotation is judged on its own.
         while item in &td.annotations {
@@ -17,7 +21,7 @@ pub fun Module.validate_annotations(diags: Ptr<List<Diagnostic>>): void {
     }
 }
 
-fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: &var Diagnostics): void {
     val kind = annotation.name
     if kind.as_str().equals("") { return }
     val info = lookup_annotation(kind.as_str())
@@ -25,7 +29,7 @@ fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: Ptr<List<Dia
     if info.name.as_str().equals("") { return }
     if !annotation_target_allows(info.target, self) {
         val message = "`@${kind.as_str()}` can only annotate ${annotation_target_phrase(info.target).as_str()}"
-        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+        diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
         return
     }
     when kind.as_str() {
@@ -38,7 +42,7 @@ fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: Ptr<List<Dia
 }
 
 /// Options are checked against the derive registry.
-fun TopDecl.validate_derive_options(options: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.validate_derive_options(options: &List<String>, diags: &var Diagnostics): void {
     var bad = false
     while item in &options {
         val name = item.as_str()
@@ -56,15 +60,15 @@ fun TopDecl.validate_derive_options(options: &List<String>, diags: Ptr<List<Diag
         _ => String.from("")
     }
     val message = "unsupported `@derive` option: expected ${expected.as_str()}"
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
 }
 
 /// An `@allow` naming no registered lint suppresses nothing silently.
-fun TopDecl.validate_allow_names(names: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.validate_allow_names(names: &List<String>, diags: &var Diagnostics): void {
     while name in &names {
         if !lint_exists(name.as_str()) {
             val message = "`@allow(...)` names no lint `${name}`"
-            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+            diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
         }
     }
 }

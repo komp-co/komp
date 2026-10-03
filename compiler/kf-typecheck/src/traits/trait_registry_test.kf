@@ -2,13 +2,19 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.*
 
 fun registry_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
@@ -21,8 +27,8 @@ fun owned_registry_decl(td: TopDecl): TopDecl {
 
 @test
 fun same_named_receivers_do_not_share_trait_impls(): void {
-    val left = canonical_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point")))
-    val right = canonical_type_identity(new_type_identity(new_crate_id("right"), intern("models"), intern("Point")))
+    val left = canonical_type_identity(TypeIdentity.new(new_crate_id("left"), intern("models"), intern("Point")))
+    val right = canonical_type_identity(TypeIdentity.new(new_crate_id("right"), intern("models"), intern("Point")))
     var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Point"),
@@ -40,7 +46,7 @@ fun bare_reconstructed_receiver_uses_display_name_fallback(): void {
     var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Sym"),
-        receiver_identity: canonical_type_identity(new_type_identity(new_crate_id("kf_core"), intern("ast"), intern("Sym"))),
+        receiver_identity: canonical_type_identity(TypeIdentity.new(new_crate_id("kf_core"), intern("ast"), intern("Sym"))),
         trait_name: String.from("Equal"),
         trait_args: "",
         generics: "",
@@ -94,7 +100,7 @@ fun imported_trait_method_uses_exact_link_name(): void {
     params.push(new_param(no_span(), String.from("point"), registry_type_ptr("Point")))
     val call = ep(ExprKind.MethodCall(ep(ExprKind.Variable(intern("point"))), intern("show"), List.new<Expr>()))
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(ret_op(call))))
+    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(call))))
     module.decls.push(new_top_decl(no_span(), String.from("consume"), TopDeclKind.Function(params, registry_type_ptr("int32"), body, true, false, false, false)))
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
@@ -108,7 +114,7 @@ fun shout_registry(): SigTable {
     var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Box2"),
-        receiver_identity: canonical_type_identity(new_type_identity(new_crate_id("app"), intern("shapes"), intern("Box2"))),
+        receiver_identity: canonical_type_identity(TypeIdentity.new(new_crate_id("app"), intern("shapes"), intern("Box2"))),
         trait_name: String.from("Shout"),
         trait_args: String.from("T"),
         generics: "",
@@ -133,7 +139,7 @@ fun a_different_template_still_does_not_match(): void {
 @test
 fun a_canonical_identity_from_another_crate_does_not_match(): void {
     val table = shout_registry()
-    val other = canonical_type_identity(new_type_identity(new_crate_id("other"), intern("shapes"), intern("Box2")))
+    val other = canonical_type_identity(TypeIdentity.new(new_crate_id("other"), intern("shapes"), intern("Box2")))
     assert_eq(table.identity_implements(other, "Shout", "T"), false, "another crate's Box2 does not borrow this crate's impl")
 }
 

@@ -1,11 +1,11 @@
 import kf_core.span.*
+import kf_core.ast.Sym
 import kf_core.ast.intern
+import kf_core.ast.types.*
 
-pub fun dyn_trait_type(principal: Sym, args: TypeList, span: Span): Type {
-    val args_ptr: Ptr<TypeList> = unsafe { alloc<TypeList>() }
-    unsafe { *args_ptr = args }
-    val object_ptr: Ptr<DynTraitType> = unsafe { alloc<DynTraitType>() }
-    unsafe { *object_ptr = DynTraitType { principal: principal, args: args_ptr } }
+pub fun dyn_trait_type(principal: Sym, args: List<Type>, span: Span): Type {
+    val args_ptr = type_list_node(args)
+    val object_ptr = dyn_trait_node(DynTraitType { principal: principal, args: args_ptr })
     return Type { kind: TypeKind.DynTraitTy(object_ptr), provenance: Provenance.Declared(span) }
 }
 
@@ -16,10 +16,10 @@ pub fun Type.dyn_trait_name(): Sym {
     }
 }
 
-pub fun Type.dyn_trait_args(): Ptr<TypeList> {
+pub fun Type.dyn_trait_args(): Ptr<List<Type>> {
     return when (self.kind) {
         DynTraitTy(object) => unsafe { object.args }
-        _ => unsafe { 0 as Ptr<TypeList> }
+        _ => unsafe { 0 as Ptr<List<Type>> }
     }
 }
 

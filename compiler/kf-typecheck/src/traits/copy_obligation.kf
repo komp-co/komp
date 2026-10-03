@@ -5,17 +5,19 @@ import alloc.list.*
 
 import kf_core.diagnostic.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.declaration.TopDecl
 import kf_core.span.no_span
 import kf_typecheck.*
 import kf_typecheck.check.type_is_copy
 
 /// CONSTRAINT: runs after struct and trait registration, since a field's type
 /// and its Copy impl may both be declared below the impl being checked.
-pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, diags: &var Diagnostics): void {
     val copy_name = unsafe { sigs.lang_trait_name(lang_copy_key()) }
     if copy_name.as_str().equals("") { return }
     val drop_name = unsafe { sigs.lang_trait_name(lang_drop_key()) }
-    var ctx = new_type_ctx(void_ty(no_span()), diags, table, sigs)
+    var ctx = new_type_ctx(Type.new_void(no_span()), diags, table, sigs)
     while td in &self.decls {
         when (td.kind) {
             TraitImpl(tref, _methods) => {
@@ -34,7 +36,7 @@ pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, dia
 }
 
 fun check_one_copy_impl(td: &TopDecl, copy_name: str, drop_name: str, ctx: &var TypeCtx,
-    diags: Ptr<List<Diagnostic>>): void {
+    diags: &var Diagnostics): void {
     val sigs = ctx.sigs
     if !drop_name.equals("") && td.receiver_implements(drop_name, "", unsafe { &*sigs }) {
         td.report_unsound_copy("it implements Drop, and a bitwise copy would run the destructor twice", diags)
@@ -89,7 +91,7 @@ fun TopDecl.type_param_bounded_by(param: Sym, trait_name: str): bool {
     return false
 }
 
-fun TopDecl.report_unsound_copy(why: str, diags: Ptr<List<Diagnostic>>): void {
+fun TopDecl.report_unsound_copy(why: str, diags: &var Diagnostics): void {
     val message = "`${self.name.as_str()}` cannot be Copy: ${why}"
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
 }

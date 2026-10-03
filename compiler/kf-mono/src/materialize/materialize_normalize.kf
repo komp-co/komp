@@ -1,6 +1,13 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.new_top_decl
 import kf_core.ast.subst.mangle_tyref
 import kf_core.ast.dyn_meta.clone_dyn_layout_list
 import kf_core.ast.dyn_meta.clone_dyn_vtable_list
@@ -69,7 +76,7 @@ fun append_missing_defaults(out: &var List<TopDecl>, owner: &TopDecl, trait_decl
     var names = List.new<String>()
     var replacements = List.new<TypeRef>()
     names.push(String.from("Self"))
-    replacements.push(new_type_ref(owner.span, TypeRefKind.Named(owner.name, List.new<TypeRef>())))
+    replacements.push(TypeRef.new(owner.span, TypeRefKind.Named(owner.name, List.new<TypeRef>())))
     trait_decl.append_trait_arg_substitutions(tref, &var names, &var replacements)
     while method in &defaults {
         if method.default_method_has_body() && !method_list_has_name(out, method.name.as_str()) {

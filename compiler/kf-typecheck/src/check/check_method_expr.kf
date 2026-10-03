@@ -1,4 +1,11 @@
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.lang_display_key
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -22,7 +29,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
         if method_name.as_str().equals("display") {
             if is_bare_self(&unsafe { *recv_ptr }) {
                 emit_self_recursive_operator("\${self}", "display", "render the fields", e.span, ctx)
-                e.ty = poison_ty()
+                e.ty = Type.new_poison()
                 return
             }
         }
@@ -31,7 +38,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
     // receiver is walked as a value.
     val recv_raw = receiver_naming_lang_types(recv_ptr, &method_name, ctx)
     if reject_self_recursive_render(&recv_raw, &method_name, args, e.span, ctx) {
-        e.ty = poison_ty()
+        e.ty = Type.new_poison()
         return
     }
     // `Box.new(x)`: before the value-receiver path, so `Box` is not checked as
@@ -41,9 +48,9 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             val a0 = args.at_mut(0)
             check_expr(a0, ctx)
             a0.reject_stored_lambda_transfer("a box", ctx)
-            e.ty = box_ty(a0.ty.clone(), e.span)
+            e.ty = Type.new_box(a0.ty.clone(), e.span)
         } else {
-            e.ty = poison_ty()
+            e.ty = Type.new_poison()
         }
     } else {
         // `Type.method(args)` for a `static fun` of the named type.
@@ -67,7 +74,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             if args.size() > 0 && expected_is_dyn_ref(&(*args.at(0)).ty) {
                 val lab = new_label(e.span, String.from("qualified calls on dynamic trait objects are not supported; call the method on the object value"))
                 ctx.emit(new_diagnostic(Severity.Error, lab))
-                e.ty = poison_ty()
+                e.ty = Type.new_poison()
                 handled = true
             }
             val selected = qualified_trait_method_callee(qualified_trait.clone(), method_name.clone(), args, ctx)
@@ -105,7 +112,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             if !handled {
                 val lab = new_label(e.span, "no matching `${qualified_trait}.${method_name}(receiver, ...)` implementation")
                 ctx.emit(new_diagnostic(Severity.Error, lab))
-                e.ty = poison_ty()
+                e.ty = Type.new_poison()
                 handled = true
             }
         }
@@ -122,7 +129,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         Some(ginfo) => {
                             if e.type_args.size() < ginfo.type_params.size() {
                                 emit_type_arg_arity(arity_base.clone(), ginfo.type_params.size(), e.type_args.size(), e.span, ctx)
-                                e.ty = poison_ty()
+                                e.ty = Type.new_poison()
                                 return
                             }
                         }
@@ -191,7 +198,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                             }
                         }
                         if !call_valid {
-                            e.ty = poison_ty()
+                            e.ty = Type.new_poison()
                             handled = true
                         }
                         // `Type[__Targs]_method`, the receiver layout
@@ -200,17 +207,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         if recv_targs.size() > 0 {
                             instantiate_generic_layout(rname.clone(), &recv_targs, String.from(recv_mono.as_str()), ctx)
                         }
-                        var ret = ssig.ret
+                        var bound_types = List.new<Type>()
                         while gi in 0..ssig.generics.size() {
                             if gi < e.type_args.size() {
-                                val gname = *ssig.generics.at(gi)
-                                val targ = *e.type_args.at(gi)
-                                val gty = targ.resolve_type_ref(ctx)
+                                val gty = (*e.type_args.at(gi)).resolve_type_ref(ctx)
                                 // The owner is the mangled method name.
-                                check_generic_bounds(selected.clone(), gname.clone(), gty, e.span, ctx)
-                                ret = ret.subst_generic(gname, gty)
+                                check_generic_bounds(selected.clone(), *ssig.generics.at(gi), gty.clone(), e.span, ctx)
+                                bound_types.push(gty)
                             }
                         }
+                        val ret = subst_all_generics(ssig.ret, &ssig.generics, &bound_types)
                         if call_valid {
                             e.ty = ret
                             if selected.as_str().equals(tmpl.as_str()) {
@@ -245,9 +251,14 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         m.append("` is an instance method, so it needs a receiver — declare it `static fun` to call it on the type, or call it on a value")
                         val lab = new_label(e.span, m)
                         ctx.emit(new_diagnostic(Severity.Error, lab))
-                        e.ty = poison_ty()
+                        e.ty = Type.new_poison()
                         handled = true
                     }
+                } else {
+                    val missing = no_static_method_msg(rname.as_str(), method_name.as_str(), args, ctx)
+                    ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, missing)))
+                    e.ty = Type.new_poison()
+                    handled = true
                 }
             }
         }
@@ -266,7 +277,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                     e.mangled_callee = intern(trait_callee.as_str())
                 }
                 e.is_static_call = true
-                e.ty = generic_ty(gsr.clone(), e.span)
+                e.ty = Type.new_generic(gsr.clone(), e.span)
                 handled = true
             }
         }
@@ -323,18 +334,13 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
 /// The impl's parameters with the call's explicit type arguments substituted:
 /// `Holder.of<int32>(5)` against a signature registered with `T`.
 pub fun FnSignature.static_call_params(type_args: &List<TypeRef>, ctx: &var TypeCtx): List<Type> {
+    var bound_types = List.new<Type>()
+    while targ in type_args {
+        bound_types.push(targ.resolve_type_ref(ctx))
+    }
     var out = List.new<Type>()
-    var i = 0
-    while i < self.params.size() {
-        var pt = *self.params.at(i)
-        while g in 0..self.generics.size() {
-            if g < type_args.size() {
-                val gty = (*type_args.at(g)).resolve_type_ref(ctx)
-                pt = pt.subst_generic(*self.generics.at(g), gty)
-            }
-        }
-        out.push(pt)
-        i = i + 1
+    while param in &self.params {
+        out.push(subst_all_generics(param, &self.generics, &bound_types))
     }
     return out
 }
@@ -382,4 +388,16 @@ fun emit_static_call_arity(type_name: String, method_name: String, expected: uin
     msg.append(", found ")
     msg.append(String.of(&((found as int64))).as_str())
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+/// No static method of the type answers to the name with these arguments,
+/// which may be a `From<S>` the type does not implement.
+fun no_static_method_msg(type_name: str, method: str, args: &List<Expr>, ctx: &TypeCtx): String {
+    if args.is_empty() { return "`${type_name}` has no static method `${method}` that takes no arguments" }
+    var shown = String.from("")
+    while a in args {
+        if !shown.is_empty() { shown.append(", ") }
+        shown.append("`${a.ty.display_type(ctx)}`")
+    }
+    return "`${type_name}` has no static method `${method}` that takes ${shown}"
 }

@@ -8,7 +8,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.extension_link_name
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_core.ast.subst.clone_type_ref
 import kf_parse.parser.*
 
@@ -48,7 +52,7 @@ fun TypeRef.receiver_param(is_mutating: bool): Param {
     } else {
         val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
         unsafe { *inner = clone_type_ref(self) }
-        unsafe { *ty = new_type_ref(self.span, TypeRefKind.Reference(is_mutating, inner)) }
+        unsafe { *ty = TypeRef.new(self.span, TypeRefKind.Reference(is_mutating, inner)) }
     }
     return new_param(self.span, String.from("self"), ty)
 }
@@ -103,7 +107,7 @@ impl Parser {
         val receiver_name = self.expect_name("receiver type")
         unsafe { self.advance() }
         val receiver_args = self.parse_receiver_arguments(receiver_name.as_str())
-        val receiver = new_type_ref(receiver_at, TypeRefKind.Named(intern(receiver_name.as_str()), receiver_args))
+        val receiver = TypeRef.new(receiver_at, TypeRefKind.Named(intern(receiver_name.as_str()), receiver_args))
         unsafe { self.advance() } // consume `.`
         val name_at = self.peek().span
         val name = self.expect_name("extension function")
@@ -151,9 +155,7 @@ impl Parser {
                 break
             }
             val before: uint64 = self.pos
-            val arg_ptr = self.parse_type_ref_ptr()
-            val arg: TypeRef = unsafe { *arg_ptr }
-            unsafe { dealloc<TypeRef>(arg_ptr) }
+            val arg = self.parse_type_ref()
             if is_op(self.peek(), Operator.Colon) { self.report_receiver_bound(&arg, receiver_name) }
             args.push(arg)
             if is_op(self.peek(), Operator.Comma) {
@@ -170,9 +172,8 @@ impl Parser {
         unsafe { self.advance() } // consume `:`
         var shown = String.from("")
         while true {
-            val bound_ptr = self.parse_type_ref_ptr()
-            if shown.byte_len() == 0 { shown = (unsafe { &*bound_ptr }).type_ref_head_name() }
-            unsafe { dealloc<TypeRef>(bound_ptr) }
+            val bound = self.parse_type_ref()
+            if shown.byte_len() == 0 { shown = bound.type_ref_head_name() }
             if !is_op(self.peek(), Operator.Plus) { break }
             unsafe { self.advance() } // consume `+`, next bound
         }

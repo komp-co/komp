@@ -2,7 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.new_annotation
 import kf_codegen.emit.glue.deep_clone_top_decl
 
 fun skip_annotation(): Annotation {
@@ -10,7 +12,7 @@ fun skip_annotation(): Annotation {
 }
 
 @test fun a_cloned_field_keeps_its_annotations(): void {
-    var field = new_field(no_span(), String.from("id"), Box.new(type_ref_poison(no_span())), false, true)
+    var field = new_field(no_span(), String.from("id"), Box.new(TypeRef.new_poison(no_span())), false, true)
     field.annotations.push(skip_annotation())
     var fields = List.new<Field>()
     fields.push(field)

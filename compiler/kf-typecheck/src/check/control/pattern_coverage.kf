@@ -3,7 +3,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Pattern
 
 /// An alternation covers what any of its alternatives covers, and is covered
 /// when each of its alternatives is.

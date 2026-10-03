@@ -2,9 +2,9 @@
 // `trait Ord2` would accept an impl the defining crate rejects.
 
 import core.assert.assert_eq
-import kf_driver.*
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
+import kf_core.diagnostic.new_diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -35,10 +35,9 @@ stlib = { path = "../kf_st_lib" }
 /// The supertrait's name is asserted, not just an error count.
 fun compile_supertrait_app(app_src: str): int32 {
     write_supertrait_fixtures(app_src)
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    val _outputs = compile_project_separate(scratch_path("kf_st_app"), errp)
-    return unsafe { errp.n }
+    var errors = new_diagnostics()
+    val _outputs = compile_project_separate(scratch_path("kf_st_app"), errors)
+    return errors.error_count()
 }
 
 @test fun an_imported_trait_still_requires_its_supertrait(): void {

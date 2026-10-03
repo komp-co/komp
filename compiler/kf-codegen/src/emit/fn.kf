@@ -3,6 +3,12 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
@@ -23,7 +29,7 @@ fun deref_self_expr_ptr(ep: Ptr<Expr>, owner: str): void {
                 val esp: Span = e.span
                 val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *inner = e }
-                var d = new_expr(esp, ExprKind.Deref(inner))
+                var d = Expr.new(esp, ExprKind.Deref(inner))
                 d.ty = Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(esp) }
                 unsafe { *ep = d }
             }
@@ -35,6 +41,7 @@ fun deref_self_expr_ptr(ep: Ptr<Expr>, owner: str): void {
         Unary(_o, ip) => deref_self_expr_ptr(ip, owner)
         Deref(ip) => deref_self_expr_ptr(ip, owner)
         Call(_n, args) => deref_self_args(args, owner)
+        Intrinsic(_intrinsic, args) => deref_self_args(args, owner)
         CallValue(callee, args) => {
             deref_self_expr_ptr(callee, owner)
             deref_self_args(args, owner)
@@ -188,7 +195,7 @@ pub fun emit_method_proto(struct_name: String, td: TopDecl): String {
 /// For a parameter: a `void` parameter is a unit the caller still passes, so
 /// it needs storage. In return position `void` stays erased.
 fun emit_method_value_type(struct_name: String, tref: TypeRef): String {
-    if type_ref_is_void(&tref) { return String.from("kf_unit") }
+    if tref.is_void() { return String.from("kf_unit") }
     return emit_method_type(struct_name, tref)
 }
 

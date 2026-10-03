@@ -2,6 +2,11 @@
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -20,9 +25,10 @@ fun is_box_new_recv(recv_kind: ExprKind, method_name: String): bool {
 // The type a Variable receiver names, or "": the sign of `Type.method(...)`.
 fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
     when (recv_kind) {
-        Variable(n) => {
+        Variable(written) => {
             // A local shadows a type of its name.
-            if ctx.is_declared(n.as_str()) { return "" }
+            if ctx.is_declared(written.as_str()) { return "" }
+            val n = written.receiver_type_name(ctx)
             val sp = ctx.sigs
             val sptr = unsafe { sp.find_struct(n.as_str(), ctx.owner_crate) }
             if sptr.is_some() { return n.as_string() }
@@ -34,6 +40,16 @@ fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
             return ""
         }
         _ => return ""
+    }
+}
+
+/// `Self` inside an impl names the impl's type; any other name names itself.
+fun Sym.receiver_type_name(ctx: &var TypeCtx): Sym {
+    if !self.as_str().equals("Self") { return *self }
+    return when (ctx.self_ty.kind) {
+        Struct(identity) => intern(type_identity_display(identity).as_str())
+        EnumTy(identity) => intern(type_identity_display(identity).as_str())
+        _ => *self
     }
 }
 
@@ -99,7 +115,7 @@ pub fun mangle_suffix(name: String, cut: uint64): String {
 /// not `Struct("T")`. Primitive names map to primitives; anything else is a
 /// struct whose C name is the fragment.
 pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type {
-    if str_list_has(&ctx.generics, frag.as_str()) { return generic_ty(frag, span) }
+    if str_list_has(&ctx.generics, frag.as_str()) { return Type.new_generic(frag, span) }
     val borrowed = borrow_frag_inner(frag.as_str())
     if borrowed.byte_len() > 0 {
         return borrow_of(ty_from_frag_in_scope(borrowed, span, ctx), borrow_frag_is_mut(frag.as_str()), span)
@@ -120,7 +136,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     when s {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
         "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }
-        "int32" => return int32_ty(span)
+        "int32" => return Type.new_int32(span)
         "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(span) }
         "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
         "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) }
@@ -128,13 +144,13 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
         "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
         "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
         "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
-        "bool" => return bool_ty(span)
+        "bool" => return Type.new_bool(span)
         _ => { }
     }
     // `List__String` elements dispatch through String; `List__str` elements
     // are `StrTy`.
     if is_lang_name(s, string_name) { return string_name.lang_struct_ty(span) }
-    if s.equals("str") { return str_ty(span) }
+    if s.equals("str") { return Type.new_str(span) }
     return Type { kind: TypeKind.Struct(intern(frag.as_str())), provenance: Provenance.Inferred(span) }
 }
 
@@ -157,7 +173,7 @@ mutating fun Expr.reject_str_value_to_string(ctx: &var TypeCtx): void {
         String.from(" — the conversion copies the text onto the heap, so write") +
         String.from(" `String.from(...)`")
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
 }
 
 // The coercion a value of `from` needs in a slot of `to`. A `String` or
@@ -215,14 +231,14 @@ pub fun deref_target(t: Type): Type {
 fun runtime_intrinsic_ret(name: String, span: Span, string_name: Sym): Type {
     return when runtime_function_returns(name.as_str()).as_str() {
         "String" => string_name.lang_struct_ty(span)
-        "str" => str_ty(span)
-        "bool" => bool_ty(span)
-        "void" => void_ty(span)
-        "never" => never_ty(span)
-        "int32" => int32_ty(span)
+        "str" => Type.new_str(span)
+        "bool" => Type.new_bool(span)
+        "void" => Type.new_void(span)
+        "never" => Type.new_never(span)
+        "int32" => Type.new_int32(span)
         "uint8" => Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
         "uint32" => Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
         "uint64" => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }

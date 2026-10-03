@@ -3,11 +3,18 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_mono.collect.ret_op
 
 fun defaults_test_type(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
@@ -15,8 +22,8 @@ fun defaults_test_method(name: str, with_body: bool): TopDecl {
     var body = List.new<Stmt>()
     if with_body {
         val value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *value = new_expr(no_span(), ExprKind.LitInt(42)) }
-        body.push(new_stmt(no_span(), StmtKind.Return(ret_op(value))))
+        unsafe { *value = Expr.new(no_span(), ExprKind.LitInt(42)) }
+        body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(value))))
     }
     return new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), defaults_test_type("int32"), body, true, false, false, false))
 }
@@ -61,10 +68,10 @@ fun Module.defaults_test_method_count(): uint64 {
 
 fun self_call_stmt(target: str): Stmt {
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("self"))) }
+    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("self"))) }
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call_ptr = new_expr(no_span(), ExprKind.MethodCall(recv_ptr, intern(target), List.new<Expr>())) }
-    return new_stmt(no_span(), StmtKind.Return(ret_op(call_ptr)))
+    unsafe { *call_ptr = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern(target), List.new<Expr>())) }
+    return Stmt.new(no_span(), StmtKind.Return(ret_op(call_ptr)))
 }
 
 fun defaults_test_method_calling(name: str, target: str): TopDecl {

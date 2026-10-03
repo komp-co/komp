@@ -12,7 +12,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 import kf_typecheck.types.join_arm_types
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.type_is_uninhabited
@@ -24,9 +27,9 @@ import kf_typecheck.check.is_numeric_literal
 pub fun Stmt.tail_ty(string_name: Sym): Type {
     when (self.kind) {
         Expression(ep) => return unsafe { ep.ty }
-        Return(_) => return never_ty(self.span)
-        Break => return never_ty(self.span)
-        Continue => return never_ty(self.span)
+        Return(_) => return Type.new_never(self.span)
+        Break => return Type.new_never(self.span)
+        Continue => return Type.new_never(self.span)
         If(_c, then_body, else_body) => {
             val t = list_tail_ty(&then_body, string_name)
             if t.is_poison() { return t }
@@ -37,7 +40,7 @@ pub fun Stmt.tail_ty(string_name: Sym): Type {
             return joined
         }
         When(_subj, arms) => {
-            if arms.size() == 0 { return poison_ty() }
+            if arms.size() == 0 { return Type.new_poison() }
             val first = *arms.at(0)
             var result = list_tail_ty(&first.body, string_name)
             if result.is_poison() { return result }
@@ -53,13 +56,13 @@ pub fun Stmt.tail_ty(string_name: Sym): Type {
             }
             return result
         }
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
-    return poison_ty()
+    return Type.new_poison()
 }
 
 pub fun list_tail_ty(stmts: &List<Stmt>, string_name: Sym): Type {
-    if stmts.size() == 0 { return poison_ty() }
+    if stmts.size() == 0 { return Type.new_poison() }
     return (stmts.at(stmts.size() - 1)).tail_ty(string_name)
 }
 
@@ -103,7 +106,7 @@ pub fun Stmt.apply_tail_ty(want: &Type, report: bool, ctx: &var TypeCtx): void {
 /// bottom type, which fits any slot.
 pub fun expect_unless_never(e: &var Expr, want: Type, ctx: &var TypeCtx): bool {
     if !e.ty.type_is_uninhabited(ctx) { return expect_or_reject(e, want, ctx) }
-    e.ty = never_ty(e.span)
+    e.ty = Type.new_never(e.span)
     return true
 }
 

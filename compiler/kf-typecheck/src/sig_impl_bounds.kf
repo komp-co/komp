@@ -2,7 +2,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.declaration.TypeParam
 
 /// One impl's parameter bounds: an entry per type parameter, in declaration
 /// order, naming the traits it is bounded by joined with `+` ("" for none).

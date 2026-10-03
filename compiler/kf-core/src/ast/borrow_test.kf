@@ -1,15 +1,17 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 fun plain(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun borrowed(inner: TypeRef): TypeRef {
     val boxed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *boxed = inner }
-    return new_type_ref(no_span(), TypeRefKind.Reference(false, boxed))
+    return TypeRef.new(no_span(), TypeRefKind.Reference(false, boxed))
 }
 
 fun params_of(a: TypeRef, b: TypeRef): List<TypeRef> {

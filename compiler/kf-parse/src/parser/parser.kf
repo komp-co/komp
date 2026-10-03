@@ -1,6 +1,7 @@
 import alloc.list.*
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.*
 import kf_parse.lexer.*
 /// Recursive descent over a token stream. Grammar lives in sibling files.
@@ -10,6 +11,9 @@ pub struct Parser {
     /// Set in an `if`/`while` condition, where `Name { ... }` is not a struct
     /// literal: the `{` opens the body.
     pub var no_struct_lit: bool
+    /// Set while parsing the operand of a prefix `&`, `&var` or `*`, which an
+    /// `as` after it does not belong to: `&x as T` is `(&x) as T`.
+    pub var cast_after_prefix: bool
     /// Recovery substitutes a `_` placeholder and continues.
     pub var diags: List<Diagnostic>
     /// Set while probing whether `x < y` is a generic call; errors are
@@ -48,7 +52,7 @@ pub struct PendingTry {
 }
 
 pub fun new_parser(toks: List<Token>): Parser {
-    return Parser { toks: toks, pos: 0, no_struct_lit: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), eof: new_token(TokenKind.Eof, no_span()) }
+    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), eof: new_token(TokenKind.Eof, no_span()) }
 }
 
 /// For "found X" messages.

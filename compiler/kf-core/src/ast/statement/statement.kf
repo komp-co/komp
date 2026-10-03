@@ -1,6 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Arm
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
 
 pub enum StmtKind {
     /// `val name: ty = init`; no annotation means inferred.
@@ -50,12 +54,12 @@ pub struct Stmt {
 
 impl Stmt {
     pub static fun new(span: Span, kind: StmtKind): Self {
-        return Self {span: span, binder: no_span(), kind: kind }
+        return Self { span: span, binder: no_span(), kind: kind }
     }
 
     /// Only the parser calls this; rebuilt statements go through `new`.
     pub static fun new_binding(span: Span, binder: Span, kind: StmtKind): Stmt {
-        return Self {span: span, binder: binder, kind: kind }
+        return Self { span: span, binder: binder, kind: kind }
     }
 
     pub static fun new_poison(span: Span): Stmt {

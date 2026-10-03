@@ -9,18 +9,23 @@ import std.fs.scratch_path
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_codegen.emit_module
 
 fun pt_var_ptr(name: str): Ptr<Expr> {
-    var v = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var v = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     v.ty = Type { kind: TypeKind.Struct(intern("Pt")), provenance: Provenance.Inferred(no_span()) }
     return expr_ptr(v)
 }
 
 fun list_of(elem: str): Ptr<TypeRef> {
     var inner = List.new<TypeRef>()
-    inner.push(new_type_ref(no_span(), TypeRefKind.Named(intern(elem), List.new<TypeRef>())))
-    val lt = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), inner))
+    inner.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(elem), List.new<TypeRef>())))
+    val lt = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), inner))
     val lp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *lp = lt }
     return lp
@@ -41,28 +46,28 @@ fun list_of(elem: str): Ptr<TypeRef> {
 }
 
 fun ncall_e(name: str, args: List<Expr>, mangled: str): Expr {
-    var e = new_expr(no_span(), ExprKind.Call(intern(name), args))
+    var e = Expr.new(no_span(), ExprKind.Call(intern(name), args))
     e.mangled_callee = intern(mangled)
     return e
 }
 
 fun mcall_e(recv: Ptr<Expr>, method: str, margs: List<Expr>, mangled: str): Expr {
-    var e = new_expr(no_span(), ExprKind.MethodCall(recv, intern(method), margs))
+    var e = Expr.new(no_span(), ExprKind.MethodCall(recv, intern(method), margs))
     e.mangled_callee = intern(mangled)
     return e
 }
 
 @test_disabled fun integration_list_int32_runs(): void {
     val xs_init = expr_ptr(ncall_e("new_list", List.new<Expr>(), "new_list__int32"))
-    val let_xs = new_stmt(no_span(), StmtKind.LetVal(intern("xs"), list_of("int32"), xs_init))
+    val let_xs = Stmt.new(no_span(), StmtKind.LetVal(intern("xs"), list_of("int32"), xs_init))
 
     var pa1 = List.new<Expr>()
     pa1.push(lit_i(7))
-    val s_push1 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__int32_push"))))
+    val s_push1 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__int32_push"))))
 
     var pa2 = List.new<Expr>()
     pa2.push(lit_i(35))
-    val s_push2 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__int32_push"))))
+    val s_push2 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__int32_push"))))
 
     var ga = List.new<Expr>()
     ga.push(lit_i(0))
@@ -70,7 +75,7 @@ fun mcall_e(recv: Ptr<Expr>, method: str, margs: List<Expr>, mangled: str): Expr
     var gb = List.new<Expr>()
     gb.push(lit_i(1))
     val get1 = expr_ptr(mcall_e(var_p("xs"), "get", gb, "List__int32_get"))
-    val ret = new_stmt(no_span(), StmtKind.Return(ret_op(expr_ptr(new_expr(no_span(), ExprKind.Binary(get0, BinOp.Add, get1))))))
+    val ret = Stmt.new(no_span(), StmtKind.Return(ret_op(expr_ptr(Expr.new(no_span(), ExprKind.Binary(get0, BinOp.Add, get1))))))
 
     var stmts = List.new<Stmt>()
     stmts.push(let_xs)
@@ -92,38 +97,38 @@ fun mcall_e(recv: Ptr<Expr>, method: str, margs: List<Expr>, mangled: str): Expr
 }
 
 fun lit_str_e(s: str): Expr {
-    return new_expr(no_span(), ExprKind.LitStr(String.from(s)))
+    return Expr.new(no_span(), ExprKind.LitStr(String.from(s)))
 }
 
 @test_disabled fun integration_list_string_asan_clean(): void {
     // val xs: List<String> = List.new<Sym>()
     val xs_init = expr_ptr(ncall_e("new_list", List.new<Expr>(), "new_list__String"))
-    val let_xs = new_stmt(no_span(), StmtKind.LetVal(intern("xs"), list_of("String"), xs_init))
+    val let_xs = Stmt.new(no_span(), StmtKind.LetVal(intern("xs"), list_of("String"), xs_init))
 
     // xs.push("alpha"); xs.push("beta")
     var pa1 = List.new<Expr>()
     pa1.push(lit_str_e("alpha"))
-    val s_push1 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__String_push"))))
+    val s_push1 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__String_push"))))
     var pa2 = List.new<Expr>()
     pa2.push(lit_str_e("beta"))
-    val s_push2 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__String_push"))))
+    val s_push2 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__String_push"))))
 
     // val s: String = xs.get(0)
     var ga = List.new<Expr>()
     ga.push(lit_i(0))
     val get0 = expr_ptr(mcall_e(var_p("xs"), "get", ga, "List__String_get"))
-    val let_s = new_stmt(no_span(), StmtKind.LetVal(intern("s"), ty_ptr("String"), get0))
+    val let_s = Stmt.new(no_span(), StmtKind.LetVal(intern("s"), ty_ptr("String"), get0))
 
     // runtime_println(s.as_str())
     var pa = List.new<Expr>()
-    var print_arg = new_expr(no_span(), ExprKind.Variable(intern("s")))
+    var print_arg = Expr.new(no_span(), ExprKind.Variable(intern("s")))
     print_arg.coerce = coerce_to_cstr()
     pa.push(print_arg)
-    val pstmt = new_stmt(no_span(), StmtKind.Expression(expr_ptr(new_expr(no_span(), ExprKind.Call(intern("runtime_println"), pa)))))
+    val pstmt = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(Expr.new(no_span(), ExprKind.Call(intern("runtime_println"), pa)))))
 
     // Scope-exit disposal, which Lower would insert.
-    val drop_s = new_stmt(no_span(), StmtKind.Drop(intern("s")))
-    val drop_xs = new_stmt(no_span(), StmtKind.Drop(intern("xs")))
+    val drop_s = Stmt.new(no_span(), StmtKind.Drop(intern("s")))
+    val drop_xs = Stmt.new(no_span(), StmtKind.Drop(intern("xs")))
 
     var stmts = List.new<Stmt>()
     stmts.push(let_xs)
@@ -158,36 +163,36 @@ fun lit_str_e(s: str): Expr {
 
     // val xs: List<Pair> = List.new<Pair>()
     val xs_init = expr_ptr(ncall_e("new_list", List.new<Expr>(), "new_list__Pair"))
-    val let_xs = new_stmt(no_span(), StmtKind.LetVal(intern("xs"), list_of("Pair"), xs_init))
+    val let_xs = Stmt.new(no_span(), StmtKind.LetVal(intern("xs"), list_of("Pair"), xs_init))
 
     // xs.push(Pair { s: "alpha" }); xs.push(Pair { s: "beta" })
     var fi1 = List.new<FieldInit>()
-    fi1.push(new_field_init(no_span(), String.from("s"), expr_ptr(lit_str_e("alpha"))))
+    fi1.push(FieldInit.new(no_span(), String.from("s"), expr_ptr(lit_str_e("alpha"))))
     var pa1 = List.new<Expr>()
-    pa1.push(new_expr(no_span(), ExprKind.StructLit(intern("Pair"), fi1)))
-    val s_push1 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__Pair_push"))))
+    pa1.push(Expr.new(no_span(), ExprKind.StructLit(intern("Pair"), fi1)))
+    val s_push1 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa1, "List__Pair_push"))))
     var fi2 = List.new<FieldInit>()
-    fi2.push(new_field_init(no_span(), String.from("s"), expr_ptr(lit_str_e("beta"))))
+    fi2.push(FieldInit.new(no_span(), String.from("s"), expr_ptr(lit_str_e("beta"))))
     var pa2 = List.new<Expr>()
-    pa2.push(new_expr(no_span(), ExprKind.StructLit(intern("Pair"), fi2)))
-    val s_push2 = new_stmt(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__Pair_push"))))
+    pa2.push(Expr.new(no_span(), ExprKind.StructLit(intern("Pair"), fi2)))
+    val s_push2 = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(mcall_e(var_p("xs"), "push", pa2, "List__Pair_push"))))
 
     // val p: Pair = xs.get(0)
     var ga = List.new<Expr>()
     ga.push(lit_i(0))
     val get0 = expr_ptr(mcall_e(var_p("xs"), "get", ga, "List__Pair_get"))
-    val let_p = new_stmt(no_span(), StmtKind.LetVal(intern("p"), ty_ptr("Pair"), get0))
+    val let_p = Stmt.new(no_span(), StmtKind.LetVal(intern("p"), ty_ptr("Pair"), get0))
 
     // runtime_println(p.s.as_str())
-    val pv = expr_ptr(new_expr(no_span(), ExprKind.Variable(intern("p"))))
-    var pfs = new_expr(no_span(), ExprKind.FieldAccess(pv, intern("s")))
+    val pv = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("p"))))
+    var pfs = Expr.new(no_span(), ExprKind.FieldAccess(pv, intern("s")))
     pfs.coerce = coerce_to_cstr()
     var pa = List.new<Expr>()
     pa.push(pfs)
-    val pstmt = new_stmt(no_span(), StmtKind.Expression(expr_ptr(new_expr(no_span(), ExprKind.Call(intern("runtime_println"), pa)))))
+    val pstmt = Stmt.new(no_span(), StmtKind.Expression(expr_ptr(Expr.new(no_span(), ExprKind.Call(intern("runtime_println"), pa)))))
 
-    val drop_p = new_stmt(no_span(), StmtKind.Drop(intern("p")))
-    val drop_xs = new_stmt(no_span(), StmtKind.Drop(intern("xs")))
+    val drop_p = Stmt.new(no_span(), StmtKind.Drop(intern("p")))
+    val drop_xs = Stmt.new(no_span(), StmtKind.Drop(intern("xs")))
 
     var stmts = List.new<Stmt>()
     stmts.push(let_xs)

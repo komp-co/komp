@@ -5,7 +5,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.lang_copy_key
+import kf_core.ast.types.*
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.nominal_name
 import kf_typecheck.types.resolve_type_ref
@@ -89,8 +91,8 @@ fun impl_segment_type(seg: str, impl_params: &List<String>, receiver: &Type, spa
         return ty_from_frag_in_scope(String.from(seg), span, ctx)
     }
     val name = receiver.kind.nominal_name()
-    val inst = unsafe { (*ctx.sigs).find_inst(name.as_str()) } ?: return poison_ty()
-    if inst.args.size() != impl_params.size() { return poison_ty() }
+    val inst = unsafe { (*ctx.sigs).find_inst(name.as_str()) } ?: return Type.new_poison()
+    if inst.args.size() != impl_params.size() { return Type.new_poison() }
     return (*inst.args.at(at)).resolve_type_ref(ctx)
 }
 
@@ -100,22 +102,22 @@ fun impl_segment_type(seg: str, impl_params: &List<String>, receiver: &Type, spa
 /// binding otherwise.
 fun compound_segment_type(seg: str, impl_params: &List<String>, receiver: &Type, span: Span, ctx: &var TypeCtx): Type {
     val parts = key_segments(seg)
-    if parts.size() == 0 { return poison_ty() }
+    if parts.size() == 0 { return Type.new_poison() }
     val base_name = *parts.at(0)
     var mangled = base_name.clone()
     var arg_refs = List.new<TypeRef>()
     var i: uint64 = 1
     while i < parts.size() {
         val part = *parts.at(i)
-        var resolved = poison_ty()
+        var resolved = Type.new_poison()
         if name_index(impl_params, part.as_str()) < impl_params.size() {
             resolved = impl_segment_type(part.as_str(), impl_params, receiver, span, ctx)
         } else {
             resolved = ty_from_frag_in_scope(part.clone(), span, ctx)
         }
-        if resolved.is_poison() { return poison_ty() }
+        if resolved.is_poison() { return Type.new_poison() }
         val tr = resolved.ty_written_ref(span, ctx.sigs)
-        if tr.type_ref_is_poison() { return poison_ty() }
+        if tr.type_ref_is_poison() { return Type.new_poison() }
         arg_refs.push(tr)
         mangled.append("__")
         mangled.append(mangle_type(resolved).as_str())

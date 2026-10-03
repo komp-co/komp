@@ -1,0 +1,18 @@
+//! asan: clean
+// Temporaries of a right operand of `&&` or `||`, or of an `if` value's
+// branch, are made and freed only when that part runs.
+
+fun make(n: int32): String {
+    return "${n}"
+}
+
+fun main(): int32 {
+    var hits = 0
+    val ready = true
+    if ready && make(1).byte_len() == 1 { hits = hits + 1 }
+    if !ready || make(22).byte_len() == 2 { hits = hits + 1 }
+    if !ready && make(3).byte_len() == 1 { hits = hits + 10 }
+    val s = if hits == 2 { "${hits}!" } else { String.from("x") }
+    val t = if hits == 0 { "${hits}?" } else { String.from("yz") }
+    return hits + (s.byte_len() + t.byte_len()) as int32 - 6
+}

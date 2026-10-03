@@ -2,14 +2,20 @@
 // nearest-name suggestion.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.diagnostic.with_fix_applic
+import kf_core.ast.types.type_node
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
 import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.check.borrow.reject_kept_temporary
 import kf_typecheck.note_import_use
 
 /// `Equal`, `Compare` and `Display` on built-in types are satisfied without an
@@ -171,7 +177,7 @@ fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64,
     if !outcome.valid { return false }
     // After the coercion, which may have typed an open binding; a lambda
     // still waiting on its bound stays poison.
-    val actual = if arg_tys.at(index).is_poison() { poison_ty() } else { args.at(index).ty.clone() }
+    val actual = if arg_tys.at(index).is_poison() { Type.new_poison() } else { args.at(index).ty.clone() }
     if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
     if actual.display_type(ctx).as_str().equals(expected.display_type(ctx).as_str()) { return false }
     val msg = "wrong type for argument ${index + 1} of method `${method_name}`: expected `${expected.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
@@ -182,13 +188,13 @@ fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64,
 fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, tm_span: Span, ctx: &var TypeCtx,
     call: &var Expr): Type {
     val selected = select_instance_trait_method(recv_ty.clone(), method_name.clone(), args, ctx)
-    if selected.sig_name.as_str().equals("") { return poison_ty() }
+    if selected.sig_name.as_str().equals("") { return Type.new_poison() }
     // Mono clones the impl at these.
     if selected.lifted.size() > 0 { call.type_args = selected.lifted_args(tm_span) }
     // A monomorphized receiver reads the template's return type through its
     // arguments: `Twice<S>.pull(): S` on `Twice__Counter` is Counter.
     val binding = bound_checked_recv_bindings(autoderef_ty(recv_ty).kind.trait_impl_owner_name(), method_name.clone(), tm_span, ctx)
-    var pre = poison_ty()
+    var pre = Type.new_poison()
     when (unsafe { (*ctx.sigs).find_signature(selected.sig_name.as_str()) }) {
         Some(sig) => {
             pre = sig.ret
@@ -222,7 +228,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         val aa = args.at_mut(ai)
         // A lambda with a bare parameter waits for its bound's type.
         if aa.lambda_wants_expectation() {
-            arg_tys.push(poison_ty())
+            arg_tys.push(Type.new_poison())
         } else {
             if ai >= pretyped { aa.check_call_argument(ctx) }
             arg_tys.push(aa.ty.clone())
@@ -232,14 +238,14 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     expect_lambda_args(receiver_ty.clone(), method_name.clone(), args, &var arg_tys, _span, ctx)
     if receiver_ty.is_poison() {
         record_untyped_receiver(_span, method_name.as_str(), ctx.sigs)
-        return poison_ty()
+        return Type.new_poison()
     }
     // Through a pointer or reference to the pointee.
     val recv_ty = autoderef_ty(receiver_ty)
     if ty_is_void(recv_ty) {
         val msg = "cannot call method `${method_name}` on `void`"
         ctx.emit(new_diagnostic(Severity.Error, new_label(_span, msg)))
-        return poison_ty()
+        return Type.new_poison()
     }
     if recv_ty.kind.kind_tag() == TAG_GENERIC() {
         // A bounded type parameter offers its bounds' methods; Mono dispatches
@@ -249,18 +255,18 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         if treq.arity != ARITY_NOT_FOUND() {
             if args.size() != treq.params.size() {
                 emit_method_arity(method_name, treq.params.size(), args.size(), _span, ctx)
-                return poison_ty()
+                return Type.new_poison()
             }
             var t_err = false
             while ti in 0..arg_tys.size() {
                 val expected = *treq.params.at(ti)
                 if !check_method_arg(args, &arg_tys, ti, expected, method_name.clone(), _span, ctx) { t_err = true }
             }
-            if t_err { return poison_ty() }
+            if t_err { return Type.new_poison() }
             return treq.ret
         }
         report_no_parameter_method(gname.as_str(), method_name.as_str(), _span, ctx)
-        return poison_ty()
+        return Type.new_poison()
     }
     // A projection receiver: methods come from the associated type's bounds.
     if recv_ty.kind.kind_tag() == TAG_PROJECTION() {
@@ -272,14 +278,14 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             if preq.arity != ARITY_NOT_FOUND() {
                 if args.size() != preq.params.size() {
                     emit_method_arity(method_name, preq.params.size(), args.size(), _span, ctx)
-                    return poison_ty()
+                    return Type.new_poison()
                 }
                 var p_err = false
                 while pi in 0..arg_tys.size() {
                     val expected = *preq.params.at(pi)
                     if !check_method_arg(args, &arg_tys, pi, expected, method_name.clone(), _span, ctx) { p_err = true }
                 }
-                if p_err { return poison_ty() }
+                if p_err { return Type.new_poison() }
                 // The callee `<Type>_<method>__<Trait>` has an unknown type half,
                 // recorded as `.` (no C identifier contains one) for Mono to fill.
                 // CONSTRAINT: the `_` stays so `subst_static_callee` can reach the
@@ -297,7 +303,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // An unbounded associated type promises nothing.
         val plab_msg = "no method `${method_name}` on associated type `${member.as_string()}` (give it a bound whose trait provides it: `type ${member.as_string()}: SomeTrait`)"
         ctx.emit(new_diagnostic(Severity.Error, new_label(_span, plab_msg)))
-        return poison_ty()
+        return Type.new_poison()
     }
     // String takes the ordinary struct path.
     val rtag = recv_ty.kind.kind_tag()
@@ -306,18 +312,20 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     val is_str = rtag == TAG_STR()
     if is_str {
         if method_name.as_str().equals("equals") {
-            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-            if !check_method_arg(args, &arg_tys, 0, str_ty(_span), method_name, _span, ctx) { return poison_ty() }
-            return bool_ty(_span)
+            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return Type.new_poison() }
+            if !check_method_arg(args, &arg_tys, 0, Type.new_str(_span), method_name, _span, ctx) {
+                return Type.new_poison()
+            }
+            return Type.new_bool(_span)
         }
         if method_name.as_str().equals("as_str") {
-            if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
-            return str_ty(_span)
+            if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return Type.new_poison() }
+            return Type.new_str(_span)
         }
         val ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !ret.is_poison() { return ret }
         emit_no_such_method("str", method_name, _span, call.name_span, ctx)
-        return poison_ty()
+        return Type.new_poison()
     }
     // A trait implemented for a primitive resolves like a struct's.
     val is_prim = recv_ty.kind.is_primitive_kind()
@@ -330,7 +338,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             val shown = recv_ty.display_type(ctx)
             val amsg = "no implementation of `${method_name}` for `${shown}` accepts these arguments"
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
-            return poison_ty()
+            return Type.new_poison()
         }
     }
     // Nothing claims this method on a primitive: reported. A `Ptr<T>` arrives
@@ -339,11 +347,11 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         if !primitive_intrinsic_method(method_name.as_str()) {
             emit_no_such_method(recv_ty.display_type(ctx), method_name.clone(), _span, call.name_span, ctx)
         }
-        return poison_ty()
+        return Type.new_poison()
     }
     val tag = recv_ty.kind.kind_tag()
     // Enums are impl targets too.
-    if tag != TAG_STRUCT() && tag != TAG_ENUM() { return poison_ty() }
+    if tag != TAG_STRUCT() && tag != TAG_ENUM() { return Type.new_poison() }
     val sname = recv_ty.kind.nominal_name()
     // An imported method resolves by symbol; this is its evidence.
     var has_link: bool = false
@@ -373,7 +381,10 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         val elem_frag = mangle_suffix(sname, 6)
         when method_name.as_str() {
             "get" => {
-                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 1 {
+                    emit_method_arity(method_name, 1, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 // Typed without the signature, so `impl List<T: Copy>`'s bound is checked here.
                 val bindings = recv_bindings_for_method(sname.clone(), _span, ctx)
                 check_recv_bounds(sname.clone(), method_name.clone(), &bindings, _span, ctx)
@@ -381,42 +392,60 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             }
             // A shared borrow, read in place.
             "at" => {
-                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 1 {
+                    emit_method_arity(method_name, 1, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-                val inner: Ptr<Type> = unsafe { alloc<Type>() }
-                unsafe { *inner = elem_ty }
+                val inner = type_node(elem_ty)
                 return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(_span) }
             }
             // A mutable borrow, mutated in place.
             "at_mut" => {
-                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 1 {
+                    emit_method_arity(method_name, 1, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-                val inner: Ptr<Type> = unsafe { alloc<Type>() }
-                unsafe { *inner = elem_ty }
+                val inner = type_node(elem_ty)
                 return Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(_span) }
             }
             "size" => {
-                if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 0 {
+                    emit_method_arity(method_name, 0, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(_span) }
             }
             "is_empty" => {
-                if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
-                return bool_ty(_span)
+                if args.size() != 0 {
+                    emit_method_arity(method_name, 0, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
+                return Type.new_bool(_span)
             }
             // Items are expected as the element type.
             "push" => {
-                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 1 {
+                    emit_method_arity(method_name, 1, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 val pushed = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
-                if call.receiver_still_open(ctx) { return void_ty(_span) }
-                if !check_method_arg(args, &arg_tys, 0, pushed, method_name, _span, ctx) { return poison_ty() }
-                return void_ty(_span)
+                if call.receiver_still_open(ctx) { return Type.new_void(_span) }
+                if args.at(0).reject_kept_temporary(&pushed, method_name.as_str(), ctx) { return Type.new_poison() }
+                if !check_method_arg(args, &arg_tys, 0, pushed, method_name, _span, ctx) { return Type.new_poison() }
+                return Type.new_void(_span)
             }
             "set" => {
-                if args.size() != 2 { emit_method_arity(method_name, 2, args.size(), _span, ctx); return poison_ty() }
+                if args.size() != 2 {
+                    emit_method_arity(method_name, 2, args.size(), _span, ctx)
+                    return Type.new_poison()
+                }
                 val stored = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
-                if call.receiver_still_open(ctx) { return void_ty(_span) }
-                if !check_method_arg(args, &arg_tys, 1, stored, method_name, _span, ctx) { return poison_ty() }
-                return void_ty(_span)
+                if call.receiver_still_open(ctx) { return Type.new_void(_span) }
+                if args.at(1).reject_kept_temporary(&stored, method_name.as_str(), ctx) { return Type.new_poison() }
+                if !check_method_arg(args, &arg_tys, 1, stored, method_name, _span, ctx) { return Type.new_poison() }
+                return Type.new_void(_span)
             }
             _ => { }
         }
@@ -444,7 +473,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                                 return bsig.check_method_generics(&binding, sname.clone(), method_name.clone(), args, &arg_tys, call, _span, ctx)
                             } else {
                                 emit_method_arity(method_name, bsig.params.size() - 1, args.size(), _span, ctx)
-                                return poison_ty()
+                                return Type.new_poison()
                             }
                         }
                     }
@@ -458,28 +487,28 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         val struct_trait_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !struct_trait_ret.is_poison() { return struct_trait_ret }
         // Nothing claims this method.
-        if has_link { return poison_ty() }
+        if has_link { return Type.new_poison() }
         // A trait declares it but no impl accepts these arguments: the call is
         // at fault, not the impl.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
             val amsg = "no implementation of `${method_name}` for `${sname}` accepts these arguments"
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
-            return poison_ty()
+            return Type.new_poison()
         }
         emit_no_such_method(sname.clone(), method_name.clone(), _span, call.name_span, ctx)
-        return poison_ty()
+        return Type.new_poison()
     }
-    val sig = found_sig ?: return poison_ty()
+    val sig = found_sig ?: return Type.new_poison()
     note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
     if sig.is_static {
         val lab = new_label(_span, String.from("static function called on a value; call it as Type.method(...)"))
         ctx.emit(new_diagnostic(Severity.Error, lab))
-        return poison_ty()
+        return Type.new_poison()
     }
     // `self` is params[0].
     if args.size() + 1 != sig.params.size() {
         emit_method_arity(method_name, sig.params.size() - 1, args.size(), _span, ctx)
-        return poison_ty()
+        return Type.new_poison()
     }
     // The receiver pins nothing, so only the method's own parameters remain.
     return sig.check_method_generics(&empty_recv_binding(), sname.clone(), method_name.clone(), args, &arg_tys, call, _span, ctx)

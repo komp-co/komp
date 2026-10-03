@@ -3,7 +3,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
 
 /// CONSTRAINT: recorded without a name: a method or type cannot be listed in
 /// an import, so a wildcard carrying one cannot be narrowed.

@@ -14,6 +14,15 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.UnaryOp
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_typecheck.types.type_to_type_ref
 
 /// Per-function counter, so two `when` values get distinct temporaries.
@@ -76,7 +85,7 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
                 WhenExpr(subj_ptr, arms) => {
                     // The subject may be a `when` value itself (`a?.b?.c`).
                     hoist_when_values(subj_ptr, temps, out)
-                    out.push(new_stmt(s.span, StmtKind.When(subj_ptr, arms_returning(&arms, temps))))
+                    out.push(Stmt.new(s.span, StmtKind.When(subj_ptr, arms_returning(&arms, temps))))
                 }
                 _ => {
                     hoist_when_values(rp, temps, out)
@@ -90,12 +99,12 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
             hoist_when_values(cond_ptr, temps, out)
             val nt = when_expr_stmt_list(&then_body, temps)
             val ne = when_expr_stmt_list(&else_body, temps)
-            out.push(new_stmt(s.span, StmtKind.If(cond_ptr, nt, ne)))
+            out.push(Stmt.new(s.span, StmtKind.If(cond_ptr, nt, ne)))
         }
         While(cond_ptr, body) => expand_while(s.span, cond_ptr, &body, temps, out)
         ForEach(binder, subj_ptr, body) => {
             hoist_when_values(subj_ptr, temps, out)
-            out.push(new_stmt(s.span, StmtKind.ForEach(binder, subj_ptr, when_expr_stmt_list(&body, temps))))
+            out.push(Stmt.new(s.span, StmtKind.ForEach(binder, subj_ptr, when_expr_stmt_list(&body, temps))))
         }
         When(subj_ptr, arms) => {
             hoist_when_values(subj_ptr, temps, out)
@@ -103,7 +112,7 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
             while a in &arms {
                 new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(), when_expr_stmt_list(&a.body, temps)))
             }
-            out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
+            out.push(Stmt.new(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
         Assign(_n, rhs) => {
             hoist_when_values(rhs, temps, out)
@@ -154,18 +163,18 @@ fun expand_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_v
             // Declared without a value; the annotation is required.
             val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *ann = type_to_type_ref(&value_ty, span) }
-            out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+            out.push(Stmt.new(span, StmtKind.LetVar(temp, ann, null)))
 
-            out.push(new_stmt(span, StmtKind.When(subj_ptr, arms_assigning(&arms, temp, temps))))
+            out.push(Stmt.new(span, StmtKind.When(subj_ptr, arms_assigning(&arms, temp, temps))))
 
             val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
-            var v = new_expr(span, ExprKind.Variable(temp))
+            var v = Expr.new(span, ExprKind.Variable(temp))
             v.ty = value_ty
             unsafe { *vp = v }
             if is_val {
-                out.push(new_stmt(span, StmtKind.LetVal(name, ty, vp)))
+                out.push(Stmt.new(span, StmtKind.LetVal(name, ty, vp)))
             } else {
-                out.push(new_stmt(span, StmtKind.LetVar(name, ty, vp)))
+                out.push(Stmt.new(span, StmtKind.LetVar(name, ty, vp)))
             }
         }
         _ => out.push(s)
@@ -185,20 +194,20 @@ fun expand_while(span: Span, cond_ptr: Ptr<Expr>, body: &List<Stmt>, temps: &var
     hoist_when_values(cond_ptr, temps, &var hoisted)
     val cond = unsafe { &*cond_ptr }.clone()
     if hoisted.size() == 0 {
-        out.push(new_stmt(span, StmtKind.While(Box.new(cond), when_expr_stmt_list(body, temps))))
+        out.push(Stmt.new(span, StmtKind.While(Box.new(cond), when_expr_stmt_list(body, temps))))
         return
     }
     var inner = hoisted
     val cond_ty = cond.ty.clone()
-    var negated = new_expr(span, ExprKind.Unary(UnaryOp.Not, Box.new(cond)))
+    var negated = Expr.new(span, ExprKind.Unary(UnaryOp.Not, Box.new(cond)))
     negated.ty = cond_ty
     var brk = List.new<Stmt>()
-    brk.push(new_stmt(span, StmtKind.Break))
-    inner.push(new_stmt(span, StmtKind.If(Box.new(negated), brk, List.new<Stmt>())))
+    brk.push(Stmt.new(span, StmtKind.Break))
+    inner.push(Stmt.new(span, StmtKind.If(Box.new(negated), brk, List.new<Stmt>())))
     inner.extend(when_expr_stmt_list(body, temps))
-    var t = new_expr(span, ExprKind.LitBool(true))
-    t.ty = bool_ty(span)
-    out.push(new_stmt(span, StmtKind.While(Box.new(t), inner)))
+    var t = Expr.new(span, ExprKind.LitBool(true))
+    t.ty = Type.new_bool(span)
+    out.push(Stmt.new(span, StmtKind.While(Box.new(t), inner)))
 }
 
 /// Every statement before the value, so an arm's steps are kept.
@@ -223,9 +232,9 @@ fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
                 hoist_when_values(vp, temps, &var body)
                 val span = unsafe { vp.span }
                 if is_never_produced(vp) {
-                    body.push(new_stmt(span, StmtKind.Expression(vp)))
+                    body.push(Stmt.new(span, StmtKind.Expression(vp)))
                 } else {
-                    body.push(new_stmt(span, StmtKind.Return(Option.Some(vp))))
+                    body.push(Stmt.new(span, StmtKind.Return(Option.Some(vp))))
                 }
             }
             None => body = when_expr_stmt_list(&a.body, temps)
@@ -245,9 +254,9 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
                 hoist_when_values(vp, temps, &var body)
                 val span = unsafe { vp.span }
                 if is_never_produced(vp) {
-                    body.push(new_stmt(span, StmtKind.Expression(vp)))
+                    body.push(Stmt.new(span, StmtKind.Expression(vp)))
                 } else {
-                    body.push(new_stmt(span, StmtKind.Assign(temp, vp)))
+                    body.push(Stmt.new(span, StmtKind.Assign(temp, vp)))
                 }
             }
             None => body = when_expr_stmt_list(&a.body, temps)

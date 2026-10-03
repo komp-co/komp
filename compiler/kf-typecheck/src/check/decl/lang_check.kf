@@ -3,6 +3,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// Only the standard library declares lang items.
@@ -13,7 +14,7 @@ pub fun may_declare_lang_items(crate: CrateId): bool {
 }
 
 /// The registry already checked placement; this checks key and crate.
-pub fun TopDecl.validate_lang_annotation(diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.validate_lang_annotation(diags: &var Diagnostics): void {
     val key = self.lang_key_of()
     if !is_known_lang_key(key.as_str()) {
         self.report("unknown lang item `${key.as_str()}`: expected ${known_lang_keys_summary().as_str()}", diags)
@@ -23,14 +24,14 @@ pub fun TopDecl.validate_lang_annotation(diags: Ptr<List<Diagnostic>>): void {
 }
 
 /// The registry already checked placement; this checks the crate.
-pub fun TopDecl.validate_prelude_annotation(diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.validate_prelude_annotation(diags: &var Diagnostics): void {
     if !may_declare_lang_items(self.crate) {
         self.report(String.from("`@prelude` is reserved for the standard library (core, alloc and std)"), diags)
     }
 }
 
 /// One declaration per key in the whole graph.
-pub fun Module.reject_duplicate_lang_items(diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.reject_duplicate_lang_items(diags: &var Diagnostics): void {
     var seen = List.new<String>()
     while td in &self.decls {
         val key = (&td).lang_key_of()
@@ -46,7 +47,7 @@ pub fun Module.reject_duplicate_lang_items(diags: Ptr<List<Diagnostic>>): void {
 
 /// A type named like the lang string would be shadowed by it, so it is
 /// refused. Without a lang string the name is free.
-pub fun TopDecl.rejects_lang_type_name(lang_string: Sym, diags: Ptr<List<Diagnostic>>): bool {
+pub fun TopDecl.rejects_lang_type_name(lang_string: Sym, diags: &var Diagnostics): bool {
     if lang_string.as_str().equals("") { return false }
     when (self.kind) {
         Struct(_fields, _is_pub) => { }
@@ -67,6 +68,6 @@ fun key_seen(keys: &List<String>, key: str): bool {
     return false
 }
 
-fun TopDecl.report(message: String, diags: Ptr<List<Diagnostic>>): void {
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+fun TopDecl.report(message: String, diags: &var Diagnostics): void {
+    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
 }

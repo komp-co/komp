@@ -1,7 +1,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.mangle_segments
+import kf_core.ast.value_from_frag
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 import kf_typecheck.types.*
 import kf_core.ast.subst.subst_tref_list
 import kf_core.ast.subst.monomorphized_type_name
@@ -61,8 +66,8 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val function = ctx.fn_type_for(self.as_str())
     if function != null { return function!!.type_to_type_ref(span) }
     val value = value_from_frag(self.as_str())
-    if value != null { return new_type_ref(span, TypeRefKind.Value(value ?: 0)) }
-    val named = new_type_ref(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
+    if value != null { return TypeRef.new(span, TypeRefKind.Value(value ?: 0)) }
+    val named = TypeRef.new(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     val inner = ref_key_inner(self.as_str())
@@ -70,7 +75,7 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val is_mut = ref_key_is_mut(self.as_str())
     val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner_ptr = inner.tref_from_frag(span, ctx) }
-    return new_type_ref(span, TypeRefKind.Reference(is_mut, inner_ptr))
+    return TypeRef.new(span, TypeRefKind.Reference(is_mut, inner_ptr))
 }
 
 /// A fragment naming a concrete type. An unpinned parameter (`T`) spells
@@ -112,7 +117,7 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         while j < binding.names.size() {
             if binding.names.at(j).as_str().equals(param.as_str()) {
                 val ty_name = mangle_type(*binding.types.at(j))
-                args.push(new_type_ref(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
                 found = true
                 break
             }
@@ -122,7 +127,7 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         while !found && j < method_names.size() {
             if method_names.at(j).as_str().equals(param.as_str()) {
                 val ty_name = mangle_type(*method_types.at(j))
-                args.push(new_type_ref(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
                 found = true
                 break
             }
@@ -130,6 +135,9 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         }
         if !found { return }
     }
+    // Only an instance listing the parameters in the template's order:
+    // `Pair<B, A>` from `Pair<A, B>` would get the layout of its transpose.
+    if !monomorphized_type_name(base.clone(), &args).as_str().equals(name.as_str()) { return }
     instantiate_generic_layout(base, &args, name, ctx)
 }
 
@@ -160,7 +168,7 @@ fun Type.register_substituted_return_row(post: &Type, binding: &RecvBinding, spa
         val flat = mangle_type(*binding.types.at(i))
         if flat.as_str().byte_len() == 0 { return }
         names.push(*binding.names.at(i))
-        repls.push(new_type_ref(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
+        repls.push(TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
         i = i + 1
     }
     val args = subst_tref_list(&row.args, &var names, &var repls)
@@ -190,14 +198,12 @@ pub fun instance_variant_payloads(inst_name: str, variant_name: str, ctx: &var T
     while v in &tpl.variants {
         if v.name.as_str().equals(variant_name) {
             var out = List.new<Type>()
-            while pi in 0..v.payloads.size() {
-                var pty = *v.payloads.at(pi)
-                var ai = 0
-                while ai < info.type_params.size() {
-                    pty = pty.subst_generic(*info.type_params.at(ai), (*row.args.at(ai)).resolve_type_ref(ctx))
-                    ai = ai + 1
-                }
-                out.push(pty)
+            var arg_types = List.new<Type>()
+            while arg in &row.args {
+                arg_types.push(arg.resolve_type_ref(ctx))
+            }
+            while payload in &v.payloads {
+                out.push(subst_all_generics(payload, &info.type_params, &arg_types))
             }
             return out
         }

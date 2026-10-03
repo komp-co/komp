@@ -3,10 +3,16 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.c_field_name
+import kf_core.ast.type_retain_fn
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.Field
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
+import kf_core.ast.c_local_name
 
 fun emit_struct_body(name: String, fields: List<Field>): String {
     var parts = List.new<String>()
@@ -103,7 +109,8 @@ fun emit_struct_drop(name: String, fields: List<Field>, m: &Module): String {
             val slot = f.glue_slot()
             if ty_needs_drop_deep(slot.ty, m) {
                 val drop_fn = release_fn_for_ctype(slot.ty.c_type().as_str())
-                parts.push("    ${slot.open}${drop_fn}(v.${f.name.as_string()}${slot.index});${slot.close}\n")
+                val fname = c_field_name(f.name.as_str())
+                parts.push("    ${slot.open}${drop_fn}(v.${fname}${slot.index});${slot.close}\n")
             }
         }
     }
@@ -195,9 +202,9 @@ fun box_inner_tref(fty: TypeRef): TypeRef {
             if n.as_str().equals("Box") {
                 if args.size() == 1 { return *args.at(0) }
             }
-            return new_type_ref(fty.span, TypeRefKind.Poison)
+            return TypeRef.new(fty.span, TypeRefKind.Poison)
         }
-        _ => return new_type_ref(fty.span, TypeRefKind.Poison)
+        _ => return TypeRef.new(fty.span, TypeRefKind.Poison)
     }
 }
 
@@ -233,7 +240,7 @@ fun emit_struct_retain(name: String, fields: List<Field>, m: &Module): String {
     while f in &fields {
         val slot = f.glue_slot()
         if ty_needs_drop_deep(slot.ty, m) {
-            val place = "v.${f.name.as_string()}${slot.index}"
+            val place = "v.${c_field_name(f.name.as_str())}${slot.index}"
             val retain = type_retain_fn(slot.ty.c_type().as_str())
             parts.push("    ${slot.open}${place} = ${retain}(${place});${slot.close}\n")
         }

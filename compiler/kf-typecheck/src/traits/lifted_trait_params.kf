@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
 import kf_core.span.Span
 import kf_typecheck.types.subst_generic
 import kf_typecheck.types.type_to_type_ref

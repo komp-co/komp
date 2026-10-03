@@ -3,7 +3,8 @@
 import alloc.list.*
 
 import kf_core.diagnostic.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
 import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
 import kf_typecheck.check.untyped_receiver_diags
@@ -39,44 +40,44 @@ pub fun typecheck_module_typed(m: &var Module,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>): TypedModule {
-    var diags = List.new<Diagnostic>()
+    var diags = new_diagnostics()
     // First, so what a template adds passes through every later step.
-    val expansions = m.expand_templates(&var diags)
+    val expansions = m.expand_templates(&var diags.items)
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)
     m.prepare_extensions(&var diags)
     m.prepare_annotation_params(&var diags)
-    m.expand_annotation_structs(&var diags)
+    m.expand_annotation_structs(&var diags.items)
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
     val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names)
     // A private type in a `pub` signature would be defined twice under C17.
     val exposed = m.pub_signature_diags()
     while item in &exposed {
-        diags.push(item)
+        diags.emit(item)
     }
     // After registration, so a trait declared later still counts.
     val bogus = unknown_bound_diags(sigs)
     while bogu in &bogus {
-        diags.push(bogu)
+        diags.emit(bogu)
     }
     // After every body, when every name has resolved.
     val unused = m.unused_import_diags(sigs)
     while item in &unused {
-        diags.push(item)
+        diags.emit(item)
     }
     // Same timing.
     val wildcards = m.wildcard_import_diags(sigs)
     while wildcard in &wildcards {
-        diags.push(wildcard)
+        diags.emit(wildcard)
     }
     // Only when nothing else is wrong.
-    val untyped = untyped_receiver_diags(sigs, &diags)
+    val untyped = untyped_receiver_diags(sigs, &diags.items)
     while item in &untyped {
-        diags.push(item)
+        diags.emit(item)
     }
-    val found = with_expansion_notes(without_duplicates(diags), &expansions)
+    val found = with_expansion_notes(without_duplicates(diags.items.clone()), &expansions)
     return TypedModule { diags: found, sigs: sigs }
 }
 

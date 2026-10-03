@@ -2,13 +2,15 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 fun call_on_bits(method: str): Expr {
-    val receiver = Box.new(new_expr(no_span(), ExprKind.Variable(intern("bits"))))
+    val receiver = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("bits"))))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.LitInt(3)))
-    return new_expr(no_span(), ExprKind.MethodCall(receiver, intern(method), args))
+    args.push(Expr.new(no_span(), ExprKind.LitInt(3)))
+    return Expr.new(no_span(), ExprKind.MethodCall(receiver, intern(method), args))
 }
 
 @test fun an_index_value_call_is_a_computed_subscript(): void {

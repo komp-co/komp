@@ -2,15 +2,19 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.crate_id_poison
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.mk_ctx
 
 fun value_register_fn(name: str, generics: List<String>, ctx: &var TypeCtx): void {
     var params = List.new<Type>()
-    params.push(int32_ty(no_span()))
+    params.push(Type.new_int32(no_span()))
     val signature = FnSignature {
-        name: String.from(name), params: params, ret: int32_ty(no_span()), generics: generics,
+        name: String.from(name), params: params, ret: Type.new_int32(no_span()), generics: generics,
         is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(),
         is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false
     }
@@ -18,7 +22,7 @@ fun value_register_fn(name: str, generics: List<String>, ctx: &var TypeCtx): voi
 }
 
 fun named_value(name: str): Expr {
-    return new_expr(no_span(), ExprKind.Variable(intern(name)))
+    return Expr.new(no_span(), ExprKind.Variable(intern(name)))
 }
 
 @test fun a_function_name_is_a_value(): void {

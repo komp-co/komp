@@ -1,5 +1,7 @@
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_parse.lexer.*
 import kf_parse.parser.*
 
@@ -32,12 +34,12 @@ impl Parser {
             Op(_) => return self.parse_expr_or_assign()
             Newline => {
                 unsafe { self.advance() }
-                return stmt_poison(t.span)
+                return Stmt.new_poison(t.span)
             }
-            Eof => return stmt_poison(t.span)
+            Eof => return Stmt.new_poison(t.span)
             LexError(_) => {
                 unsafe { self.advance() }
-                return stmt_poison(t.span)
+                return Stmt.new_poison(t.span)
             }
         }
     }
@@ -89,16 +91,16 @@ impl Parser {
 
     mutating fun advance_and_poison_stmt(span: Span): Stmt {
         unsafe { self.advance() }
-        return stmt_poison(span)
+        return Stmt.new_poison(span)
     }
 
     /// `break` / `continue`. Like `return`, they skip the scope-end releases.
     mutating fun parse_break_continue(span: Span, is_continue: bool): Stmt {
         unsafe { self.advance() } // consume break/continue
         if is_continue {
-            return new_stmt(span, StmtKind.Continue)
+            return Stmt.new(span, StmtKind.Continue)
         }
-        return new_stmt(span, StmtKind.Break)
+        return Stmt.new(span, StmtKind.Break)
     }
 
     mutating fun parse_expr_stmt(): Stmt {
@@ -106,7 +108,7 @@ impl Parser {
         val span = e.span
         val e_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *e_ptr = e }
-        return new_stmt(span, StmtKind.Expression(e_ptr))
+        return Stmt.new(span, StmtKind.Expression(e_ptr))
     }
 
     /// `place = rhs` or an expression statement. A bare-name target is
@@ -120,17 +122,17 @@ impl Parser {
             val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
             unsafe { *rhs_ptr = rhs }
             when (lhs.kind) {
-                Variable(name) => return new_stmt(span, StmtKind.Assign(name, rhs_ptr))
+                Variable(name) => return Stmt.new(span, StmtKind.Assign(name, rhs_ptr))
                 _ => {
                     val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                     unsafe { *lhs_ptr = lhs }
-                    return new_stmt(span, StmtKind.AssignTo(lhs_ptr, rhs_ptr))
+                    return Stmt.new(span, StmtKind.AssignTo(lhs_ptr, rhs_ptr))
                 }
             }
         }
         val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *lhs_ptr = lhs }
-        return new_stmt(span, StmtKind.Expression(lhs_ptr))
+        return Stmt.new(span, StmtKind.Expression(lhs_ptr))
     }
 
     /// `{ ... }`; empty on failure.

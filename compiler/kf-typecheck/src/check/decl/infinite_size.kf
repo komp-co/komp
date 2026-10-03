@@ -5,7 +5,11 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Module
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.Type
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.ast.subst.mangle_tyref
 
@@ -106,7 +110,7 @@ fun TopDecl.member_word(): str {
 
 /// CONSTRAINT: after every layout, instances included, is registered. A
 /// generic template is judged through its instances' users, not alone.
-pub fun Module.check_infinite_types(sigs: &SigTable, diags: Ptr<List<Diagnostic>>): void {
+pub fun Module.check_infinite_types(sigs: &SigTable, diags: &var Diagnostics): void {
     val edges = sigs.inline_edges()
     while td in &self.decls {
         if td.linkage.is_imported() || td.generics.size() > 0 { continue }
@@ -116,6 +120,6 @@ pub fun Module.check_infinite_types(sigs: &SigTable, diags: Ptr<List<Diagnostic>
         val name = td.name.as_str()
         val repair = "put ${pointer} behind a pointer, such as `Box<${name}>`"
         val message = "`${name}` holds itself by value, so it has no size; ${repair}"
-        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message))) }
+        diags.emit(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
     }
 }

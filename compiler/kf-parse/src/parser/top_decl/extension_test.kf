@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 
 fun TopDecl.first_param_type(): TypeRef {
@@ -8,7 +9,7 @@ fun TopDecl.first_param_type(): TypeRef {
         Function(params, _ret, _body, _is_pub, _is_unsafe, _is_mutating, _is_static) => {
             return unsafe { *params.at(0).ty }
         }
-        _ => return type_ref_poison(self.span)
+        _ => return TypeRef.new_poison(self.span)
     }
 }
 

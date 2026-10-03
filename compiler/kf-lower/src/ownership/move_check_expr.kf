@@ -1,4 +1,5 @@
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.Expr
 
 pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
     when (self.kind) {
@@ -12,6 +13,11 @@ pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
             val callee = self.mangled_callee.as_string()
             check_consumed_args_for(args, callee, ctx)
             move_check_args_consume(args, callee, ctx)
+        }
+        Intrinsic(intrinsic, args) => {
+            move_check_args_borrow(&var args, ctx)
+            check_consumed_args_for(args, String.from(intrinsic.name()), ctx)
+            move_check_args_consume(args, String.from(intrinsic.name()), ctx)
         }
         CallValue(_callee, args) => {
             move_check_args_borrow(&var args, ctx)
@@ -94,6 +100,11 @@ pub mutating fun Expr.move_check_expr_borrow(ctx: &var MoveCtx): void {
             val callee_b1 = self.mangled_callee.as_string()
             check_consumed_args_for(args, callee_b1, ctx)
             move_check_args_consume(args, callee_b1, ctx)
+        }
+        Intrinsic(intrinsic, args) => {
+            move_check_args_borrow(&var args, ctx)
+            check_consumed_args_for(args, String.from(intrinsic.name()), ctx)
+            move_check_args_consume(args, String.from(intrinsic.name()), ctx)
         }
         CallValue(_callee, args) => {
             move_check_args_borrow(&var args, ctx)

@@ -5,7 +5,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.fn_frag_parts
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TypeParam
 import kf_typecheck.*
 import kf_typecheck.types.trait_args_key
 import kf_typecheck.traits.type_param_key

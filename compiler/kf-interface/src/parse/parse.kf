@@ -5,6 +5,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import json.reader.*
 import kf_interface.*
 
@@ -299,8 +303,7 @@ mutating fun JsonReader.load_variants(): List<Variant> {
         var payloads = List.new<TypeRef>()
         if !self.begin_array() { return variants }
         while self.array_has_next() {
-            val ty = parse_type_ptr(self.read_string().as_str())
-            payloads.push(unsafe { *ty })
+            payloads.push(parse_type_value(self.read_string().as_str()))
         }
         if !self.expect_key("annotations") { return variants }
         var variant = new_variant(no_span(), name, payloads)
@@ -336,8 +339,7 @@ mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): Top
         // CONSTRAINT: kept in a local. The parsed tokens slice this buffer, so
         // a temporary would be freed while the parse result still reads it.
         val super_src = self.read_string()
-        val sref = parse_type_ptr(super_src.as_str())
-        supers.push(unsafe { *sref })
+        supers.push(parse_type_value(super_src.as_str()))
     }
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, false, hidden)

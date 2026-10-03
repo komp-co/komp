@@ -3,7 +3,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
 import kf_core.ast.subst.subst_type_ref
 import kf_typecheck.types.note_open_call_typed
 import kf_typecheck.types.resolve_type_ref
@@ -50,7 +55,7 @@ mutating fun Expr.reject_unconvertible_literal(expected: &Type, ctx: &var TypeCt
     val shown = expected.display_type(ctx)
     val message = "a list literal cannot build `${shown}`: it does not implement `${from_trait_name()}<T[N]>`"
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-    self.ty = poison_ty()
+    self.ty = Type.new_poison()
     return true
 }
 
@@ -69,8 +74,8 @@ mutating fun Expr.become_from_call(expected: Type, ctx: &var TypeCtx): void {
     val span = self.span
     var args = List.new<Expr>()
     args.push(self.clone())
-    val receiver = Box.new(new_expr(span, ExprKind.Variable(expected.written_type_name(ctx))))
-    var call = new_expr(span, ExprKind.MethodCall(receiver, intern("from"), args))
+    val receiver = Box.new(Expr.new(span, ExprKind.Variable(expected.written_type_name(ctx))))
+    var call = Expr.new(span, ExprKind.MethodCall(receiver, intern("from"), args))
     val inst = expected.expected_inst(ctx)
     if inst != null {
         val found = inst ?: return

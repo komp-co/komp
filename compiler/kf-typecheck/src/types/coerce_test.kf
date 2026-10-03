@@ -2,48 +2,51 @@ import core.assert.assert_eq
 import core.assert.fail
 import core.assert.assert
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 import kf_typecheck.check.autoderef_ty
 import kf_typecheck.check.deref_target
 
 @test fun type_eq_same_int32(): void {
-    val a = int32_ty(no_span())
+    val a = Type.new_int32(no_span())
     assert_eq(a.type_eq(a), true, "int32 == int32")
 }
 
 @test fun type_eq_int_mismatch(): void {
-    val a = int32_ty(no_span())
-    val b = bool_ty(no_span())
+    val a = Type.new_int32(no_span())
+    val b = Type.new_bool(no_span())
     assert_eq(a.type_eq(b), false, "int32 != bool")
 }
 
 @test fun type_eq_poison_absorbs(): void {
-    val a = poison_ty()
-    val b = int32_ty(no_span())
+    val a = Type.new_poison()
+    val b = Type.new_int32(no_span())
     assert_eq(a.type_eq(b), true, "poison absorbs")
 }
 
 @test fun str_coerces_to_string(): void {
-    val from = str_ty(no_span())
+    val from = Type.new_str(no_span())
     val to = intern("String").lang_struct_ty(no_span())
     assert_eq(from.can_coerce(to, intern("String")), true, "str → String allowed")
 }
 
 @test fun int_does_not_coerce_to_bool(): void {
-    val from = int32_ty(no_span())
-    val to = bool_ty(no_span())
+    val from = Type.new_int32(no_span())
+    val to = Type.new_bool(no_span())
     assert_eq(from.can_coerce(to, intern("String")), false, "no int→bool")
 }
 
 @test fun subst_generic_rewrites_mangled_struct(): void {
     val buf_t = Type { kind: TypeKind.Struct(intern("Buffer__T")), provenance: Provenance.Inferred(no_span()) }
-    val out = buf_t.subst_generic(String.from("T"), int32_ty(no_span()))
+    val out = buf_t.subst_generic(String.from("T"), Type.new_int32(no_span()))
     assert_eq(mangle_type(out).as_str(), "Buffer__int32", "Buffer__T[T:=int32] -> Buffer__int32")
 }
 
 @test fun subst_generic_keeps_unrelated_segments(): void {
     val list_s = Type { kind: TypeKind.Struct(intern("List__String")), provenance: Provenance.Inferred(no_span()) }
-    val out = list_s.subst_generic(String.from("T"), int32_ty(no_span()))
+    val out = list_s.subst_generic(String.from("T"), Type.new_int32(no_span()))
     assert_eq(mangle_type(out).as_str(), "List__String", "List__String unchanged for param T")
 }
 
@@ -60,12 +63,12 @@ import kf_typecheck.check.deref_target
 // Wrapper recursion through Box<T>.
 @test fun subst_generic_recurses_into_box(): void {
     val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val box_t = box_ty(gen_t, no_span())
-    val out = box_t.subst_generic(String.from("T"), int32_ty(no_span()))
+    val box_t = Type.new_box(gen_t, no_span())
+    val out = box_t.subst_generic(String.from("T"), Type.new_int32(no_span()))
     when (out.kind) {
         BoxOf(p) => {
             val inner = unsafe { *p }
-            val expected = int32_ty(no_span())
+            val expected = Type.new_int32(no_span())
             assert_eq(inner.type_eq(expected), true, "Box<T>[T:=int32] inner is int32")
         }
         _ => fail("expected BoxOf result")
@@ -74,13 +77,13 @@ import kf_typecheck.check.deref_target
 
 @test fun subst_generic_bare_generic_still_maps(): void {
     val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val out = gen_t.subst_generic(String.from("T"), int32_ty(no_span()))
-    val expected = int32_ty(no_span())
+    val out = gen_t.subst_generic(String.from("T"), Type.new_int32(no_span()))
+    val expected = Type.new_int32(no_span())
     assert_eq(out.type_eq(expected), true, "bare Generic(T) -> int32 (regression guard)")
 }
 
 @test fun box_ty_tag_and_inner(): void {
-    val b = box_ty(int32_ty(no_span()), no_span())
+    val b = Type.new_box(Type.new_int32(no_span()), no_span())
     assert_eq(b.kind.kind_tag() == TAG_BOX(), true, "Box<int32> has TAG_BOX")
     val d = autoderef_ty(b)
     when (d.kind) {
@@ -90,7 +93,7 @@ import kf_typecheck.check.deref_target
 }
 
 @test fun box_deref_target_is_inner(): void {
-    val b = box_ty(intern("String").lang_struct_ty(no_span()), no_span())
+    val b = Type.new_box(intern("String").lang_struct_ty(no_span()), no_span())
     val t = deref_target(b)
     when (t.kind) {
         Struct(name) => assert_eq(name.as_str(), "String", "deref_target(Box<String>) -> String")
@@ -112,28 +115,31 @@ fun ptr_to(inner: Type): Type {
 }
 
 @test fun mutable_borrow_satisfies_a_shared_borrow(): void {
-    assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ref_to(false, int32_ty(no_span())), intern("String")), true,
+    assert_eq(can_coerce(ref_to(true, Type.new_int32(no_span())),
+        ref_to(false, Type.new_int32(no_span())), intern("String")), true,
         "`&var int32` → `&int32`: dropping mutability is safe")
 }
 
 @test fun shared_borrow_does_not_satisfy_a_mutable_borrow(): void {
-    val mutable_int = ref_to(true, int32_ty(no_span()))
-    assert_eq(can_coerce(ref_to(false, int32_ty(no_span())), mutable_int, intern("String")), false,
+    val mutable_int = ref_to(true, Type.new_int32(no_span()))
+    assert_eq(can_coerce(ref_to(false, Type.new_int32(no_span())), mutable_int, intern("String")), false,
         "`&int32` → `&var int32`: gaining mutability is not")
 }
 
 @test fun a_borrow_satisfies_a_ptr_of_the_same_pointee(): void {
-    assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ptr_to(int32_ty(no_span())), intern("String")), true,
+    assert_eq(can_coerce(ref_to(true, Type.new_int32(no_span())),
+        ptr_to(Type.new_int32(no_span())), intern("String")), true,
         "`&var int32` → `Ptr<int32>`: the same `T*` in the emitted C")
 }
 
 @test fun a_borrow_does_not_satisfy_a_ptr_of_another_pointee(): void {
-    assert_eq(can_coerce(ref_to(true, int32_ty(no_span())), ptr_to(bool_ty(no_span())), intern("String")), false,
+    assert_eq(can_coerce(ref_to(true, Type.new_int32(no_span())),
+        ptr_to(Type.new_bool(no_span())), intern("String")), false,
         "`&var int32` → `Ptr<bool>`: same shape, different pointee")
 }
 
 // A borrow does not fit a by-value slot.
 @test fun a_borrow_does_not_satisfy_a_by_value_slot(): void {
-    assert_eq(can_coerce(ref_to(false, int32_ty(no_span())), int32_ty(no_span()), intern("String")), false,
+    assert_eq(can_coerce(ref_to(false, Type.new_int32(no_span())), Type.new_int32(no_span()), intern("String")), false,
         "`&int32` → `int32` is not a coercion")
 }

@@ -11,7 +11,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_typecheck.types.*
 import kf_typecheck.traits.register_assoc_bindings_decl
@@ -35,28 +39,28 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
         Lambda(params, body) => {
             if params.size() > 3 {
                 emit_lambda_err(span, String.from("a lambda takes at most 3 parameters"), ctx)
-                return poison_ty()
+                return Type.new_poison()
             }
             val stored_local = ctx.in_local_lambda_binding > 0
             if ctx.in_call_arg == 0 && !stored_local {
                 emit_lambda_err(span, String.from("a lambda can only initialize a local or be passed directly to a function call; returning one or storing one in an aggregate is not supported yet"), ctx)
-                return poison_ty()
+                return Type.new_poison()
             }
             // Bare parameters take the types `expect_lambda_args` stamped.
             val params = annotated_params(&params, &self.type_args, span)
-            if !params_are_annotated(&params, span, ctx) { return poison_ty() }
+            if !params_are_annotated(&params, span, ctx) { return Type.new_poison() }
             var captures = collect_captures(&body, &params, ctx)
             val ret = lambda_body_type(&params, &captures, &body, span, ctx)
-            if ret.is_poison() { return poison_ty() }
+            if ret.is_poison() { return Type.new_poison() }
             classify_captures(&body, &var captures, ctx)
-            if stored_local && !own_stored_captures(&var captures, span, ctx) { return poison_ty() }
+            if stored_local && !own_stored_captures(&var captures, span, ctx) { return Type.new_poison() }
             val ret_ref = ret.type_to_type_ref(span)
             if ret_ref.type_ref_is_poison() {
                 emit_lambda_err(span, String.from("a lambda body of this type is not supported yet"), ctx)
-                return poison_ty()
+                return Type.new_poison()
             }
             val fields = capture_fields(&captures, span, ctx)
-            if fields.size() != captures.size() { return poison_ty() }
+            if fields.size() != captures.size() { return Type.new_poison() }
             // Captured names become field reads.
             var rewrite_locals = List.new<String>()
             rewrite_captures_in_stmts(&body, &captures, span, &var rewrite_locals)
@@ -70,7 +74,7 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
             self.kind = ExprKind.StructLit(intern(name.as_str()), capture_inits(&captures, span, ctx))
             return lambda_struct_ty(name, span)
         }
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
 }
 
@@ -130,12 +134,12 @@ fun capture_fields(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx
             Shared => {
                 val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *inner_ptr = tref }
-                unsafe { *ty_ptr = new_type_ref(span, TypeRefKind.Reference(false, inner_ptr)) }
+                unsafe { *ty_ptr = TypeRef.new(span, TypeRefKind.Reference(false, inner_ptr)) }
             }
             Mutable => {
                 val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *inner_ptr = tref }
-                unsafe { *ty_ptr = new_type_ref(span, TypeRefKind.Reference(true, inner_ptr)) }
+                unsafe { *ty_ptr = TypeRef.new(span, TypeRefKind.Reference(true, inner_ptr)) }
             }
             _ => unsafe { *ty_ptr = tref }
         }
@@ -150,25 +154,24 @@ fun capture_inits(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx)
     while capture in &captures {
         val nm = capture.name
         val v: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *v = new_expr(span, ExprKind.Variable(intern(nm.as_str()))) }
+        unsafe { *v = Expr.new(span, ExprKind.Variable(intern(nm.as_str()))) }
         unsafe { v.ty = ctx.lookup(nm.as_str()) }
         when (capture.mode) {
             Shared => unsafe { v.coerce = coerce_addr_of() }
             Mutable => unsafe { v.coerce = coerce_addr_of() }
             _ => { }
         }
-        inits.push(new_field_init(span, nm, v))
+        inits.push(FieldInit.new(span, nm, v))
     }
     return inits
 }
 
 /// A name neither parameter nor capture is undeclared, and says so.
 fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
-    val sink: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *sink = List.new<Diagnostic>() }
+    var sink = new_diagnostics()
     // Poison, not void: the return type is what is being computed;
     // `validate_lambda_returns` judges early returns afterwards.
-    var inner = new_type_ctx(poison_ty(), sink, ctx.table, ctx.sigs)
+    var inner = new_type_ctx(Type.new_poison(), &var sink, ctx.table, ctx.sigs)
     inner.owner_crate = ctx.owner_crate
     inner.owner_module = ctx.owner_module
     inner.owner_file = ctx.owner_file
@@ -192,14 +195,10 @@ fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body:
         (unsafe { body.at(si) as Ptr<Stmt> } as &var Stmt).check_stmt(&var inner)
     }
     val value = lambda_value_type(body, span, &var inner)
-    val failed = unsafe { sink.size() } > 0
-    var d = 0
-    while d < unsafe { sink.size() } {
-        ctx.emit(unsafe { *sink.at(d) })
-        d = d + 1
-    }
-    if failed { return poison_ty() }
-    if !validate_lambda_returns(body, &value, span, ctx) { return poison_ty() }
+    val failed = sink.size() > 0
+    while d in &sink.items { ctx.emit(d.clone()) }
+    if failed { return Type.new_poison() }
+    if !validate_lambda_returns(body, &value, span, ctx) { return Type.new_poison() }
     return value
 }
 
@@ -287,7 +286,7 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
     methods.push(call_fn)
 
     val trait_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ptr = new_type_ref(span, TypeRefKind.Named(intern(call_trait_name(params.size(), mutating_call).as_str()), param_type_refs(params))) }
+    unsafe { *trait_ptr = TypeRef.new(span, TypeRefKind.Named(intern(call_trait_name(params.size(), mutating_call).as_str()), param_type_refs(params))) }
     var impl_decl = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ptr, methods))
     impl_decl.crate = owner
     impl_decl.module_path = modp
@@ -302,10 +301,10 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
     unsafe { sigs.synth_decls.push(impl_decl) }
 }
 
-mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Struct(fields, _is_pub) => {
-            var ctx0 = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
             ctx0.owner_crate = self.crate
             ctx0.owner_module = self.module_path
             ctx0.owner_file = self.span.file_id

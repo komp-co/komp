@@ -7,7 +7,17 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+import kf_core.ast.statement.SwitchTag
 
 /// Payloads per `<enum>.<variant>` as emitted.
 pub struct VariantArity {

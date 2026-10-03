@@ -7,7 +7,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 
 import kf_codegen.emit.*
 import kf_core.ast.subst.subst_type_ref

@@ -7,7 +7,6 @@ import alloc.path.Path
 
 import kf_core.diagnostic.*
 import kf_driver.*
-import kf_driver.build.fresh_diag_list
 import kf_lint.lint_typed_module
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
@@ -25,8 +24,8 @@ fun typed_codes(name: str, src: str): String {
     val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
     val _source = write_text("${dir}/src/main.kf".as_str(), src)
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
-    var merged = assemble_project(dir, smap, pdiags)
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(dir, smap, &var pdiags)
     val checked = merged.checked_diagnostics(smap, &new_lint_config())
     if count_errors(&checked) > 0 { return String.from("errors") }
     val found = lint_typed_module(&merged)

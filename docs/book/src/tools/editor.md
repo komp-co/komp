@@ -67,10 +67,12 @@ UTF-16 code units otherwise.
 ## VS Code
 
 `vscode/` in kf-extensions is the extension: the grammar, file icons for
-`.kf` files, tests and komp's manifests, diagnostics from `komp check`, and
-quick fixes. Its other features ran `komp query`, which
-komp no longer has; they come back when the extension is rebuilt on the
-language server.
+`.kf` files, tests and komp's manifests, and everything in the table above,
+from the language server. It starts `komp lsp` once per project, the
+outermost directory above a file holding a `kf.toml`, so a workspace's member
+crates share one server. It runs the Run and Test lenses' commands as tasks.
+When the server does not start, it offers to run `komp tool install
+komp_lsp`. `kflat.kompPath` names a komp that is not on `PATH`.
 
 ## Where the highlighting comes from
 

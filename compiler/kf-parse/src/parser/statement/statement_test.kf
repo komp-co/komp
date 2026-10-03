@@ -5,7 +5,9 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.expression.coerce_none
+import kf_core.ast.expression.coerce_written_amp
+import kf_core.ast.expression.coerce_written_amp_var
 import kf_parse.parser.parser_for
 
 @test fun a_string_pattern_parses_clean(): void {

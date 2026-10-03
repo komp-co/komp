@@ -3,6 +3,10 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 
 import kf_codegen.runtime.emit_runtime_header
 import std.fs.scratch_path
@@ -19,15 +23,15 @@ extern "C" fun system(cmd: str): int32
 
 fun hdr_ty_ptr(name: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return rp
 }
 
 fun hdr_option_int32_ptr(): Ptr<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern("Option"), args)) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern("Option"), args)) }
     return rp
 }
 
@@ -76,7 +80,7 @@ pub fun hdr_view(): Module {
 
 fun hdr_option_int32_enum(): TopDecl {
     var some_pay = List.new<TypeRef>()
-    some_pay.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    some_pay.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     var variants = List.new<Variant>()
     variants.push(new_variant(no_span(), String.from("Some"), some_pay))
     variants.push(new_variant(no_span(), String.from("None"), List.new<TypeRef>()))
@@ -222,17 +226,17 @@ fun header_still_omits_private_inherent_methods(): void {
 // `Boxed* data`, so `Boxed` must be declared.
 fun hdr_pointer_reachable_view(): Module {
     var bag_rows = List.new<TypeRef>()
-    bag_rows.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
+    bag_rows.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
     val rows_ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rows_ty = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), bag_rows)) }
+    unsafe { *rows_ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), bag_rows)) }
     var bag_fields = List.new<Field>()
     bag_fields.push(new_field(no_span(), String.from("rows"), rows_ty, true, true))
     var boxed_fields = List.new<Field>()
     boxed_fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var ptr_args = List.new<TypeRef>()
-    ptr_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
+    ptr_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
     val data_ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *data_ty = new_type_ref(no_span(), TypeRefKind.Named(intern("Ptr"), ptr_args)) }
+    unsafe { *data_ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), ptr_args)) }
     var list_fields = List.new<Field>()
     list_fields.push(new_field(no_span(), String.from("data"), data_ty, true, true))
     var list_decl = hdr_struct("List__Boxed", list_fields, true)

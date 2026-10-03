@@ -1,5 +1,7 @@
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.value_frag
+import kf_core.ast.types.*
 import kf_typecheck.types.*
 import kf_typecheck.check.ty_base_name
 import kf_typecheck.check.mangle_base_name
@@ -192,16 +194,15 @@ fun subst_trait_params(t: Type, trait_name: str, args: &List<String>, ctx: &var 
 fun named_or_generic_ty(name: str, ctx: &var TypeCtx): Type {
     val borrowed = ref_key_inner(name)
     if !borrowed.as_str().equals("") {
-        val inner: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *inner = named_or_generic_ty(borrowed.as_str(), ctx) }
+        val inner = type_node(named_or_generic_ty(borrowed.as_str(), ctx))
         return Type { kind: TypeKind.RefTo(ref_key_is_mut(name), inner), provenance: Provenance.Inferred(no_span()) }
     }
     while generic in &ctx.generics {
         if generic.as_str().equals(name) {
-            return generic_ty(String.from(name), no_span())
+            return Type.new_generic(String.from(name), no_span())
         }
     }
-    val tr = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
     return tr.resolve_type_ref(ctx)
 }
 
@@ -315,5 +316,5 @@ pub fun trait_method_in(trait_name: str, method_name: String, args: &List<String
 }
 
 fun not_found_req(): TraitMethodReq {
-    return TraitMethodReq { name: "", span: no_span(), arity: ARITY_NOT_FOUND(), has_default: false, has_method_generics: false, is_static: false, params: List.new<Type>(), ret: poison_ty(), is_mutating: false }
+    return TraitMethodReq { name: "", span: no_span(), arity: ARITY_NOT_FOUND(), has_default: false, has_method_generics: false, is_static: false, params: List.new<Type>(), ret: Type.new_poison(), is_mutating: false }
 }

@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TypeParam
 
 pub fun type_param_names(tps: &List<TypeParam>): List<String> {
     var out = List.new<String>()

@@ -3,7 +3,9 @@
 // keeps the borrow as surely as `str`, and so does a view type. Passing a
 // borrow into a function is fine.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.type_ref_is_borrow
+import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 

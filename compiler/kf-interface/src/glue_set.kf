@@ -1,6 +1,10 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Module
+import kf_core.ast.type_retain_fn
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 
 pub struct OwnershipGlue {
     pub val type_name: String

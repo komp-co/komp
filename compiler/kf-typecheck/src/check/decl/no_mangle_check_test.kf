@@ -1,6 +1,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import kf_resolve.new_decl_table
 import kf_core.span.no_span
 import kf_typecheck.typecheck_module
@@ -51,6 +56,6 @@ fun two_no_mangle_types_with_one_name_collide(): void {
 
 fun new_type_ref_ptr_void(): Ptr<TypeRef> {
     val ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ptr = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ptr = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     return ptr
 }

@@ -1,7 +1,5 @@
 import core.assert.*
 
-import kf_core.ast.*
-
 @test fun new_decl_table_is_empty(): void {
     val t = new_decl_table()
     assert_eq(t.names.size(), 0, "no names")

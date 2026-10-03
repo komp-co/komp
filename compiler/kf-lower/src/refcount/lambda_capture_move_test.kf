@@ -2,7 +2,15 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 @test fun stored_lambda_takes_ownership_of_heap_capture(): void {
     var ctx = new_rc_ctx(String.from("main"))
@@ -10,15 +18,15 @@ import kf_core.ast.*
     ctx.add_heap_local(String.from("captured"))
 
     val value: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *value = new_expr(no_span(), ExprKind.Variable(intern("captured"))) }
+    unsafe { *value = Expr.new(no_span(), ExprKind.Variable(intern("captured"))) }
     unsafe { value.ty = intern("String").lang_struct_ty(no_span()) }
     var fields = List.new<FieldInit>()
-    fields.push(new_field_init(no_span(), String.from("captured"), value))
+    fields.push(FieldInit.new(no_span(), String.from("captured"), value))
     val init: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init = new_expr(no_span(), ExprKind.StructLit(intern("Lambda_main_0"), fields)) }
+    unsafe { *init = Expr.new(no_span(), ExprKind.StructLit(intern("Lambda_main_0"), fields)) }
     unsafe { init.ty = Type { kind: TypeKind.Struct(intern("Lambda_main_0")), provenance: Provenance.Inferred(no_span()) } }
 
-    var stmt = new_stmt(no_span(), StmtKind.LetVal(intern("closure"), null, init))
+    var stmt = Stmt.new(no_span(), StmtKind.LetVal(intern("closure"), null, init))
     stmt.rc_insert_stmt(&var ctx)
     val releases = ctx.pop_frame()
 

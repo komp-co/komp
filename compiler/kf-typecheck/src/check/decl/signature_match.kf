@@ -4,7 +4,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.span.no_span
+
+import kf_core.ast.Sym
+import kf_core.ast.types.*
+import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_typecheck.*
 import kf_typecheck.types.type_eq
@@ -19,30 +24,31 @@ import kf_typecheck.traits.trait_impl_owner_name
 /// an unknown type through `decls`, are reported only for this crate's
 /// annotations, which pass it.
 pub fun MarkTarget.function_type(owner: &TopDecl, decls: Ptr<DeclTable>?, sigs: Ptr<SigTable>,
-    diags: Ptr<List<Diagnostic>>): Type {
-    var ctx = owner.declaration_ctx(sigs, diags)
+    diags: &var Diagnostics): Type {
+    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+    ctx.place_at(owner)
     ctx.table = decls
     ctx.quiet = decls == null
     ctx.seed_generics(type_param_names(owner.generics))
     when (self) {
         Function(ty) => return (*ty).resolve_type_ref(&var ctx)
         Signature(params, _has_rest, ret) => {
-            var types = new_type_vec()
+            var types = List.new<Type>()
             while param in &params {
                 types.push(param.slot_type(&var ctx))
             }
-            return fn_ty(types, (*ret).slot_type(&var ctx), Provenance.Inferred(owner.span))
+            return Type.new_fn(types, (*ret).slot_type(&var ctx), Provenance.Inferred(owner.span))
         }
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
 }
 
 /// Poison for `_`, a borrow of poison for `&_` or `&var _`.
 fun TypeRef.slot_type(ctx: &var TypeCtx): Type {
-    if self.is_wildcard() { return poison_ty() }
+    if self.is_wildcard() { return Type.new_poison() }
     when (self.kind) {
         Reference(is_mutable, inner) => {
-            if inner.is_wildcard() { return poison_ty().borrowed(is_mutable, self.span) }
+            if inner.is_wildcard() { return Type.new_poison().borrowed(is_mutable, self.span) }
         }
         _ => {}
     }
@@ -53,7 +59,7 @@ fun TypeRef.slot_type(ctx: &var TypeCtx): Type {
 /// target, reported when it does not. `bound` receives what each type
 /// parameter stands for, in order.
 fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, table: &SigTable,
-    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, bound: &var List<Type>,
+    sigs: Ptr<SigTable>, pass_diags: &var Diagnostics, bound: &var List<Type>,
     diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     if !self.is_plain_function() {
@@ -77,7 +83,7 @@ fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &Met
     }
     var fits = true
     while param in &declared.type_params {
-        val ty = bindings.of(param.name) ?: poison_ty()
+        val ty = bindings.of(param.name) ?: Type.new_poison()
         while trait_bound in &param.bounds {
             val trait_name = trait_bound.bare_name()
             val type_name = ty.kind.trait_impl_owner_name()
@@ -220,21 +226,22 @@ fun TopDecl.is_plain_function(): bool {
 /// `(A) -> R` from the declaration as written, resolved in its own module, a
 /// method's receiver first. Quiet: the signature's own errors were reported
 /// when it was registered.
-fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
-    var ctx = self.declaration_ctx(sigs, diags)
+fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: &var Diagnostics): Type {
+    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+    ctx.place_at(self)
     ctx.quiet = true
     return when (self.kind) {
         Function(params, ret, _b, _pub, _u, is_mutating, is_static) => {
-            var param_types = new_type_vec()
+            var param_types = List.new<Type>()
             if owner.is_method() && !is_static {
-                val receiver = new_type_ref(self.span, TypeRefKind.Named(owner.type_name, List.new<TypeRef>()))
+                val receiver = TypeRef.new(self.span, TypeRefKind.Named(owner.type_name, List.new<TypeRef>()))
                 param_types.push(receiver.resolve_type_ref(&var ctx).borrowed(is_mutating, self.span))
             }
             while param in &params {
                 param_types.push((*param.ty).resolve_type_ref(&var ctx))
             }
-            fn_ty(param_types, (*ret).resolve_type_ref(&var ctx), Provenance.Inferred(self.span))
+            Type.new_fn(param_types, (*ret).resolve_type_ref(&var ctx), Provenance.Inferred(self.span))
         }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }

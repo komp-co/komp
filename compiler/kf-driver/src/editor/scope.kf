@@ -10,7 +10,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Pattern
+import kf_core.ast.view
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
 import kf_interface.emit.tyref_to_source
 import json.writer.*
 

@@ -5,7 +5,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Pattern
+import kf_core.ast.types.Type
 import kf_core.span.*
 import kf_core.diagnostic.error_at
 import kf_typecheck.types.type_is_uninhabited
@@ -27,6 +29,9 @@ pub fun when_missing_variants(subject_ty: Type, arms: &List<Arm>, ctx: &var Type
     val layout = unsafe { (*ctx.sigs).find_enum(ename.as_str(), ctx.owner_crate) } ?: return missing
 
     if arms_have_irrefutable(arms) { return missing }
+    // An arm naming a variant the enum lacks is already reported; what it
+    // leaves uncovered follows from that.
+    if arms_name_a_foreign_variant(arms, &layout) { return missing }
 
     while v in &layout.variants {
         if !variant_is_covered(v.name.as_str(), arms) && !v.cannot_be_built(ctx) {
@@ -162,6 +167,24 @@ fun Pattern.pattern_is_irrefutable(): bool {
 fun any_alt_is_irrefutable(alts: &List<Pattern>): bool {
     while alt in &alts {
         if (alt).pattern_is_irrefutable() { return true }
+    }
+    return false
+}
+
+fun arms_name_a_foreign_variant(arms: &List<Arm>, layout: &EnumLayout): bool {
+    while a in &arms {
+        val named = when ((unsafe { *a.pattern }).kind) {
+            Variant(vname, _) => vname.as_string()
+            _ => String.from("")
+        }
+        if !named.is_empty() && !layout.has_variant(named.as_str()) { return true }
+    }
+    return false
+}
+
+fun EnumLayout.has_variant(name: str): bool {
+    while v in &self.variants {
+        if v.name.as_str() == name { return true }
     }
     return false
 }

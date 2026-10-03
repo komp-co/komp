@@ -4,7 +4,9 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.display_type
@@ -65,7 +67,7 @@ mutating fun Expr.retarget_string_literal(expected: Type, ctx: &var TypeCtx): bo
         val shown = expected.display_type(ctx)
         val message = "this string has ${count} ${unit.noun()}, but `${shown}` holds ${shape.length}"
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     var elements = unit.elements_of(text.as_str(), self.span)
@@ -82,12 +84,12 @@ fun TextUnit.elements_of(text: str, span: Span): List<Expr> {
     when (self) {
         Byte => {
             while i in 0..text.byte_len() {
-                out.push(new_expr(span, ExprKind.LitInt(text.byte_at(i) as int64)))
+                out.push(Expr.new(span, ExprKind.LitInt(text.byte_at(i) as int64)))
             }
         }
         Character => {
             while c in text.chars() {
-                out.push(new_expr(span, ExprKind.LitChar(c as uint32)))
+                out.push(Expr.new(span, ExprKind.LitChar(c as uint32)))
             }
         }
     }

@@ -4,7 +4,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.declaration.TopDecl
 
 /// Every type with a `clone`, by mangled name: `impl Clone`, `@derive(Clone)`
 /// and an inherent `fun clone()` all count.

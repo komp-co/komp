@@ -3,7 +3,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.type_to_type_ref
 import kf_typecheck.types.tref_name_key
@@ -46,7 +48,7 @@ fun FnSignature.bind_receiver_args(arity: uint64, args: &List<Expr>, ctx: &var T
     var out = List.new<TypeRef>()
     while g in 0..arity {
         val gname = self.generics.at(g)
-        var bound = poison_ty()
+        var bound = Type.new_poison()
         while j in 0..args.size() {
             if !bound.is_poison() { break }
             bound = self.params.at(j).bind_generic_from_param(&args.at(j).ty, gname.as_str(), ctx)

@@ -5,6 +5,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import kf_codegen.emit.unit.emit_crate_header_supported
 import kf_codegen.emit.unit.emit_crate_source_supported
 import kf_codegen.emit.glue.collect_exported_glue_symbols

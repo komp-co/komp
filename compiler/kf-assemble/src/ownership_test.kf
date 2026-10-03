@@ -2,6 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_core.span.no_span
 
 fun module_with_nested_decl(): Module {
@@ -64,7 +67,7 @@ fun stamp_module_owner_sets_decl_module_path(): void {
 @test
 fun stamp_module_owner_preserves_struct_fields(): void {
     val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ty = new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    unsafe { *ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("value"), ty, false, true))
     var module = new_module(List.new<String>())

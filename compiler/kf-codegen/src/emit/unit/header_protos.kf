@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 
 import kf_codegen.concat_all
 import kf_codegen.emit.emit_fn_forward

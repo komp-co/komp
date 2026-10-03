@@ -5,7 +5,11 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.types.Type
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.annotation_is_known
+import kf_core.ast.annotation.known_annotations_summary
 import kf_core.diagnostic.*
 import kf_typecheck.*
 
@@ -17,7 +21,7 @@ pub fun unknown_annotation(kind: str, at: Span): Diagnostic {
 
 /// `decls` reports a target naming an unknown type; a dependency's
 /// annotations were checked in their own crate and resolve without it.
-pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
+pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Diagnostics,
     decls: Ptr<DeclTable>?): void {
     val table = unsafe { &var *sigs }
     var found = List.new<Diagnostic>()
@@ -58,14 +62,14 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
         td.register_member_annotations(sigs, diags, table, &var found)
     }
     while diag in &found {
-        unsafe { diags.push(diag) }
+        diags.emit(diag)
     }
 }
 
 /// `sigs` is `table`, for recording the import use; `pass_diags` is where
 /// `diags` go once the pass ends.
 fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner, sigs: Ptr<SigTable>,
-    pass_diags: Ptr<List<Diagnostic>>, table: &var SigTable, diags: &var List<Diagnostic>): void {
+    pass_diags: &var Diagnostics, table: &var SigTable, diags: &var List<Diagnostic>): void {
     val kind = annotation.name.as_str()
     val file = self.span.file_id
     val found = table.find_annotation(kind, file, self.crate, self.module_path)

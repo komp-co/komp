@@ -7,6 +7,6 @@ pub struct DeclId {
 
 impl DeclId {
     pub static fun new(raw: uint32): Self {
-        return Self {raw: raw}
+        return Self { raw: raw }
     }
 }

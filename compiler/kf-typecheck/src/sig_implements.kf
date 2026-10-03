@@ -6,7 +6,9 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.identity_display_of
+import kf_core.ast.types.type_identity_display
 import kf_typecheck.traits.trait_args_satisfy
 import kf_typecheck.check.mangle_base_name
 

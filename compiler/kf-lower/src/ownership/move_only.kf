@@ -1,6 +1,12 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.is_lang_name
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Field
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
 
 // Types whose values must be uniquely owned: a struct with a direct `Box`
 // field, a type with a user `Drop` impl, and, transitively, anything

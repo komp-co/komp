@@ -1,6 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
 import kf_core.ast.subst.mangle_tyref
 
 pub fun mangle_type_name(name: str, args: &List<TypeRef>, ctx: &var TypeCtx): String {

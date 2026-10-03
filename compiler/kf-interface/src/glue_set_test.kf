@@ -3,6 +3,9 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 
 fun glue_owned_decl(td: TopDecl): TopDecl {
     var owned = td
@@ -13,7 +16,7 @@ fun glue_owned_decl(td: TopDecl): TopDecl {
 
 fun glue_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 

@@ -2,6 +2,11 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_resolve.new_decl_table
 import kf_typecheck.typecheck_module
 
@@ -9,7 +14,7 @@ import kf_typecheck.typecheck_module
 // `Fixed` with whatever types a test asks for.
 
 fun sig_tref(name: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 /// One per declaration, since a shared pointer would be dropped by each.
@@ -42,7 +47,7 @@ fun diags_for_impl(param_ty: str, ret_ty: str): uint64 {
     struct_decl.crate = new_crate_id("application")
 
     var body = List.new<Stmt>()
-    body.push(new_stmt(no_span(), StmtKind.Return(Option.None)))
+    body.push(Stmt.new(no_span(), StmtKind.Return(Option.None)))
     var impl_methods = List.new<TopDecl>()
     impl_methods.push(sig_method("value", param_ty, ret_ty, body))
     var impl_decl = new_top_decl(no_span(), String.from("Fixed"), TopDeclKind.TraitImpl(sig_tref_ptr("Score"), impl_methods))

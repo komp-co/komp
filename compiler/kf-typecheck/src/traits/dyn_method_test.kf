@@ -2,7 +2,13 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.*
 import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_typecheck.new_sig_table
@@ -30,11 +36,11 @@ fun dyn_dispatch_trait(): TraitInfo {
     var parameters = List.new<String>()
     parameters.push(String.from("T"))
     var methods = List.new<TraitMethodReq>()
-    methods.push(dyn_method_req("display", List.new<Type>(), generic_ty(String.from("T"), no_span()), false))
+    methods.push(dyn_method_req("display", List.new<Type>(), Type.new_generic(String.from("T"), no_span()), false))
     var send_params = List.new<Type>()
-    send_params.push(generic_ty(String.from("T"), no_span()))
-    methods.push(dyn_method_req("send", send_params, void_ty(no_span()), false))
-    methods.push(dyn_method_req("reset", List.new<Type>(), bool_ty(no_span()), true))
+    send_params.push(Type.new_generic(String.from("T"), no_span()))
+    methods.push(dyn_method_req("send", send_params, Type.new_void(no_span()), false))
+    methods.push(dyn_method_req("reset", List.new<Type>(), Type.new_bool(no_span()), true))
     return TraitInfo {
         name: String.from("Dispatch"), identity: intern("Dispatch"), module: intern(""), span: no_span(),
         type_params: parameters, methods: methods, assoc_types: List.new<TraitAssocReq>(),
@@ -44,7 +50,7 @@ fun dyn_dispatch_trait(): TraitInfo {
 
 fun dyn_extra_trait(): TraitInfo {
     var methods = List.new<TraitMethodReq>()
-    methods.push(dyn_method_req("hidden", List.new<Type>(), bool_ty(no_span()), false))
+    methods.push(dyn_method_req("hidden", List.new<Type>(), Type.new_bool(no_span()), false))
     return TraitInfo {
         name: String.from("Extra"), identity: intern("Extra"), module: intern(""), span: no_span(),
         type_params: List.new<String>(), methods: methods, assoc_types: List.new<TraitAssocReq>(),
@@ -53,7 +59,7 @@ fun dyn_extra_trait(): TraitInfo {
 }
 
 fun dyn_method_ref(argument: Type, mutable: bool): Type {
-    var arguments = new_type_vec()
+    var arguments = List.new<Type>()
     arguments.push(argument)
     val dynamic = dyn_trait_type(intern("Dispatch"), arguments, no_span())
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
@@ -62,21 +68,21 @@ fun dyn_method_ref(argument: Type, mutable: bool): Type {
 }
 
 fun run_dyn_method(method: str, mutable: bool, argument_kind: uint8, include_extra: bool): DynMethodOutcome {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(dyn_dispatch_trait()) }
     if include_extra { unsafe { signatures.insert_trait(dyn_extra_trait()) } }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
-    ctx.declare_val(String.from("object"), dyn_method_ref(int32_ty(no_span()), mutable))
+    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
+    ctx.declare_val(String.from("object"), dyn_method_ref(Type.new_int32(no_span()), mutable))
     var args = List.new<Expr>()
-    if argument_kind == 1 { args.push(new_expr(no_span(), ExprKind.LitInt(7))) }
-    if argument_kind == 2 { args.push(new_expr(no_span(), ExprKind.LitBool(true))) }
-    val receiver = Box.new(new_expr(no_span(), ExprKind.Variable(intern("object"))))
-    var call = new_expr(no_span(), ExprKind.MethodCall(receiver, intern(method), args))
+    if argument_kind == 1 { args.push(Expr.new(no_span(), ExprKind.LitInt(7))) }
+    if argument_kind == 2 { args.push(Expr.new(no_span(), ExprKind.LitBool(true))) }
+    val receiver = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("object"))))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(receiver, intern(method), args))
     check_expr(&var call, &var ctx)
-    var argument = poison_ty()
+    var argument = Type.new_poison()
     when (call.kind) {
         MethodCall(_, _, checked_args) => {
             if checked_args.size() > 0 { argument = checked_args.at(0).ty }
@@ -91,17 +97,17 @@ fun run_dyn_method(method: str, mutable: bool, argument_kind: uint8, include_ext
 }
 
 fun qualified_dyn_method_message(): String {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(dyn_dispatch_trait()) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
-    ctx.declare_val(String.from("object"), dyn_method_ref(int32_ty(no_span()), false))
+    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
+    ctx.declare_val(String.from("object"), dyn_method_ref(Type.new_int32(no_span()), false))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("object"))))
-    val receiver = Box.new(new_expr(no_span(), ExprKind.Variable(intern("Dispatch"))))
-    var call = new_expr(no_span(), ExprKind.MethodCall(receiver, intern("display"), args))
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("object"))))
+    val receiver = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("Dispatch"))))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(receiver, intern("display"), args))
     check_expr(&var call, &var ctx)
     return unsafe { diagnostics.at(0).primary.message }
 }

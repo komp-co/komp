@@ -1,5 +1,12 @@
 import alloc.list.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Sym
 import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
 
 pub fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr> {
     val np: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -49,7 +56,6 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         is_dynamic_call: self.is_dynamic_call,
         dynamic_slot: self.dynamic_slot,
         dynamic_layout: intern(subst_mangled_name(self.dynamic_layout.as_str(), names, repls).as_str()),
-        is_intrinsic: self.is_intrinsic,
         is_safe_call_value: self.is_safe_call_value,
         is_variant_ctor: self.is_variant_ctor,
         derefs_at_call: self.derefs_at_call
@@ -82,6 +88,9 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
             var call = self.rebuild_expr(ExprKind.Call(intern(nnm.as_str()), nargs), names, repls)
             call.mangled_callee = intern(subst_mangled_name(self.mangled_callee.as_str(), names, repls).as_str())
             return call
+        }
+        Intrinsic(intrinsic, args) => {
+            return self.rebuild_expr(ExprKind.Intrinsic(intrinsic, subst_expr_list(args, names, repls)), names, repls)
         }
         MethodCall(recv_ptr, m, args) => {
             val nr = clone_expr_ptr(recv_ptr, names, repls)
@@ -122,7 +131,7 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
             var nfi = List.new<FieldInit>()
             while fi in &finits {
                 val nv = clone_expr_ptr(fi.value, names, repls)
-                nfi.push(new_field_init(fi.span, fi.name.as_string(), nv))
+                nfi.push(FieldInit.new(fi.span, fi.name.as_string(), nv))
             }
             return self.rebuild_expr(ExprKind.StructLit(nm, nfi), names, repls)
         }

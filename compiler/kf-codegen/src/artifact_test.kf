@@ -3,6 +3,10 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 
 import kf_codegen.*
 import kf_codegen.emit.unit.header_type_view
@@ -13,7 +17,7 @@ import kf_codegen.emit.unit.header_type_view
 
 fun artifact_ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>())) }
     return rp
 }
 

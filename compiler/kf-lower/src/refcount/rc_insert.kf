@@ -4,6 +4,14 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.*
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
@@ -76,6 +84,7 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
             when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Call(_n, args) => collect_moved_names_list(args, BorrowMode.Value, out)
+        Intrinsic(_i, args) => collect_moved_names_list(args, BorrowMode.Value, out)
         CallValue(callee, args) => {
             collect_moved_names(*callee, BorrowMode.Borrow, out)
             collect_moved_names_list(args, BorrowMode.Value, out)
@@ -133,6 +142,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
         Call(_n, args) => collect_var_names_in_list(args, out)
+        Intrinsic(_i, args) => collect_var_names_in_list(args, out)
         CallValue(callee, args) => {
             collect_var_names_in_expr(*callee, out)
             collect_var_names_in_list(args, out)
@@ -228,14 +238,14 @@ mutating fun Stmt.bind_return_value(ctx: &var RcCtx): Stmt {
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
     val tmp_name = intern("__retval_${u64_to_str(tmp_id)}")
-    var v = new_expr(self.span, ExprKind.Variable(tmp_name))
+    var v = Expr.new(self.span, ExprKind.Variable(tmp_name))
     when (self.kind) {
         Return(value) => {
-            val rp = value.view() ?: return new_stmt(self.span, StmtKind.Return(null))
+            val rp = value.view() ?: return Stmt.new(self.span, StmtKind.Return(null))
             v.ty = unsafe { &*rp }.ty.clone()
             self.kind = StmtKind.LetVal(tmp_name, null, take<Box<Expr>?>(value))
         }
         _ => { }
     }
-    return new_stmt(self.span, StmtKind.Return(Box.new(v)))
+    return Stmt.new(self.span, StmtKind.Return(Box.new(v)))
 }

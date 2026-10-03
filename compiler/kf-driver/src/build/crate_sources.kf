@@ -5,7 +5,6 @@
 import alloc.list.*
 
 import kf_codegen.runtime.emit_runtime_header
-import kf_driver.*
 import kf_shared.crate_header_path
 import kf_shared.crate_source_path
 import kf_shared.crate_interface_path
@@ -17,9 +16,9 @@ import kf_shared.ensure_dir
 
 /// Compiles the crate against the interfaces in `tdir` and writes its
 /// `.kfi`, `.h` and `.c` there. False on any error, reported as it is found.
-pub fun CompileUnit.write_crate_sources(tdir: str, is_bin_root: bool, errp: Ptr<ErrCount>): bool {
-    val res = self.compile_crate_against_interfaces(tdir, is_bin_root, errp)
-    if unsafe { errp.n } != 0 { return false }
+pub fun CompileUnit.write_crate_sources(tdir: str, is_bin_root: bool, errors: &var Diagnostics): bool {
+    val res = self.compile_crate_against_interfaces(tdir, is_bin_root, errors)
+    if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val name = self.name.as_str()
     if !publish_text(crate_interface_path(tdir, name).as_str(), res.interface_text.as_str()) { return false }
@@ -30,9 +29,9 @@ pub fun CompileUnit.write_crate_sources(tdir: str, is_bin_root: bool, errp: Ptr<
 /// Compiles the crate with its `_test.kf` files and a generated test main, and
 /// writes `<name>_tests.h` and `.c` to `test_crate_dir(tdir)`. False on any
 /// error.
-pub fun CompileUnit.write_test_sources(tdir: str, errp: Ptr<ErrCount>): bool {
-    val res = self.compile_test_crate_against_interfaces(tdir, errp)
-    if unsafe { errp.n } != 0 { return false }
+pub fun CompileUnit.write_test_sources(tdir: str, errors: &var Diagnostics): bool {
+    val res = self.compile_test_crate_against_interfaces(tdir, errors)
+    if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val test_dir = test_crate_dir(tdir)
     if !ensure_dir(test_dir.as_str()) { return false }

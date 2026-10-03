@@ -1,6 +1,11 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.array_literal_callee
+import kf_core.ast.c_local_name
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.*
 
 import kf_codegen.concat_all
 import kf_codegen.emit.c_type_of_type
@@ -83,8 +88,9 @@ fun Expr.emit_expr_base(): String {
         Deref(ip) => return emit_deref(ip)
         Call(name, args) => {
             if name.as_str() == array_literal_callee() { return self.emit_array_literal(&args) }
-            return emit_call(name.as_string(), self.mangled_callee.as_string(), args, self.is_intrinsic)
+            return emit_call(name.as_string(), self.mangled_callee.as_string(), args)
         }
+        Intrinsic(intrinsic, args) => return intrinsic.emit_intrinsic(&self.type_args, args)
         FnRef(name) => return pick_callee(name.as_string(), self.mangled_callee.as_string())
         CallValue(callee_p, args) => return emit_call_value(callee_p, args)
         MethodCall(recv_p, mname, margs) => {

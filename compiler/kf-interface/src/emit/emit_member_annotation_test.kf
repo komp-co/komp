@@ -3,12 +3,18 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.new_annotation
 import kf_interface.parse.parse_interface
 
 /// `@rename("id")`.
 fun rename_use(): Annotation {
     var args = List.new<AnnotationArg>()
-    val value = new_expr(no_span(), ExprKind.LitStr(String.from("id")))
+    val value = Expr.new(no_span(), ExprKind.LitStr(String.from("id")))
     args.push(AnnotationArg { name: intern(""), value: Box.new(value) })
     return Annotation { name: intern("rename"), args: args, has_parens: true, span: no_span() }
 }
@@ -45,7 +51,7 @@ fun round_trip_member_uses(m: Module): String {
 
 @test
 fun a_field_annotation_crosses_the_interface(): void {
-    var field = new_field(no_span(), String.from("user_id"), Box.new(new_type_ref(no_span(),
+    var field = new_field(no_span(), String.from("user_id"), Box.new(TypeRef.new(no_span(),
         TypeRefKind.Named(intern("int64"), List.new<TypeRef>()))), false, true)
     field.annotations.push(rename_use())
     field.annotations.push(new_annotation(no_span(), "skip", List.new<String>()))

@@ -4,7 +4,15 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.intern
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.declaration.Param
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_typecheck.check.borrow.type_borrows
 
@@ -160,7 +168,7 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
         if ty.capture_type_cannot_escape(ctx.sigs) {
             val message = "stored lambda cannot capture borrow-typed `${name}`; pass the lambda directly to a call instead"
             val label = new_label(span, message)
-            unsafe { ctx.diags.push(new_diagnostic(Severity.Error, label)) }
+            ctx.diags.emit(new_diagnostic(Severity.Error, label))
             return false
         }
         val owned_mode = when (mode) {
@@ -201,6 +209,7 @@ fun gather_free_names(p_opt: Ptr<Expr>?, params: &List<Param>, ctx: &var TypeCtx
             if nm.local_is_function_value(ctx) { note_free_name(nm, params, ctx, found, locals) }
             gather_free_names_list(&args, params, ctx, found, locals)
         }
+        Intrinsic(_intrinsic, args) => gather_free_names_list(&args, params, ctx, found, locals)
         CallValue(callee, args) => {
             gather_free_names(callee, params, ctx, found, locals)
             gather_free_names_list(&args, params, ctx, found, locals)
@@ -257,6 +266,7 @@ fun classify_capture_expr(p_opt: Ptr<Expr>?, consumed: bool, captures: &var List
             classify_capture_args(&args, captures, ctx)
         }
         Call(_nm, args) => classify_capture_args(&args, captures, ctx)
+        Intrinsic(_intrinsic, args) => classify_capture_args(&args, captures, ctx)
         CallValue(callee, args) => {
             classify_capture_expr(callee, false, captures, ctx)
             classify_capture_args(&args, captures, ctx)
@@ -395,14 +405,14 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
             val i = capture_index(captures, nm.as_str())
             if i >= captures.size() { return }
             val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *recv = new_expr(span, ExprKind.Variable(intern("self"))) }
+            unsafe { *recv = Expr.new(span, ExprKind.Variable(intern("self"))) }
             when (captures.at(i).mode) {
                 Owned => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 OwnedRead => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 OwnedMutable => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 _ => {
                     val field: Ptr<Expr> = unsafe { alloc<Expr>() }
-                    unsafe { *field = new_expr(span, ExprKind.FieldAccess(recv, nm)) }
+                    unsafe { *field = Expr.new(span, ExprKind.FieldAccess(recv, nm)) }
                     unsafe { p.kind = ExprKind.Deref(field) }
                 }
             }
@@ -421,10 +431,11 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
             rewrite_captures_list(&args, captures, span, locals)
             if name_in_list(locals, nm.as_str()) || capture_index(captures, nm.as_str()) >= captures.size() { return }
             // A captured function value is called through its field.
-            val callee = Box.new(new_expr(span, ExprKind.Variable(nm)))
+            val callee = Box.new(Expr.new(span, ExprKind.Variable(nm)))
             rewrite_captures_to_fields(callee, captures, span, locals)
             unsafe { p.kind = ExprKind.CallValue(callee, args) }
         }
+        Intrinsic(_intrinsic, args) => rewrite_captures_list(&args, captures, span, locals)
         CallValue(callee, args) => {
             rewrite_captures_to_fields(callee, captures, span, locals)
             rewrite_captures_list(&args, captures, span, locals)

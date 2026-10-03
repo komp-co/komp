@@ -3,6 +3,8 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.subst.subst_mangled_name
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 
 fun segs_of(s: str): List<String> {
     return mangle_segments(s)
@@ -17,7 +19,7 @@ fun segs_of(s: str): List<String> {
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
     names.push(String.from("F"))
-    repls.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Inc"), List.new<TypeRef>())))
+    repls.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Inc"), List.new<TypeRef>())))
     val out = subst_mangled_name("List__Proj__F__Out__EndProj", &var names, &var repls)
     assert_eq(out.as_str() == "List__Proj__Inc__Out__EndProj", true, "substitution rewrites the owner segment")
 }

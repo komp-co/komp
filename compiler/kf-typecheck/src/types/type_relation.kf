@@ -1,6 +1,6 @@
 // Type equality (structural) and tags.
 
-import kf_core.ast.*
+import kf_core.ast.types.*
 import kf_core.span.no_span
 
 fun TAG_INT8(): uint64 { return 0 }
@@ -201,13 +201,13 @@ pub fun TypeKind.generic_name(): String {
 fun TypeKind.ptr_inner(): Type {
     return when (self) {
         PtrTo(p) => unsafe { *p }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }
 fun TypeKind.box_inner(): Type {
     return when (self) {
         BoxOf(p) => unsafe { *p }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }
 fun TypeKind.ref_mut(): bool {
@@ -226,7 +226,7 @@ pub fun TypeKind.ref_is_mut(): bool {
 fun TypeKind.ref_inner(): Type {
     return when (self) {
         RefTo(_, p) => unsafe { *p }
-        _ => poison_ty()
+        _ => Type.new_poison()
     }
 }
 

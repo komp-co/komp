@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.lang_copy_key
+import kf_core.ast.types.Type
 import kf_core.span.no_span
 
 /// Whether a value of type `ty` may be duplicated by copying its bytes. Poison

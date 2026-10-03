@@ -4,7 +4,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.declaration.Field
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// `too_many_parameters`: more than `max`, `self` aside.

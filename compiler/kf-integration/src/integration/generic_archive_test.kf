@@ -5,11 +5,11 @@
 import core.assert.assert_eq
 
 import kf_codegen.*
-import kf_driver.*
 import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
+import kf_core.diagnostic.new_diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -92,10 +92,9 @@ fun generic_source_and_interface_consumer_c_are_identical(): void {
     // be identical.
     val first = build_generic_fixture()
     val interface_c = read_file(scratch_path("kf_sc6_gen_app/target/kflat/gen_app.c"))
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    val outputs = compile_project_separate(scratch_path("kf_sc6_gen_app"), errp)
-    val clean = unsafe { errp.n } == 0
+    var errors = new_diagnostics()
+    val outputs = compile_project_separate(scratch_path("kf_sc6_gen_app"), errors)
+    val clean = errors.error_count() == 0
     val source_c = outputs.at(outputs.size() - 1).source
     val setup_ok = first == 0 && clean && outputs.size() > 0
     assert_eq(setup_ok && source_c.as_str() == interface_c.as_str(), true, "source-loaded and interface-loaded materialization emit identical consumer C")

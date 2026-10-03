@@ -1,4 +1,5 @@
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 

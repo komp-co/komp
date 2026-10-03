@@ -5,6 +5,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
@@ -20,7 +21,6 @@ import kf_interface.emit.emit_interface_full
 import kf_driver.*
 import kf_tool.project.*
 import kf_driver.build.assemble_crate_list
-import kf_driver.build.fresh_diag_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
@@ -46,22 +46,20 @@ pub fun compile_source(src: str): String {
         val text = render(diag, smap)
         runtime_println(text.as_str())
     }
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
+    var errors = new_diagnostics()
     val libs = bundled_libs_root(".")
     val core_root = join_path(libs.as_str(), "core")
-    val core_diags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *core_diags = List.new<Diagnostic>() }
-    val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, core_diags)
+    var core_diags = new_diagnostics()
+    val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, &var core_diags)
     val alloc_root = join_path(libs.as_str(), "alloc")
-    val alloc_crate = assemble_crate(alloc_root.as_str(), String.from("alloc"), smap, core_diags)
+    val alloc_crate = assemble_crate(alloc_root.as_str(), String.from("alloc"), smap, &var core_diags)
     var modules = core_crate.modules.clone()
     while module in &alloc_crate.modules {
         modules.push(module.clone())
     }
     modules.push(source_module)
     var merged = merge_modules(modules)
-    val generated = merged.compile_module(true, errp, smap)
+    val generated = merged.compile_module(true, &var errors, smap)
     // Both native tiers of core and alloc, named since there is no manifest;
     // always hosted.
     var native = read_file(join_path(libs.as_str(), "core/native/core.c").as_str())
@@ -78,13 +76,11 @@ pub fun compile_source(src: str): String {
 pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): String {
     val crate_name_s = String.from(crate_name)
     val smap = fresh_source_map()
-    val pd: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *pd = List.new<Diagnostic>() }
-    val c = assemble_crate(crate_root, crate_name_s, smap, pd)
+    var pd = new_diagnostics()
+    val c = assemble_crate(crate_root, crate_name_s, smap, &var pd)
     var merged = merge_modules(c.modules)
-    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
-    unsafe { *errp = ErrCount { n: 0 } }
-    return merged.compile_module_separate(is_bin, errp, smap)
+    var errors = new_diagnostics()
+    return merged.compile_module_separate(is_bin, &var errors, smap)
 }
 
 pub fun check_project(root_dir: str): int32 {
@@ -94,9 +90,9 @@ pub fun check_project(root_dir: str): int32 {
         return 1
     }
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
-    var merged = assemble_project(root_dir, smap, pdiags)
-    val perrs = report_parse_errors(pdiags, smap, false)
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(root_dir, smap, &var pdiags)
+    val perrs = report_parse_errors(&var pdiags, smap, false)
     var cfg_diags = List.new<Diagnostic>()
     var cfg = lint_config_from_manifest(&manifest_of(root_dir), &var cfg_diags)
     cfg.apply_cli_lint_flags(&var cfg_diags)
@@ -106,10 +102,10 @@ pub fun check_project(root_dir: str): int32 {
 
 /// The project's crates assembled and merged into one module, the root's
 /// `_test.kf` files included and the root marked as the crate under check.
-pub fun assemble_project(root_dir: str, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>): Module {
+pub fun assemble_project(root_dir: str, smap: Ptr<SourceMap>, pdiags: &var Diagnostics): Module {
     val crates = crate_sources(&project_crates(root_dir))
     val none = no_overlay()
-    var merged = merge_module_list(assemble_crate_list(&crates, smap, pdiags, true, &none))
+    var merged = merge_module_list(assemble_crate_list(&crates, smap, &var pdiags, true, &none))
     if crates.size() > 0 { merged.crate = new_crate_id(crates.at(crates.size() - 1).name.as_str()) }
     return merged
 }
@@ -126,60 +122,59 @@ pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintCo
 
 /// Per-crate C artifacts, dependencies first, crate-qualified. Empty on a
 /// dependency cycle.
-pub fun compile_project_separate(root_dir: str, errp: Ptr<ErrCount>): List<CrateCodegenOutput> {
+pub fun compile_project_separate(root_dir: str, errors: &var Diagnostics): List<CrateCodegenOutput> {
     val graph = build_crate_graph(root_dir)
-    return graph.compile_graph_outputs(errp)
+    return graph.compile_graph_outputs(errors)
 }
 
 /// Only the root crate (last) may carry `main`.
-pub fun BuildGraph.compile_graph_outputs(errp: Ptr<ErrCount>): List<CrateCodegenOutput> {
+pub fun BuildGraph.compile_graph_outputs(errors: &var Diagnostics): List<CrateCodegenOutput> {
     val interfaces: Ptr<List<String>> = unsafe { alloc<List<String>>() }
     unsafe { *interfaces = List.new<String>() }
-    return self.compile_graph_outputs_with_interfaces(errp, interfaces)
+    return self.compile_graph_outputs_with_interfaces(errors, interfaces)
 }
 
-fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
+fun BuildGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
     if self.error.as_str() != "" {
         runtime_println(self.error.as_str())
-        unsafe { errp.n = errp.n + 1 }
+        errors.count_errors(1)
         return out
     }
     if self.cycle.as_str().byte_len() > 0 {
         var msg = String.from("error: dependency cycle: ")
         msg.append(self.cycle.as_str())
         runtime_println(msg.as_str())
-        unsafe { errp.n = errp.n + 1 }
+        errors.count_errors(1)
         return out
     }
     val smap = fresh_source_map()
-    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *pdiags = List.new<Diagnostic>() }
+    var pdiags = new_diagnostics()
     var all_modules = List.new<Module>()
     while bc in &self.crates {
-        val c = assemble_crate(bc.root.as_str(), String.from(bc.name.as_str()), smap, pdiags)
+        val c = assemble_crate(bc.root.as_str(), String.from(bc.name.as_str()), smap, &var pdiags)
         while j in 0..c.modules.size() {
             all_modules.push(deep_clone_module(c.modules.at(j)))
         }
     }
     var perrs = 0
     var pi = 0
-    while pi < unsafe { pdiags.size() } {
-        val d = unsafe { pdiags.at(pi) }
+    while pi < pdiags.size() {
+        val d = pdiags.at(pi)
         val text = render(d, smap)
         runtime_println(text.as_str())
         perrs = perrs + 1
         pi = pi + 1
     }
-    unsafe { errp.n = errp.n + perrs }
+    errors.count_errors(perrs)
     var merged = merge_module_list(all_modules)
     // The root crate id marks separate mode for Mono: instances become per-TU
     // static support.
     if self.crates.size() > 0 {
         merged.crate = new_crate_id(self.crates.at(self.crates.size() - 1).name.as_str())
     }
-    merged.run_interface_passes(errp, smap)
+    merged.run_interface_passes(errors, smap)
     var emitted_names = List.new<String>()
     var emitted_hashes = List.new<String>()
     while interface_crate in &self.crates {
@@ -187,7 +182,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
         val closure_errors = export_closure_diagnostics(&merged, new_crate_id(interface_crate.name.as_str()))
         while closure_index in 0..closure_errors.size() {
             runtime_println(closure_errors.at(closure_index).as_str())
-            unsafe { errp.n = errp.n + 1 }
+            errors.count_errors(1)
         }
         val encoded = emit_interface_full(&merged, String.from(interface_crate.name.as_str()), &interface_crate.deps,
             &dependency_hashes, smap)
@@ -195,7 +190,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
         emitted_hashes.push(content_hash(encoded.as_str()))
         unsafe { interfaces.push(encoded) }
     }
-    merged.run_separate_after_typecheck(errp, smap)
+    if !merged.run_middle_passes(separate_passes(), errors, smap) { return out }
     while k in 0..self.crates.size() {
         val bc = self.crates.at(k)
         val is_root = k + 1 == self.crates.size()

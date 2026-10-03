@@ -2,6 +2,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_parse.lexer.*
 import kf_parse.parser.*
 
@@ -50,7 +55,11 @@ fun operator_is_infix_only(o: Operator): bool {
 impl Parser {
     /// Precedence climbing on top of `parse_primary`.
     pub mutating fun parse_expr(): Expr {
-        return self.parse_elvis()
+        val saved = self.cast_after_prefix
+        self.cast_after_prefix = false
+        val e = self.parse_elvis()
+        self.cast_after_prefix = saved
+        return e
     }
 
     /// `a ?: D`: the payload, or a default. Lowest precedence and
@@ -98,16 +107,16 @@ impl Parser {
         val some_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
         unsafe { *some_pat = new_pattern(span, PatternKind.Variant(intern("Some"), some_payloads)) }
         val carry: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *carry = new_expr(span, ExprKind.Variable(bsym)) }
+        unsafe { *carry = Expr.new(span, ExprKind.Variable(bsym)) }
         var some_body = List.new<Stmt>()
-        some_body.push(new_stmt(span, StmtKind.Expression(carry)))
+        some_body.push(Stmt.new(span, StmtKind.Expression(carry)))
 
         val none_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
         unsafe { *none_pat = new_pattern(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
         val dflt: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *dflt = default }
         var none_body = List.new<Stmt>()
-        none_body.push(new_stmt(span, StmtKind.Expression(dflt)))
+        none_body.push(Stmt.new(span, StmtKind.Expression(dflt)))
 
         var arms = List.new<Arm>()
         arms.push(new_arm(span, some_pat, null, some_body))
@@ -115,7 +124,7 @@ impl Parser {
 
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = subject }
-        return new_expr(span, ExprKind.WhenExpr(subj, arms))
+        return Expr.new(span, ExprKind.WhenExpr(subj, arms))
     }
 
     /// Precedence climbing, left-associative.
@@ -151,13 +160,16 @@ impl Parser {
                             }
                             // A line break after an operator continues the expression.
                             self.skip_newlines()
+                            if self.peek().ends_an_operand() {
+                                self.expr_expected_err(self.peek().span, tok_str(self.peek()))
+                            }
                             val rhs = self.parse_binary(prec + 1)
                             val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                             unsafe { *lhs_ptr = lhs }
                             val rhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                             unsafe { *rhs_ptr = rhs }
                             val span = lhs_ptr_span(lhs_ptr).merge(rhs_ptr_span(rhs_ptr))
-                            lhs = new_expr(span, ExprKind.Binary(lhs_ptr, op_info.op, rhs_ptr))
+                            lhs = Expr.new(span, ExprKind.Binary(lhs_ptr, op_info.op, rhs_ptr))
                         }
                     }
                     None => more = false
@@ -179,10 +191,10 @@ impl Parser {
         var args = List.new<Expr>()
         args.push(lhs)
         args.push(rhs)
-        args.push(new_expr(span, ExprKind.LitInt(1)))
+        args.push(Expr.new(span, ExprKind.LitInt(1)))
         var callee = "range"
         if inclusive { callee = "range_inclusive" }
-        return new_expr(span, ExprKind.Call(intern(callee), args))
+        return Expr.new(span, ExprKind.Call(intern(callee), args))
     }
 
     mutating fun peek_binop(): BinOpInfo? {
@@ -230,5 +242,22 @@ impl Parser {
         if op_may_open_a_continuation_line(self.peek_at(ahead)) {
             self.skip_newlines()
         }
+    }
+}
+
+/// A token that closes what surrounds an expression, so no right operand
+/// starts here. The primary parser turns one into poison without a word, for
+/// callers that report the gap themselves.
+fun Token.ends_an_operand(): bool {
+    return when (self.kind) {
+        Op(o) => when (o) {
+            RParen => true
+            RBrace => true
+            RBracket => true
+            Comma => true
+            Colon => true
+            _ => false
+        }
+        _ => false
     }
 }

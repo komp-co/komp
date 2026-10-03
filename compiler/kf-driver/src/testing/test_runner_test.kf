@@ -2,7 +2,13 @@ import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.crate_id_poison
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import kf_driver.fresh_source_map
 
 // A null return-type pointer means `: void`.

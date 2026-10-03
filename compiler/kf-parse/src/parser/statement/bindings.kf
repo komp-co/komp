@@ -1,5 +1,10 @@
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_parse.parser.*
 
 /// A `?:` bail must not fall through, since the binding exists only on the
@@ -24,7 +29,7 @@ fun stmts_diverge(body: &List<Stmt>): bool {
 /// `return` with nothing after it.
 fun bare_return(span: Span): Stmt {
     val none_operand: Box<Expr>? = null
-    return new_stmt(span, StmtKind.Return(none_operand))
+    return Stmt.new(span, StmtKind.Return(none_operand))
 }
 
 impl Parser {
@@ -57,9 +62,9 @@ impl Parser {
 
         // Two branches: each consumes the move-once parts exactly once.
         if is_var {
-            return new_binding_stmt(span, binder_span, StmtKind.LetVar(intern(name.as_str()), ty_ptr, init_ptr))
+            return Stmt.new_binding(span, binder_span, StmtKind.LetVar(intern(name.as_str()), ty_ptr, init_ptr))
         }
-        return new_binding_stmt(span, binder_span, StmtKind.LetVal(intern(name.as_str()), ty_ptr, init_ptr))
+        return Stmt.new_binding(span, binder_span, StmtKind.LetVal(intern(name.as_str()), ty_ptr, init_ptr))
     }
 
     /// `val NAME = OPT ?: BAIL` and the rest of the enclosing block become
@@ -83,9 +88,9 @@ impl Parser {
             binder = "__elvbail_${self.elv_ctr}"
             self.elv_ctr = self.elv_ctr + 1
             val src: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *src = new_expr(span, ExprKind.Variable(intern(binder.as_str()))) }
+            unsafe { *src = Expr.new(span, ExprKind.Variable(intern(binder.as_str()))) }
             var opened = List.new<Stmt>()
-            opened.push(new_binding_stmt(span, span, StmtKind.LetVar(intern(name.as_str()), null, src)))
+            opened.push(Stmt.new_binding(span, span, StmtKind.LetVar(intern(name.as_str()), null, src)))
             while item in &rest {
                 opened.push(item)
             }
@@ -107,10 +112,10 @@ impl Parser {
         arms.push(none_arm)
         val subj_box: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj_box = subject }
-        return new_stmt(span, StmtKind.When(subj_box, arms))
+        return Stmt.new(span, StmtKind.When(subj_box, arms))
     }
 
-    /// A braced block, or one unbraced statement (`?: return poison_ty()`),
+    /// A braced block, or one unbraced statement (`?: return Type.new_poison()`),
     /// which must still end its line.
     mutating fun parse_elvis_bail(): List<Stmt> {
         self.skip_newlines()
@@ -152,7 +157,7 @@ impl Parser {
         val e_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *e_ptr = e }
         val operand: Box<Expr>? = e_ptr
-        return new_stmt(span, StmtKind.Return(operand))
+        return Stmt.new(span, StmtKind.Return(operand))
     }
 
     mutating fun parse_return(span: Span): Stmt {
@@ -212,7 +217,7 @@ impl Parser {
         val subj_box: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj_box = pend.subject }
         val branch_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *branch_box = new_expr(span, ExprKind.MethodCall(subj_box, intern("branch"), List.new<Expr>())) }
+        unsafe { *branch_box = Expr.new(span, ExprKind.MethodCall(subj_box, intern("branch"), List.new<Expr>())) }
 
         var cont_payloads = List.new<Pattern>()
         cont_payloads.push(new_pattern(span, PatternKind.Identifier(intern(pend.name.as_str()))))
@@ -230,7 +235,7 @@ impl Parser {
         arms.push(new_arm(span, break_pat, null, self.try_bail_stmts(residual, span)))
 
         var out = List.new<Stmt>()
-        out.push(new_stmt(span, StmtKind.When(branch_box, arms)))
+        out.push(Stmt.new(span, StmtKind.When(branch_box, arms)))
         return out
     }
 
@@ -257,14 +262,14 @@ impl Parser {
             return out
         }
         val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *recv = new_expr(span, ExprKind.Variable(intern(base.as_str()))) }
+        unsafe { *recv = Expr.new(span, ExprKind.Variable(intern(base.as_str()))) }
         var args = List.new<Expr>()
-        args.push(new_expr(span, ExprKind.Variable(intern(name.as_str()))))
-        var call = new_expr(span, ExprKind.MethodCall(recv, intern("from_residual"), args))
+        args.push(Expr.new(span, ExprKind.Variable(intern(name.as_str()))))
+        var call = Expr.new(span, ExprKind.MethodCall(recv, intern("from_residual"), args))
         call.type_args = targs
         val call_box: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *call_box = call }
-        out.push(new_stmt(span, StmtKind.Return(call_box)))
+        out.push(Stmt.new(span, StmtKind.Return(call_box)))
         return out
     }
 }

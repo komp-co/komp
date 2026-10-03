@@ -1,6 +1,7 @@
 // Finding a user-declared annotation by the name a file writes for it.
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Sym
 
 /// The annotation `name` as a declaration in `file`, in `crate`'s `module`,
 /// sees it: one declared in its own module, or a `pub` one its imports admit.

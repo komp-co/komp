@@ -7,32 +7,38 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.Param
 
 fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
     when (self.kind) {
         Named(name, args) => {
             if name.id == x.marked.id && args.size() == 0 {
-                return new_type_ref(self.span, TypeRefKind.Named(x.type_name, List.new<TypeRef>()))
+                return TypeRef.new(self.span, TypeRefKind.Named(x.type_name, List.new<TypeRef>()))
             }
-            return new_type_ref(self.span, TypeRefKind.Named(name, expanded_types(&args, x)))
+            return TypeRef.new(self.span, TypeRefKind.Named(name, expanded_types(&args, x)))
         }
         Projection(owner, member) => {
             if x.in_member() && member.as_str() == "type" && owner.names(x.binder) { return x.field().ty.clone() }
-            return new_type_ref(self.span, TypeRefKind.Projection(Box.new(owner.expanded_type(x)), member))
+            return TypeRef.new(self.span, TypeRefKind.Projection(Box.new(owner.expanded_type(x)), member))
         }
-        DynTrait(name, args) => return new_type_ref(self.span, TypeRefKind.DynTrait(name, expanded_types(&args, x)))
+        DynTrait(name, args) => return TypeRef.new(self.span, TypeRefKind.DynTrait(name, expanded_types(&args, x)))
         Function(params, ret) => {
             val result = Box.new(ret.expanded_type(x))
-            return new_type_ref(self.span, TypeRefKind.Function(expanded_types(&params, x), result))
+            return TypeRef.new(self.span, TypeRefKind.Function(expanded_types(&params, x), result))
         }
         Reference(is_mutable, inner) => {
-            return new_type_ref(self.span, TypeRefKind.Reference(is_mutable, Box.new(inner.expanded_type(x))))
+            return TypeRef.new(self.span, TypeRefKind.Reference(is_mutable, Box.new(inner.expanded_type(x))))
         }
         Array(element, count) => {
-            return new_type_ref(self.span, TypeRefKind.Array(Box.new(element.expanded_type(x)), count))
+            return TypeRef.new(self.span, TypeRefKind.Array(Box.new(element.expanded_type(x)), count))
         }
-        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
-        Poison => return type_ref_poison(self.span)
+        Value(v) => return TypeRef.new(self.span, TypeRefKind.Value(v))
+        Poison => return TypeRef.new_poison(self.span)
     }
 }
 
@@ -65,13 +71,12 @@ fun Expr.expanded(x: &var Expansion): Expr {
 
 /// The same expression, written at `span`.
 fun Expr.moved_to(span: Span): Expr {
-    var out = new_expr(span, self.kind.clone())
+    var out = Expr.new(span, self.kind.clone())
     out.name_span = self.name_span
     out.coerce = self.coerce
     out.type_args = self.type_args.clone()
     out.type_args_written = self.type_args_written
     out.is_static_call = self.is_static_call
-    out.is_intrinsic = self.is_intrinsic
     out.is_safe_call_value = self.is_safe_call_value
     out.is_variant_ctor = self.is_variant_ctor
     return out
@@ -106,6 +111,7 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         Unary(op, inner) => return self.rekinded(ExprKind.Unary(op, Box.new(inner.expanded(x))))
         Deref(inner) => return self.rekinded(ExprKind.Deref(Box.new(inner.expanded(x))))
         Call(name, args) => return self.rekinded(ExprKind.Call(name, expanded_exprs(&args, x)))
+        Intrinsic(intrinsic, args) => return self.rekinded(ExprKind.Intrinsic(intrinsic, expanded_exprs(&args, x)))
         CallValue(callee, args) => {
             return self.rekinded(ExprKind.CallValue(Box.new(callee.expanded(x)), expanded_exprs(&args, x)))
         }

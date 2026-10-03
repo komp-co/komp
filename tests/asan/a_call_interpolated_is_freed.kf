@@ -1,0 +1,13 @@
+//! asan: clean
+// A fresh value read through `&dyn Display`, as an interpolated call result
+// is, is dropped after the statement.
+
+fun label(x: int32): String {
+    return String.from("zero") + "!"
+}
+
+fun main(): int32 {
+    println("${label(0)}")
+    val shown = "<${label(1)}>"
+    return shown.byte_len() as int32 - 7
+}

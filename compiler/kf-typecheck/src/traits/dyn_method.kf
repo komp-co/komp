@@ -1,6 +1,8 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.display_type
@@ -19,7 +21,7 @@ pub mutating fun Expr.check_dyn_method_call(receiver: &Expr, method: Sym, args: 
     val receiver_info = receiver.ty.dyn_receiver_info()
     if !receiver_info.dynamic { return false }
     val layout = receiver_info.object_type.dyn_layout_for(ctx) ?: {
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     val selected = layout.dyn_layout_method(method)
@@ -27,18 +29,18 @@ pub mutating fun Expr.check_dyn_method_call(receiver: &Expr, method: Sym, args: 
         None => {
             val message = "no method `${method.as_string()}` on trait object `${receiver.ty.display_type(ctx)}`"
             ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-            self.ty = poison_ty()
+            self.ty = Type.new_poison()
             return true
         }
         Some(slot) => {
             if slot.is_mutating && !receiver_info.mutable {
                 val message = "cannot self mutating method `${method.as_string()}` through shared trait object `${receiver.ty.display_type(ctx)}`"
                 ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-                self.ty = poison_ty()
+                self.ty = Type.new_poison()
                 return true
             }
             if !check_dyn_method_args(method, args, &slot.params, self, ctx) {
-                self.ty = poison_ty()
+                self.ty = Type.new_poison()
                 return true
             }
             self.ty = slot.ret.clone()
@@ -61,7 +63,7 @@ fun Type.dyn_receiver_info(): DynReceiverInfo {
         }
         _ => { }
     }
-    return DynReceiverInfo { dynamic: false, mutable: false, object_type: poison_ty() }
+    return DynReceiverInfo { dynamic: false, mutable: false, object_type: Type.new_poison() }
 }
 
 fun DynTraitLayout.dyn_layout_method(method: Sym): DynMethodSlot? {

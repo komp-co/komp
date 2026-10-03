@@ -2,7 +2,11 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.crate_id_poison
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 import kf_core.diagnostic.*
 import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_core.ast.dyn_meta.dyn_trait_args
@@ -13,7 +17,7 @@ import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_eq
 
 fun resolved_test_sink(argument: Type): Type {
-    var args = new_type_vec()
+    var args = List.new<Type>()
     args.push(argument)
     return dyn_trait_type(intern("sample::api::Sink"), args, no_span())
 }
@@ -37,31 +41,30 @@ fun dyn_test_trait(name: str, identity: str, arity: uint64): TraitInfo {
 }
 
 fun dyn_resolution_message(name: str, args: List<TypeRef>, signatures: SigTable): String {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signature_ptr)
-    val object_ref = new_type_ref(no_span(), TypeRefKind.DynTrait(intern(name), args))
+    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signature_ptr)
+    val object_ref = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern(name), args))
     val _resolved = object_ref.resolve_type_ref(&var ctx)
     return unsafe { diagnostics.at(0).primary.message }
 }
 
 @test fun dyn_trait_type_equals_its_clone(): void {
-    val sink = resolved_test_sink(int32_ty(no_span()))
+    val sink = resolved_test_sink(Type.new_int32(no_span()))
     assert_eq(sink.type_eq(&sink.clone()), true, "same canonical dynamic type compares equal")
 }
 
 @test fun dyn_trait_type_arguments_affect_equality(): void {
-    val int_sink = resolved_test_sink(int32_ty(no_span()))
-    val str_sink = resolved_test_sink(str_ty(no_span()))
+    val int_sink = resolved_test_sink(Type.new_int32(no_span()))
+    val str_sink = resolved_test_sink(Type.new_str(no_span()))
     assert_eq(int_sink.type_eq(&str_sink), false, "different dynamic arguments compare unequal")
 }
 
 fun resolve_dyn_trait_keeps_generic_argument(): bool {
-    val diagnostics = List.new<Diagnostic>()
-    val diagnostic_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostic_ptr = diagnostics }
+    val diagnostic_ptr: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostic_ptr = new_diagnostics() }
     var signatures = new_sig_table()
     var type_parameters = List.new<String>()
     type_parameters.push(String.from("T"))
@@ -76,14 +79,14 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
     })
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostic_ptr, Option.None, signature_ptr)
+    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostic_ptr }, Option.None, signature_ptr)
     ctx.generics.push(String.from("T"))
 
     var object_args = List.new<TypeRef>()
-    object_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("T"), List.new<TypeRef>())))
+    object_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("T"), List.new<TypeRef>())))
     val object_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *object_ref = new_type_ref(no_span(), TypeRefKind.DynTrait(intern("Sink"), object_args)) }
-    val borrowed = new_type_ref(no_span(), TypeRefKind.Reference(false, object_ref))
+    unsafe { *object_ref = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Sink"), object_args)) }
+    val borrowed = TypeRef.new(no_span(), TypeRefKind.Reference(false, object_ref))
     val resolved = borrowed.resolve_type_ref(&var ctx)
     when (resolved.kind) {
         RefTo(_, inner) => {
@@ -136,13 +139,12 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
 }
 
 @test fun display_type_renders_dynamic_principal_and_arguments(): void {
-    val diagnostics = List.new<Diagnostic>()
-    val diagnostic_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostic_ptr = diagnostics }
+    val diagnostic_ptr: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostic_ptr = new_diagnostics() }
     val signatures = new_sig_table()
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    val ctx = new_type_ctx(void_ty(no_span()), diagnostic_ptr, Option.None, signature_ptr)
-    val sink = resolved_test_sink(int32_ty(no_span()))
+    val ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostic_ptr }, Option.None, signature_ptr)
+    val sink = resolved_test_sink(Type.new_int32(no_span()))
     assert_eq(sink.display_type(&ctx).as_str(), "dyn Sink<int32>", "dynamic types use source-facing display")
 }

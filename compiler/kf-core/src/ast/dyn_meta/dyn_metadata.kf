@@ -1,4 +1,8 @@
 import alloc.list.*
+import kf_core.ast.CrateId
+import kf_core.ast.Linkage
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
 
 @derive(Clone)
 pub struct DynMethodSlot {
@@ -56,7 +60,7 @@ pub fun DynTraitLayout.clone_dyn_trait_layout(): DynTraitLayout {
 }
 
 pub fun DynVTableInstance.clone_dyn_vtable_instance(): DynVTableInstance {
-    var adapters = []
+    var adapters = List.new<Sym>()
     while adapter in &self.adapters {
         adapters.push(adapter)
     }

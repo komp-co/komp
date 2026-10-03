@@ -9,7 +9,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.declaration.TypeParam
 import json.writer.JsonWriter
 
 fun MarkTarget.function_source(): String {

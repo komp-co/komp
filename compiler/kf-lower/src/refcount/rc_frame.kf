@@ -1,7 +1,13 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.*
 
 @derive(Clone)
@@ -100,7 +106,7 @@ pub mutating fun RcCtx.pop_frame(): List<Stmt> {
     var i: uint64 = f.heap_locals.size()
     while i > 0 {
         i = i - 1
-        releases.push(new_stmt(no_span(), StmtKind.Release(intern(f.heap_locals.at(i).as_str()))))
+        releases.push(Stmt.new(no_span(), StmtKind.Release(intern(f.heap_locals.at(i).as_str()))))
     }
     self.frame_stack.pop()
     return releases
@@ -142,7 +148,7 @@ mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: &List<String>): Li
             val name = f.heap_locals.at(li)
             val excluded = names_contains(exclude, name.as_str())
             if !excluded {
-                releases.push(new_stmt(no_span(), StmtKind.Release(intern(name.as_str()))))
+                releases.push(Stmt.new(no_span(), StmtKind.Release(intern(name.as_str()))))
             }
         }
         if stop_at_loop && f.is_loop {
@@ -222,6 +228,7 @@ fun is_fresh_alloc(e: Expr): bool {
             if is_take { return true }
             return false
         }
+        Intrinsic(_, _) => return false
         StructLit(_, _) => return true
         MethodCall(_, m, _) => {
             val s = m.as_str()

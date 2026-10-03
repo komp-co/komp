@@ -2,14 +2,17 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 
 /// A context knowing `Option` and its `int32` instance.
 fun ctx_knowing_option_of_int32(): TypeCtx {
     var ctx = mk_ctx()
     unsafe { ctx.sigs.lang_option = intern("Option") }
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val inst = GenericInst { mangled: String.from("Option__int32"), base: String.from("Option"), args: args }
     unsafe { ctx.sigs.insert_inst(inst) }
     return ctx
@@ -21,16 +24,16 @@ fun option_slot_of_int32(): Type {
 
 @test fun a_poison_value_claims_an_option_slot_unwrapped(): void {
     var ctx = ctx_knowing_option_of_int32()
-    var value = new_expr(no_span(), ExprKind.Variable(intern("x")))
-    value.ty = poison_ty()
+    var value = Expr.new(no_span(), ExprKind.Variable(intern("x")))
+    value.ty = Type.new_poison()
     val claimed = value.apply_expected(option_slot_of_int32(), &var ctx)
     assert_eq(claimed && !value.is_variant_ctor, true, "accepted, so nothing cascades, but not wrapped in Some")
 }
 
 @test fun a_payload_value_is_still_wrapped(): void {
     var ctx = ctx_knowing_option_of_int32()
-    var value = new_expr(no_span(), ExprKind.Variable(intern("x")))
-    value.ty = int32_ty(no_span())
+    var value = Expr.new(no_span(), ExprKind.Variable(intern("x")))
+    value.ty = Type.new_int32(no_span())
     val claimed = value.apply_expected(option_slot_of_int32(), &var ctx)
     assert_eq(claimed && value.is_variant_ctor, true, "an int32 in an Option<int32> slot becomes Some")
 }

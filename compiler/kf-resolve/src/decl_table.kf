@@ -1,7 +1,7 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.*
+import kf_core.ast.declaration.DeclId
 
 /// Top-level names and the DeclIds they were registered under.
 ///
@@ -28,7 +28,7 @@ impl DeclTable {
     pub mutating fun insert(name: String): DeclId {
         val id: uint32 = self.next_id
         self.next_id = self.next_id + 1
-        val d = new_decl_id(id)
+        val d = DeclId.new(id)
         val key = String.from(name.as_str())
         if !self.index.contains(&key) {
             self.index.insert(key, d)

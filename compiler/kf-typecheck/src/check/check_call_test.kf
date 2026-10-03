@@ -5,20 +5,22 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.*
 import kf_typecheck.types.type_ref_is_poison
 
 // A canonical identity `crate::module::Name` is not a C identifier and must
 // not be written back. Twin of kf-mono's ty_to_mangle_hides_canonical_identity.
 @test fun flat_ref_name_hides_canonical_identity(): void {
-    val identity = new_type_identity(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
+    val identity = TypeIdentity.new(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
     val n: String = ty_flat_ref_name(&named_struct_ty(identity, no_span()))
     assert_eq(n.as_str(), "SourceMap", "the write-back name omits the semantic identity")
 }
 
 // `List__int32` cannot be written back flat; the guard survives stripping.
 @test fun flat_ref_name_declines_a_monomorphized_instance(): void {
-    val identity = new_type_identity(new_crate_id("alloc"), intern("list"), intern("List__int32"))
+    val identity = TypeIdentity.new(new_crate_id("alloc"), intern("list"), intern("List__int32"))
     val n: String = ty_flat_ref_name(&named_struct_ty(identity, no_span()))
     assert_eq(n.as_str(), "", "a mono-suffixed instance is not writable flat")
 }
@@ -27,7 +29,7 @@ import kf_typecheck.types.type_ref_is_poison
 // arg on the call was dropped.
 @test fun written_ref_spells_a_borrow_structurally(): void {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val borrowed = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(no_span()) }
 
     val flat: String = borrowed.ty_flat_ref_name()
@@ -46,7 +48,7 @@ import kf_typecheck.types.type_ref_is_poison
 // `&T` and `&var T` stamp differently.
 @test fun written_ref_carries_mutability(): void {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val mutable = Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(no_span()) }
 
     val tr: TypeRef = mutable.ty_written_ref(no_span(), unsafe { 0 as Ptr<SigTable> })
@@ -62,7 +64,7 @@ import kf_typecheck.types.type_ref_is_poison
 @test fun written_ref_spells_an_instance_as_its_template(): void {
     var ctx = mk_ctx()
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val inst = GenericInst { mangled: String.from("Wrap__int32"), base: String.from("Wrap"), args: args }
     unsafe { ctx.sigs.insert_inst(inst) }
     val wrapped = Type { kind: TypeKind.Struct(intern("Wrap__int32")), provenance: Provenance.Inferred(no_span()) }

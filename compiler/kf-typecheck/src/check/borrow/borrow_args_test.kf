@@ -1,7 +1,14 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.crate_id_poison
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
 import kf_typecheck.check.mk_ctx
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.check_method_call
@@ -13,7 +20,7 @@ fun borrow_test_ref(inner: Type, mutable: bool): Type {
 }
 
 fun borrow_test_expr(kind: ExprKind, ty: Type): Expr {
-    var e = new_expr(no_span(), kind)
+    var e = Expr.new(no_span(), kind)
     e.ty = ty
     return e
 }
@@ -32,55 +39,55 @@ fun borrow_test_apply(e: Expr, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
 
 @test fun val_place_infers_shared_borrow(): void {
     var ctx = mk_ctx()
-    ctx.declare_val(String.from("x"), int32_ty(no_span()))
-    val e = borrow_test_expr(ExprKind.Variable(intern("x")), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    ctx.declare_val(String.from("x"), Type.new_int32(no_span()))
+    val e = borrow_test_expr(ExprKind.Variable(intern("x")), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.coerced, true, "val place auto-borrows for &T")
 }
 
 @test fun var_place_infers_shared_borrow(): void {
     var ctx = mk_ctx()
-    ctx.declare(String.from("x"), int32_ty(no_span()))
-    val e = borrow_test_expr(ExprKind.Variable(intern("x")), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    ctx.declare(String.from("x"), Type.new_int32(no_span()))
+    val e = borrow_test_expr(ExprKind.Variable(intern("x")), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.coerced, true, "var place auto-borrows for &T")
 }
 
 @test fun var_place_infers_mutable_borrow(): void {
     var ctx = mk_ctx()
-    ctx.declare(String.from("x"), int32_ty(no_span()))
-    val e = borrow_test_expr(ExprKind.Variable(intern("x")), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
+    ctx.declare(String.from("x"), Type.new_int32(no_span()))
+    val e = borrow_test_expr(ExprKind.Variable(intern("x")), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
     assert_eq(result.coerced, true, "var place auto-borrows for &var T")
 }
 
 @test fun val_place_rejects_mutable_borrow(): void {
     var ctx = mk_ctx()
-    ctx.declare_val(String.from("x"), int32_ty(no_span()))
-    val e = borrow_test_expr(ExprKind.Variable(intern("x")), int32_ty(no_span()))
-    borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "val cannot auto-borrow mutably")
+    ctx.declare_val(String.from("x"), Type.new_int32(no_span()))
+    val e = borrow_test_expr(ExprKind.Variable(intern("x")), Type.new_int32(no_span()))
+    borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
+    assert_eq(ctx.diags.items.size(), 1, "val cannot auto-borrow mutably")
 }
 
 @test fun call_temporary_keeps_shared_borrow(): void {
     var ctx = mk_ctx()
-    val e = borrow_test_expr(ExprKind.Call(intern("make"), List.new<Expr>()), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    val e = borrow_test_expr(ExprKind.Call(intern("make"), List.new<Expr>()), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.coerced, true, "temporary remains borrowable through &T")
 }
 
 @test fun call_temporary_rejects_mutable_borrow(): void {
     var ctx = mk_ctx()
-    val e = borrow_test_expr(ExprKind.Call(intern("make"), List.new<Expr>()), int32_ty(no_span()))
-    borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "temporary cannot auto-borrow mutably")
+    val e = borrow_test_expr(ExprKind.Call(intern("make"), List.new<Expr>()), Type.new_int32(no_span()))
+    borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
+    assert_eq(ctx.diags.items.size(), 1, "temporary cannot auto-borrow mutably")
 }
 
 @test fun shared_field_place_infers_borrow(): void {
     var ctx = mk_ctx()
     val base = borrow_test_expr(ExprKind.Variable(intern("item")), Type { kind: TypeKind.Struct(intern("Item")), provenance: Provenance.Inferred(no_span()) })
-    val e = borrow_test_expr(ExprKind.FieldAccess(borrow_test_ptr(base), intern("value")), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    val e = borrow_test_expr(ExprKind.FieldAccess(borrow_test_ptr(base), intern("value")), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.coerced, true, "field place auto-borrows for &T")
 }
 
@@ -89,28 +96,28 @@ fun borrow_test_apply(e: Expr, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
     val item_ty = Type { kind: TypeKind.Struct(intern("Item")), provenance: Provenance.Inferred(no_span()) }
     ctx.declare_val(String.from("item"), item_ty.clone())
     val base = borrow_test_expr(ExprKind.Variable(intern("item")), item_ty)
-    val e = borrow_test_expr(ExprKind.FieldAccess(borrow_test_ptr(base), intern("value")), int32_ty(no_span()))
-    borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "mutable field borrow follows base mutability")
+    val e = borrow_test_expr(ExprKind.FieldAccess(borrow_test_ptr(base), intern("value")), Type.new_int32(no_span()))
+    borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
+    assert_eq(ctx.diags.items.size(), 1, "mutable field borrow follows base mutability")
 }
 
 @test fun mutable_deref_infers_borrow(): void {
     var ctx = mk_ctx()
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val pointer_ty = Type { kind: TypeKind.PtrTo(inner), provenance: Provenance.Inferred(no_span()) }
     val pointer = borrow_test_expr(ExprKind.Variable(intern("p")), pointer_ty)
-    val e = borrow_test_expr(ExprKind.Deref(borrow_test_ptr(pointer)), int32_ty(no_span()))
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
+    val e = borrow_test_expr(ExprKind.Deref(borrow_test_ptr(pointer)), Type.new_int32(no_span()))
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
     assert_eq(result.coerced, true, "raw pointer deref is a mutable place")
 }
 
 @test fun value_returning_get_is_not_mutable_place(): void {
     var ctx = mk_ctx()
     val recv = borrow_test_expr(ExprKind.Variable(intern("xs")), Type { kind: TypeKind.Struct(intern("List__int32")), provenance: Provenance.Inferred(no_span()) })
-    val e = borrow_test_expr(ExprKind.MethodCall(borrow_test_ptr(recv), intern("get"), List.new<Expr>()), int32_ty(no_span()))
-    borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "value-returning get is not a mutable place")
+    val e = borrow_test_expr(ExprKind.MethodCall(borrow_test_ptr(recv), intern("get"), List.new<Expr>()), Type.new_int32(no_span()))
+    borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
+    assert_eq(ctx.diags.items.size(), 1, "value-returning get is not a mutable place")
 }
 
 @test fun free_call_infers_shared_borrow_from_deref(): void {
@@ -128,7 +135,7 @@ fun borrow_test_apply(e: Expr, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
     val arg = borrow_test_expr(ExprKind.Deref(borrow_test_ptr(pointer)), unsafe { *raw })
     var args = List.new<Expr>()
     args.push(arg)
-    var call = new_expr(no_span(), ExprKind.Call(intern("copy_value"), args))
+    var call = Expr.new(no_span(), ExprKind.Call(intern("copy_value"), args))
     check_expr(&var call, &var ctx)
     assert_eq(call.ty.is_poison(), false, "free-call boundary borrows a dereferenced place")
 }
@@ -136,30 +143,30 @@ fun borrow_test_apply(e: Expr, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
 @test fun raw_pointer_satisfies_shared_reference_without_coercion(): void {
     var ctx = mk_ctx()
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val pointer_ty = Type { kind: TypeKind.PtrTo(inner), provenance: Provenance.Inferred(no_span()) }
     val e = borrow_test_expr(ExprKind.Variable(intern("p")), pointer_ty)
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.valid && result.coerced, true, "raw pointer satisfies shared-reference boundary")
 }
 
 @test fun raw_pointer_satisfies_mutable_reference_without_coercion(): void {
     var ctx = mk_ctx()
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val pointer_ty = Type { kind: TypeKind.PtrTo(inner), provenance: Provenance.Inferred(no_span()) }
     val e = borrow_test_expr(ExprKind.Variable(intern("p")), pointer_ty)
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), true), &var ctx)
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), true), &var ctx)
     assert_eq(result.valid && result.coerced, true, "raw pointer remains a mutable-reference escape hatch")
 }
 
 @test fun box_deref_normalization_satisfies_shared_reference(): void {
     var ctx = mk_ctx()
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = int32_ty(no_span()) }
+    unsafe { *inner = Type.new_int32(no_span()) }
     val box_ty = Type { kind: TypeKind.BoxOf(inner), provenance: Provenance.Inferred(no_span()) }
     val e = borrow_test_expr(ExprKind.Variable(intern("box")), box_ty)
-    val result = borrow_test_apply(e, borrow_test_ref(int32_ty(no_span()), false), &var ctx)
+    val result = borrow_test_apply(e, borrow_test_ref(Type.new_int32(no_span()), false), &var ctx)
     assert_eq(result.valid && result.coerced, true, "normalized &*box satisfies shared reference")
 }
 
@@ -174,7 +181,7 @@ fun borrow_test_register_method(owner: str, name: str, expected: Type, is_static
         params.push(Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(no_span()) })
     }
     params.push(expected)
-    val signature = FnSignature { name: String.from(owner) + String.from("_") + String.from(name), params: params, ret: void_ty(no_span()), generics: List.new<String>(), is_static: is_static, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
+    val signature = FnSignature { name: String.from(owner) + String.from("_") + String.from(name), params: params, ret: Type.new_void(no_span()), generics: List.new<String>(), is_static: is_static, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(signature) }
 }
@@ -182,7 +189,7 @@ fun borrow_test_register_method(owner: str, name: str, expected: Type, is_static
 /// A declared zero-arg function returning int32, standing in for a temporary;
 /// an unresolved callee would add its own diagnostic.
 fun borrow_test_register_free_fn(name: str, ctx: &var TypeCtx): void {
-    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
+    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: Type.new_int32(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(signature) }
 }
@@ -190,11 +197,11 @@ fun borrow_test_register_free_fn(name: str, ctx: &var TypeCtx): void {
 @test fun method_arg_var_infers_mutable_borrow(): void {
     var ctx = mk_ctx()
     borrow_test_register_struct("Owner", &var ctx)
-    borrow_test_register_method("Owner", "use", borrow_test_ref(int32_ty(no_span()), true), false, &var ctx)
-    ctx.declare(String.from("x"), int32_ty(no_span()))
+    borrow_test_register_method("Owner", "use", borrow_test_ref(Type.new_int32(no_span()), true), false, &var ctx)
+    ctx.declare(String.from("x"), Type.new_int32(no_span()))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("x"))))
-    var call = new_expr(no_span(), ExprKind.Poison)
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
+    var call = Expr.new(no_span(), ExprKind.Poison)
     check_method_call(Type { kind: TypeKind.Struct(intern("Owner")), provenance: Provenance.Inferred(no_span()) }, String.from("use"), &var args, no_span(), &var ctx, &var call)
     assert_eq(args.at(0).coerce == coerce_addr_of(), true, "method argument infers mutable borrow")
 }
@@ -202,24 +209,24 @@ fun borrow_test_register_free_fn(name: str, ctx: &var TypeCtx): void {
 @test fun method_arg_val_rejects_mutable_borrow(): void {
     var ctx = mk_ctx()
     borrow_test_register_struct("Owner", &var ctx)
-    borrow_test_register_method("Owner", "use", borrow_test_ref(int32_ty(no_span()), true), false, &var ctx)
-    ctx.declare_val(String.from("x"), int32_ty(no_span()))
+    borrow_test_register_method("Owner", "use", borrow_test_ref(Type.new_int32(no_span()), true), false, &var ctx)
+    ctx.declare_val(String.from("x"), Type.new_int32(no_span()))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("x"))))
-    var call = new_expr(no_span(), ExprKind.Poison)
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
+    var call = Expr.new(no_span(), ExprKind.Poison)
     check_method_call(Type { kind: TypeKind.Struct(intern("Owner")), provenance: Provenance.Inferred(no_span()) }, String.from("use"), &var args, no_span(), &var ctx, &var call)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "method rejects mutable borrow of val")
+    assert_eq(ctx.diags.items.size(), 1, "method rejects mutable borrow of val")
 }
 
 @test fun static_arg_var_infers_mutable_borrow(): void {
     var ctx = mk_ctx()
     borrow_test_register_struct("Owner", &var ctx)
-    borrow_test_register_method("Owner", "use", borrow_test_ref(int32_ty(no_span()), true), true, &var ctx)
-    ctx.declare(String.from("x"), int32_ty(no_span()))
-    val receiver = borrow_test_expr(ExprKind.Variable(intern("Owner")), poison_ty())
+    borrow_test_register_method("Owner", "use", borrow_test_ref(Type.new_int32(no_span()), true), true, &var ctx)
+    ctx.declare(String.from("x"), Type.new_int32(no_span()))
+    val receiver = borrow_test_expr(ExprKind.Variable(intern("Owner")), Type.new_poison())
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("x"))))
-    var call = new_expr(no_span(), ExprKind.MethodCall(borrow_test_ptr(receiver), intern("use"), args))
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(borrow_test_ptr(receiver), intern("use"), args))
     check_expr(&var call, &var ctx)
     assert_eq(args.at(0).coerce == coerce_addr_of(), true, "static argument infers mutable borrow")
 }
@@ -227,30 +234,30 @@ fun borrow_test_register_free_fn(name: str, ctx: &var TypeCtx): void {
 @test fun static_arg_temporary_rejects_mutable_borrow(): void {
     var ctx = mk_ctx()
     borrow_test_register_struct("Owner", &var ctx)
-    borrow_test_register_method("Owner", "use", borrow_test_ref(int32_ty(no_span()), true), true, &var ctx)
+    borrow_test_register_method("Owner", "use", borrow_test_ref(Type.new_int32(no_span()), true), true, &var ctx)
     borrow_test_register_free_fn("make", &var ctx)
-    val receiver = borrow_test_expr(ExprKind.Variable(intern("Owner")), poison_ty())
+    val receiver = borrow_test_expr(ExprKind.Variable(intern("Owner")), Type.new_poison())
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Call(intern("make"), List.new<Expr>())))
-    var call = new_expr(no_span(), ExprKind.MethodCall(borrow_test_ptr(receiver), intern("use"), args))
+    args.push(Expr.new(no_span(), ExprKind.Call(intern("make"), List.new<Expr>())))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(borrow_test_ptr(receiver), intern("use"), args))
     check_expr(&var call, &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "static call rejects mutable borrow of temporary")
+    assert_eq(ctx.diags.items.size(), 1, "static call rejects mutable borrow of temporary")
 }
 
 @test fun trait_method_arg_infers_shared_borrow(): void {
     var ctx = mk_ctx()
     ctx.fn_owner = String.from("render")
     var method_params = List.new<Type>()
-    method_params.push(borrow_test_ref(int32_ty(no_span()), false))
+    method_params.push(borrow_test_ref(Type.new_int32(no_span()), false))
     var methods = List.new<TraitMethodReq>()
-    methods.push(TraitMethodReq { name: String.from("show"), span: no_span(), arity: 1, has_default: false, has_method_generics: false, is_static: false, params: method_params, ret: void_ty(no_span()), is_mutating: false })
+    methods.push(TraitMethodReq { name: String.from("show"), span: no_span(), arity: 1, has_default: false, has_method_generics: false, is_static: false, params: method_params, ret: Type.new_void(no_span()), is_mutating: false })
     val signatures = ctx.sigs
     unsafe { signatures.insert_trait(TraitInfo { name: String.from("Show"), identity: intern("Show"), module: intern(""), span: no_span(), type_params: List.new<String>(), methods: methods, assoc_types: List.new<TraitAssocReq>(), supertraits: List.new<SuperTraitReq>() }) }
     unsafe { signatures.insert_bound(BoundInfo { owner: String.from("render"), param: String.from("T"), trait_name: String.from("Show"), trait_args: "", arg_names: List.new<String>(), span: no_span() }) }
-    ctx.declare_val(String.from("x"), int32_ty(no_span()))
+    ctx.declare_val(String.from("x"), Type.new_int32(no_span()))
     var args = List.new<Expr>()
-    args.push(new_expr(no_span(), ExprKind.Variable(intern("x"))))
-    var call = new_expr(no_span(), ExprKind.Poison)
-    check_method_call(generic_ty(String.from("T"), no_span()), String.from("show"), &var args, no_span(), &var ctx, &var call)
+    args.push(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
+    var call = Expr.new(no_span(), ExprKind.Poison)
+    check_method_call(Type.new_generic(String.from("T"), no_span()), String.from("show"), &var args, no_span(), &var ctx, &var call)
     assert_eq(args.at(0).coerce == coerce_addr_of(), true, "bounded trait method infers shared borrow")
 }

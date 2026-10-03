@@ -4,7 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_clone
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 /// A reference or `Box` points at a live value; a raw `Ptr<T>` may point at
 /// fresh `alloc<T>()` memory, where running a destructor crashes.
@@ -29,11 +36,11 @@ fun rebuild_overwritten_place(place_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var L
             val tmp_id = ctx.block_counter
             ctx.block_counter = tmp_id + 1
             val tmp_sym = intern(("__place_${u64_to_str(tmp_id)}").as_str())
-            out.push(new_stmt(pe.span, StmtKind.LetVal(tmp_sym, null, Box.new(inner))))
-            var tv = new_expr(inner.span, ExprKind.Variable(tmp_sym))
+            out.push(Stmt.new(pe.span, StmtKind.LetVal(tmp_sym, null, Box.new(inner))))
+            var tv = Expr.new(inner.span, ExprKind.Variable(tmp_sym))
             tv.ty = inner.ty
             unsafe { *innerp = tv.clone() }
-            var old = new_expr(pe.span, ExprKind.Deref(Box.new(tv)))
+            var old = Expr.new(pe.span, ExprKind.Deref(Box.new(tv)))
             old.ty = pe.ty
             return Box.new(old)
         }
@@ -50,14 +57,14 @@ fun rebuild_overwritten_place(place_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var L
 fun Expr.place_path_copy(): Expr? {
     when (self.kind) {
         Variable(name) => {
-            var v = new_expr(self.span, ExprKind.Variable(name))
+            var v = Expr.new(self.span, ExprKind.Variable(name))
             v.ty = self.ty.clone()
             return v
         }
         FieldAccess(basep, fname) => {
             if !ty_is_struct_value(basep.ty.clone()) && !points_at_a_live_value(basep.ty.clone()) { return null }
             val base = basep.place_path_copy() ?: return null
-            var fe = new_expr(self.span, ExprKind.FieldAccess(Box.new(base), fname))
+            var fe = Expr.new(self.span, ExprKind.FieldAccess(Box.new(base), fname))
             fe.ty = self.ty.clone()
             return fe
         }
@@ -94,7 +101,7 @@ fun lower_place_assign_drop(place_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span
     ctx.block_counter = tmp_id + 1
     val tmp_name = "__old_${u64_to_str(tmp_id)}"
     val tmp_sym = intern(tmp_name.as_str())
-    out.push(new_stmt(span, StmtKind.LetVal(tmp_sym, null, copy)))
+    out.push(Stmt.new(span, StmtKind.LetVal(tmp_sym, null, copy)))
     return tmp_sym
 }
 

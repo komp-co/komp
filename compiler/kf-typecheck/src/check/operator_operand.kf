@@ -5,6 +5,8 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.*
 import kf_typecheck.types.TAG_PTR
 import kf_typecheck.types.TAG_REF
 import kf_typecheck.types.kind_tag

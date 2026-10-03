@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
 
 import kf_core.ast.subst.subst_mangled_name
 import kf_core.ast.subst.monomorphized_type_name
@@ -262,11 +264,11 @@ pub fun qualify_type(t: Type, names: &var List<String>, repls: &var List<TypeRef
             // Rebuilt rather than respelled in place: the signature is shared
             // with every copy of the type.
             val parts = t.fn_parts() ?: return t
-            var params = new_type_vec()
+            var params = List.new<Type>()
             while param in &parts.params {
                 params.push(qualify_type(param, names, repls))
             }
-            return fn_ty(params, qualify_type(parts.ret, names, repls), t.provenance)
+            return Type.new_fn(params, qualify_type(parts.ret, names, repls), t.provenance)
         }
         _ => return t
     }

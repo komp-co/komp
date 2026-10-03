@@ -1,6 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.*
 import kf_typecheck.check.*
 import kf_core.span.no_span
@@ -211,7 +212,7 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                             val lifted_names = trait_impl.lifted_names(ctx)
                             var lifted = List.new<Type>()
                             while name in &lifted_names {
-                                var bound = poison_ty()
+                                var bound = Type.new_poison()
                                 while j in 0..args.size() {
                                     if !bound.is_poison() { break }
                                     val param = subst_recv(*sig.params.at(j + 1), &binding)

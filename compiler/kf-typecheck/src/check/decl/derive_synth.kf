@@ -5,7 +5,16 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.*
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+import kf_core.ast.annotation.new_annotation
 
 fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: CrateId, module_path: Sym,
     trait_sym: Sym): TopDecl {
@@ -14,17 +23,17 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
     while f in &fields {
         val dv: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *dv = default_value_expr(f.ty, span) }
-        inits.push(new_field_init(span, f.name.as_string(), dv))
+        inits.push(FieldInit.new(span, f.name.as_string(), dv))
     }
     val slit_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *slit_ptr = new_expr(span, ExprKind.StructLit(intern(name.as_str()), inits)) }
+    unsafe { *slit_ptr = Expr.new(span, ExprKind.StructLit(intern(name.as_str()), inits)) }
     val ret_operand: Box<Expr>? = slit_ptr
     var body = List.new<Stmt>()
-    body.push(new_stmt(span, StmtKind.Return(ret_operand)))
+    body.push(Stmt.new(span, StmtKind.Return(ret_operand)))
 
     // static fun default(): Name { body }
     val ret_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ref = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *ret_ref = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
     var default_fn = new_top_decl(span, String.from("default"),
         TopDeclKind.Function(List.new<Param>(), ret_ref, body, true, false, false, true))
     default_fn.crate = owner
@@ -34,7 +43,7 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
 
     // impl Default for Name
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
+    unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     // Both crate and module path, or the impl's identity misses the struct's.
@@ -46,31 +55,31 @@ fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: Crat
     trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_named = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
     val other_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_type = new_type_ref(span, TypeRefKind.Reference(false, other_named)) }
+    unsafe { *other_type = TypeRef.new(span, TypeRefKind.Reference(false, other_named)) }
     params.push(new_param(span, String.from("other"), other_type))
 
     var comparison: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *comparison = new_expr(span, ExprKind.LitBool(true)) }
+    unsafe { *comparison = Expr.new(span, ExprKind.LitBool(true)) }
     while field in &fields {
         val self_receiver: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *self_receiver = new_expr(span, ExprKind.Variable(intern("self"))) }
+        unsafe { *self_receiver = Expr.new(span, ExprKind.Variable(intern("self"))) }
         val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *self_value = new_expr(span, ExprKind.FieldAccess(self_receiver, field.name)) }
+        unsafe { *self_value = Expr.new(span, ExprKind.FieldAccess(self_receiver, field.name)) }
         val other_receiver: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *other_receiver = new_expr(span, ExprKind.Variable(intern("other"))) }
+        unsafe { *other_receiver = Expr.new(span, ExprKind.Variable(intern("other"))) }
         val other_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *other_value = new_expr(span, ExprKind.FieldAccess(other_receiver, field.name)) }
+        unsafe { *other_value = Expr.new(span, ExprKind.FieldAccess(other_receiver, field.name)) }
         val field_equal: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *field_equal = new_expr(span, ExprKind.Binary(self_value, BinOp.Eq, other_value)) }
+        unsafe { *field_equal = Expr.new(span, ExprKind.Binary(self_value, BinOp.Eq, other_value)) }
         val prior = comparison
         comparison = unsafe { alloc<Expr>() }
-        unsafe { *comparison = new_expr(span, ExprKind.Binary(prior, BinOp.AndAnd, field_equal)) }
+        unsafe { *comparison = Expr.new(span, ExprKind.Binary(prior, BinOp.AndAnd, field_equal)) }
     }
     val operand: Box<Expr>? = comparison
     var body = List.new<Stmt>()
-    body.push(new_stmt(span, StmtKind.Return(operand)))
+    body.push(Stmt.new(span, StmtKind.Return(operand)))
     return synth_equal_trait_impl(name, params, body, span, owner, module_path, trait_sym)
 }
 
@@ -83,32 +92,32 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
     trait_sym: Sym): TopDecl {
     // Seeded with the first field's hash: a literal 0 would be int32.
     var accumulator: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *accumulator = new_expr(span, ExprKind.LitInt(0)) }
+    unsafe { *accumulator = Expr.new(span, ExprKind.LitInt(0)) }
     while i in 0..fields.size() {
         val field = *fields.at(i)
         val self_receiver: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *self_receiver = new_expr(span, ExprKind.Variable(intern("self"))) }
+        unsafe { *self_receiver = Expr.new(span, ExprKind.Variable(intern("self"))) }
         val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *self_value = new_expr(span, ExprKind.FieldAccess(self_receiver, field.name)) }
+        unsafe { *self_value = Expr.new(span, ExprKind.FieldAccess(self_receiver, field.name)) }
         val field_hash: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *field_hash = new_expr(span, ExprKind.MethodCall(self_value, intern("hash"), List.new<Expr>())) }
+        unsafe { *field_hash = Expr.new(span, ExprKind.MethodCall(self_value, intern("hash"), List.new<Expr>())) }
         if i == 0 {
             accumulator = field_hash
         } else {
             val multiplier: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *multiplier = new_expr(span, ExprKind.LitInt(31)) }
+            unsafe { *multiplier = Expr.new(span, ExprKind.LitInt(31)) }
             val scaled: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *scaled = new_expr(span, ExprKind.Binary(accumulator, BinOp.Mul, multiplier)) }
+            unsafe { *scaled = Expr.new(span, ExprKind.Binary(accumulator, BinOp.Mul, multiplier)) }
             accumulator = unsafe { alloc<Expr>() }
-            unsafe { *accumulator = new_expr(span, ExprKind.Binary(scaled, BinOp.Add, field_hash)) }
+            unsafe { *accumulator = Expr.new(span, ExprKind.Binary(scaled, BinOp.Add, field_hash)) }
         }
     }
     val result: Box<Expr>? = accumulator
     var body = List.new<Stmt>()
-    body.push(new_stmt(span, StmtKind.Return(result)))
+    body.push(Stmt.new(span, StmtKind.Return(result)))
 
     val uint64_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *uint64_type = new_type_ref(span, TypeRefKind.Named(intern("uint64"), List.new<TypeRef>())) }
+    unsafe { *uint64_type = TypeRef.new(span, TypeRefKind.Named(intern("uint64"), List.new<TypeRef>())) }
     var hash_fn = new_top_decl(span, String.from("hash"),
         TopDeclKind.Function(List.new<Param>(), uint64_type, body, true, false, false, false))
     hash_fn.crate = owner
@@ -117,7 +126,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
     methods.push(hash_fn)
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
+    unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
@@ -127,7 +136,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
 fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
     span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     val bool_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *bool_type = new_type_ref(span, TypeRefKind.Named(intern("bool"), List.new<TypeRef>())) }
+    unsafe { *bool_type = TypeRef.new(span, TypeRefKind.Named(intern("bool"), List.new<TypeRef>())) }
     var equals_fn = new_top_decl(span, String.from("equals"),
         TopDeclKind.Function(params, bool_type, body, true, false, false, false))
     equals_fn.crate = owner
@@ -136,7 +145,7 @@ fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
     methods.push(equals_fn)
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
+    unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
@@ -146,12 +155,12 @@ fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
 // A marker: the struct's clone glue already deep-copies.
 fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     val result_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *result_type = new_type_ref(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *result_type = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
     val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *self_value = new_expr(span, ExprKind.Variable(intern("self"))) }
+    unsafe { *self_value = Expr.new(span, ExprKind.Variable(intern("self"))) }
     val operand: Box<Expr>? = self_value
     var body = List.new<Stmt>()
-    body.push(new_stmt(span, StmtKind.Return(operand)))
+    body.push(Stmt.new(span, StmtKind.Return(operand)))
     var clone_fn = new_top_decl(span, String.from("clone"),
         TopDeclKind.Function(List.new<Param>(), result_type, body, true, false, false, false))
     clone_fn.annotations.push(new_annotation(span, "derive", [String.from("Clone")]))
@@ -161,7 +170,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
     methods.push(clone_fn)
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
+    unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
@@ -172,7 +181,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
 fun synth_copy_impl(name: String, span: Span, name_span: Span, owner: CrateId, module_path: Sym,
     trait_sym: Sym): TopDecl {
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *trait_ref = new_type_ref(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
+    unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
     var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, List.new<TopDecl>()))
     implementation.name_span = name_span
     implementation.crate = owner
@@ -185,28 +194,28 @@ fun default_value_expr(ty: Ptr<TypeRef>, span: Span): Expr {
     when (tr.kind) {
         Named(n, _args) => {
             val s = n.as_str()
-            if is_int_like(s) { return new_expr(span, ExprKind.LitInt(0)) }
+            if is_int_like(s) { return Expr.new(span, ExprKind.LitInt(0)) }
             when s {
-                "bool" => return new_expr(span, ExprKind.LitBool(false))
-                "float32" => return new_expr(span, ExprKind.LitInt(0))
-                "float64" => return new_expr(span, ExprKind.LitInt(0))
-                "str" => return new_expr(span, ExprKind.LitStr(""))
+                "bool" => return Expr.new(span, ExprKind.LitBool(false))
+                "float32" => return Expr.new(span, ExprKind.LitInt(0))
+                "float64" => return Expr.new(span, ExprKind.LitInt(0))
+                "str" => return Expr.new(span, ExprKind.LitStr(""))
                 _ => { }
             }
             if s == "Ptr" {
                 // 0 as Ptr<...>
                 val zero: Ptr<Expr> = unsafe { alloc<Expr>() }
-                unsafe { *zero = new_expr(span, ExprKind.LitInt(0)) }
+                unsafe { *zero = Expr.new(span, ExprKind.LitInt(0)) }
                 val tref_box: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *tref_box = tr }
-                return new_expr(span, ExprKind.Cast(zero, tref_box))
+                return Expr.new(span, ExprKind.Cast(zero, tref_box))
             }
             // FieldType.default()
             val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *recv = new_expr(span, ExprKind.Variable(n)) }
-            return new_expr(span, ExprKind.MethodCall(recv, intern("default"), List.new<Expr>()))
+            unsafe { *recv = Expr.new(span, ExprKind.Variable(n)) }
+            return Expr.new(span, ExprKind.MethodCall(recv, intern("default"), List.new<Expr>()))
         }
-        _ => return new_expr(span, ExprKind.LitInt(0))
+        _ => return Expr.new(span, ExprKind.LitInt(0))
     }
 }
 

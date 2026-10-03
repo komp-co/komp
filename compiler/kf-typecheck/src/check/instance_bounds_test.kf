@@ -2,14 +2,15 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
 
 /// `Option__int32`, with `Option`'s impl of Clone bounding its parameter by
 /// `bound` ("" for none). No impl of Clone for `int32` is registered here.
 fun ctx_with_option_of_int32(bound: str): TypeCtx {
     var ctx = mk_ctx()
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val inst = GenericInst { mangled: String.from("Option__int32"), base: String.from("Option"), args: args }
     unsafe { ctx.sigs.insert_inst(inst) }
     var bounds = List.new<String>()

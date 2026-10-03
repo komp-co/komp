@@ -4,7 +4,12 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 fun named_tr(n: str): TypeRef {
     return TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))
@@ -121,12 +126,12 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 fun let_anno_mangle(s: Stmt): String {
-    return when (s.kind) {
+    when (s.kind) {
         LetVal(_n, ty_ptr, _i) => {
             val p = ty_ptr ?: return "<none>"
-            String.from(mangle_tyref(unsafe { &*p }).as_str())
+            return mangle_tyref(unsafe { &*p })
         }
-        _ => "?"
+        _ => return "?"
     }
 }
 
@@ -177,8 +182,7 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun a_compound_names_its_parameter_segment(): void {
-    var names = ["T"]
-    names.push(String.from("T"))
+    val names = [String.from("T")]
     assert_eq("List__T__get".has_param_segment(&names), true, "the middle segment is T")
 }
 
@@ -207,7 +211,7 @@ fun mk_let_t(): Stmt {
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val struct_t = Type { kind: TypeKind.Struct(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val ptr_struct_t = ptr_ty(struct_t, no_span())
+    val ptr_struct_t = Type.new_ptr(struct_t, no_span())
     val out = ptr_struct_t.subst_type(&var names, &var repls)
     when (out.kind) {
         PtrTo(p) => {
@@ -268,7 +272,7 @@ fun TypeRef.proj_owner_addr(): uint64 {
 fun projection_tr(owner_name: str, member: str): TypeRef {
     val owner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *owner = named_tr(owner_name) }
-    return new_type_ref(no_span(), TypeRefKind.Projection(owner, intern(member)))
+    return TypeRef.new(no_span(), TypeRefKind.Projection(owner, intern(member)))
 }
 
 @test fun cloning_keeps_a_projection(): void {
@@ -321,7 +325,7 @@ fun subst_one(tr: TypeRef, name: str, replacement: TypeRef): TypeRef {
 // owner there too.
 
 fun ty_proj(owner: Type, member: str): Type {
-    return projection_ty(owner, intern(member), no_span())
+    return Type.new_projection(owner, intern(member), no_span())
 }
 
 fun Type.ty_proj_member(): String {
@@ -355,20 +359,20 @@ fun subst_one_ty(t: Type, name: str, replacement: TypeRef): Type {
 }
 
 @test fun substituting_rewrites_a_projection_type_owner(): void {
-    val src = ty_proj(generic_ty(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
     val out = subst_one_ty(src, "C", named_tr("Widget"))
     assert_eq(out.ty_proj_owner_name().as_str(), "Widget", "the owner is substituted")
     assert_eq(out.ty_proj_member().as_str(), "Out", "it is still a projection")
 }
 
 @test fun substituting_leaves_an_unrelated_projection_type_alone(): void {
-    val src = ty_proj(generic_ty(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
     val out = subst_one_ty(src, "D", named_tr("Widget"))
     assert_eq(out.ty_proj_owner_name().as_str(), "C", "an unmatched owner is untouched")
 }
 
 // Unresolved is not broken: poison would suppress errors around it.
 @test fun a_projection_type_is_not_poison(): void {
-    val src = ty_proj(generic_ty(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
     assert_eq(src.is_poison(), false, "an unresolved projection is not an error type")
 }

@@ -108,7 +108,7 @@ reported with the use that decided:
 
 ```console
 $ komp check .
-src/main.kf:4:12: error: `n` is `uint64`, as an earlier use decided, but this use needs `int8`
+src/main.kf:4:12: error: `n` is `uint64`, as an earlier use decided, but this use expects `int8`
         narrow(n)
                ^
   = note: decided `uint64` here (at src/main.kf:3:10)

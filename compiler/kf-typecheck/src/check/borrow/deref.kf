@@ -1,13 +1,17 @@
-import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.*
+import kf_core.ast.types.type_node
 import kf_typecheck.types.display_type
 import kf_typecheck.check.promote_subscript_to_mut
 
 /// Raw pointer, box or borrow only. Poison propagates silently.
 pub fun check_deref(inner: Expr, span: Span, ctx: &var TypeCtx): Type {
-    if inner.ty.is_poison() { return poison_ty() }
+    if inner.ty.is_poison() { return Type.new_poison() }
     when (inner.ty.kind) {
         PtrTo(inner_ptr) => return unsafe { *inner_ptr }
         BoxOf(inner_ptr) => return unsafe { *inner_ptr }
@@ -16,7 +20,7 @@ pub fun check_deref(inner: Expr, span: Span, ctx: &var TypeCtx): Type {
             val rendered = inner.ty.display_type(ctx)
             val message = "cannot dereference `${rendered.as_str()}`: `*` applies only to a pointer, box, or borrow"
             ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
-            return poison_ty()
+            return Type.new_poison()
         }
     }
 }
@@ -28,7 +32,7 @@ pub mutating fun Expr.borrow_written_deref(written: uint8, ctx: &var TypeCtx): v
     if written != coerce_written_amp() && written != coerce_written_amp_var() { return }
     // `&var xs[i]` borrows through `IndexMut`.
     if written == coerce_written_amp_var() { val _ = self.promote_subscript_to_mut(ctx) }
-    var operand = expr_poison(self.span)
+    var operand = Expr.new_poison(self.span)
     when (self.kind) {
         Deref(inner_ptr) => { operand = unsafe { *inner_ptr } }
         _ => return
@@ -41,8 +45,7 @@ pub mutating fun Expr.borrow_written_deref(written: uint8, ctx: &var TypeCtx): v
         RefTo(is_mut, _) => { mutable = mutable && is_mut }
         _ => { }
     }
-    val pointee: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointee = self.ty }
+    val pointee = type_node(self.ty)
     operand.ty = Type { kind: TypeKind.RefTo(mutable, pointee), provenance: Provenance.Inferred(self.span) }
     operand.coerce = coerce_none()
     (*self) = operand
@@ -55,13 +58,13 @@ fun Expr.offset_pointee(): Type {
             when (op) {
                 Add => { }
                 Sub => { }
-                _ => return poison_ty()
+                _ => return Type.new_poison()
             }
             when (unsafe { l.ty.kind }) {
                 PtrTo(pointee) => return unsafe { *pointee }
-                _ => return poison_ty()
+                _ => return Type.new_poison()
             }
         }
-        _ => return poison_ty()
+        _ => return Type.new_poison()
     }
 }

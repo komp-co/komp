@@ -8,7 +8,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.span.no_span
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 /// Rewrites the guard to read the value its prelude computes, and returns
 /// that prelude; empty, and the guard untouched, when it owns no temporary.
@@ -17,6 +23,9 @@ fun guard_temporaries(guard: Ptr<Expr>?, ctx: &var RcCtx): List<Stmt> {
     val condition = guard ?: return prelude
     hoist_borrowed_temps(condition, ctx, &var prelude)
     if prelude.size() == 0 { return prelude }
+    while i in 0..prelude.size() {
+        prelude.at_mut(i).release_branch_temporaries()
+    }
     var temporaries = List.new<Sym>()
     while stmt in &prelude {
         when (stmt.kind) {
@@ -30,14 +39,45 @@ fun guard_temporaries(guard: Ptr<Expr>?, ctx: &var RcCtx): List<Stmt> {
     val result = intern("__guard_${u64_to_str(id)}")
     val value: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *value = *condition }
-    prelude.push(new_stmt(span, StmtKind.LetVal(result, null, value)))
+    prelude.push(Stmt.new(span, StmtKind.LetVal(result, null, value)))
     var i = temporaries.size()
     while i > 0 {
         i = i - 1
-        prelude.push(new_stmt(span, StmtKind.Release(*temporaries.at(i))))
+        prelude.push(Stmt.new(span, StmtKind.Release(*temporaries.at(i))))
     }
-    var read = new_expr(span, ExprKind.Variable(result))
+    var read = Expr.new(span, ExprKind.Variable(result))
     read.ty = unsafe { condition.ty }
     unsafe { *condition = read }
     return prelude
+}
+
+/// An `if` the hoist made for a part that runs only sometimes releases the
+/// temporaries it binds at the end of its own branch.
+mutating fun Stmt.release_branch_temporaries(): void {
+    when (self.kind) {
+        If(cond, then_body, else_body) => {
+            then_body.release_temporaries_at_end()
+            else_body.release_temporaries_at_end()
+            self.kind = StmtKind.If(take<Box<Expr>>(cond), take<List<Stmt>>(then_body), take<List<Stmt>>(else_body))
+        }
+        _ => { }
+    }
+}
+
+mutating fun List<Stmt>.release_temporaries_at_end(): void {
+    while i in 0..self.size() {
+        self.at_mut(i).release_branch_temporaries()
+    }
+    var temporaries = List.new<Sym>()
+    while stmt in &self {
+        when (stmt.kind) {
+            LetVal(name, _, _) => temporaries.push(name)
+            _ => { }
+        }
+    }
+    var i = temporaries.size()
+    while i > 0 {
+        i = i - 1
+        self.push(Stmt.new(no_span(), StmtKind.Release(*temporaries.at(i))))
+    }
 }

@@ -1,6 +1,10 @@
 import core.assert.assert_eq
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.TypeIdentity
+import kf_core.ast.types.TypeKind
+import kf_core.ast.types.canonical_type_identity
 
 // A receiver type may carry the declared name (from a literal) or the
 // canonical identity (from an annotation); both answer with the declared
@@ -8,7 +12,7 @@ import kf_core.ast.*
 
 @test
 fun identity_typed_receiver_answers_with_its_declared_name(): void {
-    val identity = canonical_type_identity(new_type_identity(new_crate_id("app"), intern("models"), intern("Point")))
+    val identity = canonical_type_identity(TypeIdentity.new(new_crate_id("app"), intern("models"), intern("Point")))
     val name: String = TypeKind.Struct(identity).trait_impl_owner_name()
     assert_eq(name.as_str(), "Point", "a canonical identity looks up impls under the declared name")
 }

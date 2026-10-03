@@ -181,3 +181,17 @@ void kf_exit_child(int32_t code) {
     fflush(NULL);
     _exit((int)code);
 }
+
+/* The `TypeNodes` a typing is putting its type children in (0 for none).
+ *
+ * Process-wide for the same reason the flags above are: types are built all
+ * over the checker, and threading the storage through every signature that
+ * makes one would put it in hundreds of functions. A typing sets it around
+ * its own work and restores the previous one after. */
+static uint64_t kf_type_nodes_current = 0;
+
+uint64_t kf_type_nodes_swap(uint64_t next) {
+    uint64_t previous = kf_type_nodes_current;
+    kf_type_nodes_current = next;
+    return previous;
+}

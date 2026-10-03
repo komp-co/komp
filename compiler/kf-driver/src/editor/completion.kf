@@ -4,7 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_interface.emit.tyref_to_source
 import json.writer.*
 
@@ -47,7 +49,7 @@ pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): S
         return out.finish()
     }
     out.field_string("receiver_type", hit.ty.written_type(crate.sigs).as_str())
-    out.field_raw("items", crate.module.members_json(owner.as_str()).as_str())
+    out.field_raw("items", crate.members_json(owner.as_str(), &hit.ty).as_str())
     return out.finish()
 }
 
@@ -81,17 +83,20 @@ fun is_name_byte(b: uint8): bool {
 }
 
 /// Fields from the struct and methods from every impl naming it, inherent and
-/// trait alike.
-fun Module.members_json(owner: str): String {
+/// trait alike, then the extensions a call on `receiver` would reach. A
+/// type's own method hides an extension of the same name, as in a call.
+fun TypedCrate.members_json(owner: str, receiver: &Type): String {
     var seen = List.new<String>()
     var arr = JsonWriter.array()
-    while td in &self.decls {
+    while td in &self.module.decls {
         if td.name.as_str() == owner {
             td.add_fields(&var seen, &var arr)
             td.add_methods(&var seen, &var arr)
         }
-        // After the type's own members.
-        if td.extension_applies_to(owner) {
+    }
+    val links = self.callable_extensions(receiver)
+    while td in &self.module.decls {
+        if td.is_extension_in(&links) {
             push_item(&var seen, &var arr, td.ext_name.as_str(), "method", td.signature_of().label.as_str())
         }
     }

@@ -2,28 +2,35 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.*
 import kf_codegen.emit.new_local_env
 
 fun guard_expr(name: str): Ptr<Expr> {
     val g: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name)))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(no_span()) }
     unsafe { *g = e }
     return g
 }
 
 fun guarded_arm(tag: SwitchTag, guard: Box<Expr>?): SwitchArm {
-    return new_switch_arm(no_span(), tag, List.new<Sym>(), guard, List.new<Stmt>())
+    return SwitchArm.new(no_span(), tag, List.new<Sym>(), guard, List.new<Stmt>())
 }
 
 fun guard_switch_c(arms: List<SwitchArm>): String {
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var subj = new_expr(no_span(), ExprKind.Variable(intern("x")))
+    var subj = Expr.new(no_span(), ExprKind.Variable(intern("x")))
     subj.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
     unsafe { *sp = subj }
     var env = new_local_env()
-    return emit_stmt(new_stmt(no_span(), StmtKind.Switch(sp, arms)), 0, &var env)
+    return emit_stmt(Stmt.new(no_span(), StmtKind.Switch(sp, arms)), 0, &var env)
 }
 
 // Two arms, one guarded: the switch is gone and the guard is in the test.

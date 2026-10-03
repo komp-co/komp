@@ -1,7 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_parse.parser.*
 
 /// Declaration-site `<A, B>` as use-site TypeRefs, for re-reading a trait
@@ -9,7 +12,7 @@ import kf_parse.parser.*
 fun type_params_to_refs(tps: List<TypeParam>): List<TypeRef> {
     var out = List.new<TypeRef>()
     while tp in &tps {
-        out.push(new_type_ref(tp.span, TypeRefKind.Named(tp.name, List.new<TypeRef>())))
+        out.push(TypeRef.new(tp.span, TypeRefKind.Named(tp.name, List.new<TypeRef>())))
     }
     return out
 }
@@ -31,7 +34,7 @@ impl Parser {
         var trait_args = List.new<TypeRef>()
         var is_trait_impl = false
         if is_op(self.peek(), Operator.Lt) {
-            if self.try_parse_type_args(&var trait_args) {
+            if self.parse_type_argument_list(&var trait_args, true) {
                 if is_keyword(self.peek(), Keyword.For) { is_trait_impl = true }
             }
         }
@@ -39,7 +42,7 @@ impl Parser {
             unsafe { self.advance() } // consume `for`
             val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -59,7 +62,7 @@ impl Parser {
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -125,9 +128,7 @@ impl Parser {
             unsafe { self.advance() } // consume `:`
             while true {
                 val before: uint64 = self.pos
-                val bound_ptr = self.parse_type_ref_ptr()
-                bounds.push(unsafe { *bound_ptr })
-                unsafe { dealloc<TypeRef>(bound_ptr) }
+                bounds.push(self.parse_type_ref())
                 if is_op(self.peek(), Operator.Plus) {
                     unsafe { self.advance() }
                 } else {
@@ -217,13 +218,7 @@ impl Parser {
 
         val params = self.parse_param_list()
 
-        var ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-        if is_op(self.peek(), Operator.Colon) {
-            unsafe { self.advance() }
-            ret = self.parse_type_ref_ptr()
-        } else {
-            unsafe { *ret = type_ref_poison(span) }
-        }
+        val ret = if self.take_op(Operator.Colon) { self.parse_type_ref_ptr() } else { poison_type_ref_at(span) }
 
         var td = new_top_decl(span, name, TopDeclKind.Extern(params, ret, is_pub, false))
         td.name_span = name_at

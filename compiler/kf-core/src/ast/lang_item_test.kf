@@ -1,6 +1,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.new_annotation
 
 fun marked_struct(name: str, lang_key: str): TopDecl {
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
@@ -41,7 +46,7 @@ fun module_of(decls: List<TopDecl>): Module {
 @test fun the_empty_name_matches_nothing(): void {
     val t = intern("").lang_struct_ty(no_span())
     assert_eq((&t).is_lang_struct(intern("")), false, "no lang string in the graph means no string type")
-    assert_eq((&str_ty(no_span())).is_lang_struct(intern("Text")), false, "a str is not the owned string")
+    assert_eq((&Type.new_str(no_span())).is_lang_struct(intern("Text")), false, "a str is not the owned string")
 }
 
 @test fun a_placeholder_names_its_key_and_nothing_else_does(): void {

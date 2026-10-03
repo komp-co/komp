@@ -4,18 +4,18 @@ import alloc.list.*
 import kf_core.span.*
 
 @test fun new_expr_initializes_poison_decl(): void {
-    val e = new_expr(no_span(), ExprKind.LitInt(7))
+    val e = Expr.new(no_span(), ExprKind.LitInt(7))
     assert_eq(e.decl.is_none(), true, "decl id starts absent")
 }
 
 @test fun new_expr_round_trips_span(): void {
     val sp = Span { file_id: 1, start: 10, end: 11 }
-    val e = new_expr(sp, ExprKind.LitInt(5))
+    val e = Expr.new(sp, ExprKind.LitInt(5))
     assert_eq(e.span.start, 10, "span start")
 }
 
 @test fun expr_poison_kind_is_poison(): void {
-    val e = expr_poison(no_span())
+    val e = Expr.new_poison(no_span())
     when (e.kind) {
         Poison => assert(true, "ok")
         _ => fail("expected Poison kind")
@@ -23,7 +23,7 @@ import kf_core.span.*
 }
 
 @test fun lit_int_kind(): void {
-    val e = new_expr(no_span(), ExprKind.LitInt(42))
+    val e = Expr.new(no_span(), ExprKind.LitInt(42))
     when (e.kind) {
         LitInt(n) => assert_eq(n, 42, "int")
         _ => fail("expected LitInt")
@@ -31,7 +31,7 @@ import kf_core.span.*
 }
 
 @test fun lit_bool_kind(): void {
-    val e = new_expr(no_span(), ExprKind.LitBool(false))
+    val e = Expr.new(no_span(), ExprKind.LitBool(false))
     when (e.kind) {
         LitBool(b) => assert_eq(b, false, "bool")
         _ => fail("expected LitBool")
@@ -45,7 +45,7 @@ import kf_core.span.*
 
 @test fun arg_vec_push_grows(): void {
     var v = List.new<Expr>()
-    v.push(expr_poison(no_span()))
-    v.push(expr_poison(no_span()))
+    v.push(Expr.new_poison(no_span()))
+    v.push(Expr.new_poison(no_span()))
     assert_eq(v.size(), 2, "two args")
 }

@@ -5,21 +5,28 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.*
 import kf_codegen.emit.new_local_env
 
 fun scalar_arm(tag: SwitchTag): SwitchArm {
-    return new_switch_arm(no_span(), tag, List.new<Sym>(), null, List.new<Stmt>())
+    return SwitchArm.new(no_span(), tag, List.new<Sym>(), null, List.new<Stmt>())
 }
 
 // `switch (__x) { ... }` for a bare `uint64` subject named x.
 fun scalar_switch_c(arms: List<SwitchArm>): String {
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var subj = new_expr(no_span(), ExprKind.Variable(intern("x")))
+    var subj = Expr.new(no_span(), ExprKind.Variable(intern("x")))
     subj.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
     unsafe { *sp = subj }
     var env = new_local_env()
-    return emit_stmt(new_stmt(no_span(), StmtKind.Switch(sp, arms)), 0, &var env)
+    return emit_stmt(Stmt.new(no_span(), StmtKind.Switch(sp, arms)), 0, &var env)
 }
 
 @test fun an_integer_arm_emits_a_case_label(): void {

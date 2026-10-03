@@ -5,9 +5,14 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_none
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
-pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: Ptr<List<Diagnostic>>, list_name: Sym): void {
+pub mutating fun Module.move_check_module(diags: &var Diagnostics, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: &var Diagnostics, list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
     val copies = self.copy_type_names()
     // Built once and shared by pointer: it holds move-only lists.
@@ -21,17 +26,17 @@ pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_coun
     // levels and prints. Each is copied explicitly: pushing one by value
     // would be a move out of a borrow.
     while lint in &warnings.lints {
-        unsafe { lints.push(lint.clone()) }
+        lints.emit(lint.clone())
     }
 }
 
-mutating fun TopDecl.move_check_top_decl(diags: Ptr<List<Diagnostic>>, names: List<String>, copies: &List<String>,
+mutating fun TopDecl.move_check_top_decl(diags: &var Diagnostics, names: List<String>, copies: &List<String>,
     ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): void {
     self.move_check_top_decl_in(diags, names, copies, ptable, mob_count, smap, "", warn)
 }
 
 /// `self_owner` is the enclosing impl's target, or "" at the top level.
-mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names: List<String>, copies: &List<String>,
+mutating fun TopDecl.move_check_top_decl_in(diags: &var Diagnostics, names: List<String>, copies: &List<String>,
     ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, self_owner: str,
     warn: Ptr<WarnState>): void {
     when (self.kind) {
@@ -265,6 +270,7 @@ fun Expr.is_fresh_move_only_value(ctx: &var MoveCtx): bool {
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return false }
     return when (self.kind) {
         Call(_n, _a) => true
+        Intrinsic(_i, _a) => true
         CallValue(_callee, _a) => true
         MethodCall(_r, _m, _a) => true
         _ => false

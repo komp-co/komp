@@ -3,6 +3,13 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.new_top_decl
 import kf_core.ast.dyn_meta.*
 import kf_codegen.emit.c_type_of_type
 import kf_codegen.emit.expr.emit_expr
@@ -25,7 +32,7 @@ fun dyn_text_find(text: str, needle: str): uint64 {
 }
 
 fun codegen_dyn_ref(): Type {
-    val dynamic = dyn_trait_type(intern("Display"), new_type_vec(), no_span())
+    val dynamic = dyn_trait_type(intern("Display"), List.new<Type>(), no_span())
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *inner = dynamic }
     return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Declared(no_span()) }
@@ -35,8 +42,8 @@ fun codegen_dyn_module(): Module {
     var methods = List.new<DynMethodSlot>()
     methods.push(DynMethodSlot { name: intern("display"), params: List.new<Type>(), ret: intern("String").lang_struct_ty(no_span()), is_mutating: false, slot: 0 })
     var compare_params = List.new<Type>()
-    compare_params.push(int32_ty(no_span()))
-    methods.push(DynMethodSlot { name: intern("compare"), params: compare_params, ret: bool_ty(no_span()), is_mutating: false, slot: 1 })
+    compare_params.push(Type.new_int32(no_span()))
+    methods.push(DynMethodSlot { name: intern("compare"), params: compare_params, ret: Type.new_bool(no_span()), is_mutating: false, slot: 1 })
     val layout = DynTraitLayout {
         identity: intern("Display"), principal: intern("Display"), args: List.new<Type>(), methods: methods,
         owner: crate_id_poison(), imported: false
@@ -140,23 +147,23 @@ fun codegen_dyn_module(): Module {
 }
 
 @test fun dyn_trait_codegen_emits_coercion_literal(): void {
-    var source = new_expr(no_span(), ExprKind.Variable(intern("point")))
+    var source = Expr.new(no_span(), ExprKind.Variable(intern("point")))
     source.ty = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
     source.coerce = coerce_addr_of()
     val source_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *source_ptr = source }
-    var coercion = new_expr(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Display")))
+    var coercion = Expr.new(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Display")))
     coercion.ty = codegen_dyn_ref()
     val output = coercion.emit_expr()
     assert_eq(output.as_str().contains("(Dyn__Display){") && output.as_str().contains(".data = (void *)((&__point))") && output.as_str().contains(".vtable = &DynVTableInstance__Point__Display"), true, "coercion emits a fat-reference literal")
 }
 
 @test fun dyn_trait_codegen_emits_indirect_call_helper(): void {
-    var receiver = new_expr(no_span(), ExprKind.Variable(intern("object")))
+    var receiver = Expr.new(no_span(), ExprKind.Variable(intern("object")))
     receiver.ty = codegen_dyn_ref()
     val receiver_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *receiver_ptr = receiver }
-    var call = new_expr(no_span(), ExprKind.MethodCall(receiver_ptr, intern("display"), List.new<Expr>()))
+    var call = Expr.new(no_span(), ExprKind.MethodCall(receiver_ptr, intern("display"), List.new<Expr>()))
     call.ty = intern("String").lang_struct_ty(no_span())
     call.is_dynamic_call = true
     call.dynamic_layout = intern("Display")
@@ -168,7 +175,7 @@ fun codegen_dyn_module(): Module {
 // dynamically is not emitted.
 fun unselected_trait_decl_module(layout_identity: str, args: List<Type>): Module {
     var methods = List.new<DynMethodSlot>()
-    methods.push(DynMethodSlot { name: intern("next"), params: List.new<Type>(), ret: int32_ty(no_span()), is_mutating: false, slot: 0 })
+    methods.push(DynMethodSlot { name: intern("next"), params: List.new<Type>(), ret: Type.new_int32(no_span()), is_mutating: false, slot: 0 })
     val layout = DynTraitLayout {
         identity: intern(layout_identity), principal: intern("Iterator"), args: args, methods: methods,
         owner: crate_id_poison(), imported: false
@@ -182,7 +189,7 @@ fun unselected_trait_decl_module(layout_identity: str, args: List<Type>): Module
 
 @test fun an_unselected_generic_trait_layout_is_not_emitted(): void {
     var args = List.new<Type>()
-    args.push(int32_ty(no_span()))
+    args.push(Type.new_int32(no_span()))
     val module = unselected_trait_decl_module("Iterator__int32", args)
     val output = module.emit_dyn_layouts()
     assert_eq(output.as_str().contains("struct DynVTable__Iterator__int32 {"), false, "an instantiated layout is materialized per consumer, so nothing outside can be relying on it")
@@ -200,7 +207,7 @@ fun unselected_trait_decl_module(layout_identity: str, args: List<Type>): Module
 /// `linkage`, and a coercion here that asks for it.
 fun coerced_dependency_vtable_module(linkage: Linkage): Module {
     var methods = List.new<DynMethodSlot>()
-    methods.push(DynMethodSlot { name: intern("display"), params: List.new<Type>(), ret: void_ty(no_span()), is_mutating: false, slot: 0 })
+    methods.push(DynMethodSlot { name: intern("display"), params: List.new<Type>(), ret: Type.new_void(no_span()), is_mutating: false, slot: 0 })
     val layout = DynTraitLayout {
         identity: intern("Display"), principal: intern("Display"), args: List.new<Type>(), methods: methods,
         owner: new_crate_id("core"), imported: true

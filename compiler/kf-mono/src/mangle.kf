@@ -8,6 +8,8 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
 import kf_core.ast.dyn_meta.dyn_trait_identity
 
 pub fun mangle_struct_name(name: str, args: List<Type>): String {

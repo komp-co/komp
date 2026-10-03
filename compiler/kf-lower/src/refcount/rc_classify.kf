@@ -1,7 +1,15 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_clone
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.names_contains
 
 /// A hand-written `.clone()` is fresh whatever its receiver.
@@ -20,6 +28,7 @@ fun is_fresh_owned_producer(rev: Expr, ctx: &var RcCtx): bool {
     if !(&rev_ty).is_lang_struct(ctx.string_name) { return false }
     return when (rev.kind) {
         Call(_, _) => true
+        Intrinsic(_, _) => true
         CallValue(_callee, _) => true
         MethodCall(_, _, _) => true
         // A binary result is fresh; its operands drop after evaluation.
@@ -43,7 +52,7 @@ pub fun rc_insert_stmts(stmts: &var List<Stmt>, ctx: &var RcCtx): void {
         stmts.at_mut(i).rc_insert_in_list(&var before, &var after, ctx)
         laid_out.extend(before)
         slots.push(n + laid_out.size())
-        laid_out.push(new_stmt(no_span(), StmtKind.Break))
+        laid_out.push(Stmt.new(no_span(), StmtKind.Break))
         laid_out.extend(after)
     }
     splice_into_slots(stmts, laid_out, &slots)
@@ -107,7 +116,7 @@ mutating fun Stmt.rc_insert_in_list(before: &var List<Stmt>, after: &var List<St
             before.extend(assign_ownership_after(name, span, &prior, ctx))
             if !still_owning { return }
             val nm = old ?: return
-            after.push(new_stmt(span, StmtKind.Release(nm)))
+            after.push(Stmt.new(span, StmtKind.Release(nm)))
         }
         // The old value is named, then released after the store.
         AssignTo(place_ptr, rhs_ptr) => {
@@ -115,7 +124,7 @@ mutating fun Stmt.rc_insert_in_list(before: &var List<Stmt>, after: &var List<St
             val old = lower_place_assign_drop(place_ptr, rhs_ptr, span, ctx, before)
             self.rc_insert_stmt(ctx)
             val nm = old ?: return
-            after.push(new_stmt(span, StmtKind.Release(nm)))
+            after.push(Stmt.new(span, StmtKind.Release(nm)))
         }
         _ => self.rc_insert_stmt(ctx)
     }
@@ -144,6 +153,7 @@ enum BindingMode { OwnedFresh, OwnedRetain, Moved, Borrowed }
 fun is_move_only_call_result(init: Expr, ctx: &var RcCtx): bool {
     return when (init.kind) {
         Call(_, _) => init.ty.is_move_only(ctx)
+        Intrinsic(_, _) => init.ty.is_move_only(ctx)
         CallValue(_callee, _) => init.ty.is_move_only(ctx)
         MethodCall(_, _, _) => init.ty.is_move_only(ctx)
         _ => false
@@ -159,12 +169,16 @@ fun is_fresh_binary(init: Expr, ctx: &var RcCtx): bool {
     }
 }
 
-/// Fresh, a clone, or a moved bare variable. A deref is a view.
+/// Fresh, a clone, or a moved bare variable. A deref or a field read is a
+/// view, as it is when bound directly.
 fun if_branch_is_owned(bp: Ptr<Expr>, ctx: &var RcCtx): bool {
     val e = unsafe { *bp }
     if e.coerce == coerce_clone() { return true }
     if is_deref_init(e) { return false }
-    return true
+    return when (e.kind) {
+        FieldAccess(_, _) => false
+        _ => true
+    }
 }
 
 /// Every branch must be fresh; `if c { *xs.at(i) } else { fresh }` is not.
@@ -226,7 +240,7 @@ fun apply_binding_mode(mode: BindingMode, name: String, init_ptr: Ptr<Expr>, ctx
             val ity: Type = init.ty
             val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
             unsafe { *inner = init }
-            var retained = new_expr(isp, ExprKind.Retain(inner))
+            var retained = Expr.new(isp, ExprKind.Retain(inner))
             retained.ty = ity
             unsafe { *init_ptr = retained }
         }

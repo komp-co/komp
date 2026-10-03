@@ -2,7 +2,10 @@
 // `mutating` method, `&var`), it becomes `index_mut` and is checked again,
 // and so does each subscript it is taken through.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
@@ -62,7 +65,23 @@ pub fun writable_place(place: Ptr<Expr>, ctx: &var TypeCtx): bool {
 pub fun check_receiver_is_writable(recv: Ptr<Expr>, recv_ty: &Type, method_name: String, arity: uint64, span: Span,
     ctx: &var TypeCtx): void {
     if place_is_mutable(unsafe { *recv }, ctx) { return }
+    if (&*recv).lends_through_its_borrow(recv_ty, ctx) { return }
     if !recv_ty.method_is_mutating(method_name.clone(), arity, ctx) { return }
     if promote_subscript_to_mut(unsafe { &var *recv }, ctx) { return }
     emit_immutable_recv_err(method_name, unsafe { *recv }, span, ctx)
+}
+
+/// A field holding a `&var` lends what it borrows to a mutating call, whether
+/// the field is `val` or `var`, when the struct it is read from is writable:
+/// the call changes the borrowed value, never the field.
+fun Expr.lends_through_its_borrow(recv_ty: &Type, ctx: &var TypeCtx): bool {
+    val mutable_borrow = when (recv_ty.kind) {
+        RefTo(v, _) => v
+        _ => false
+    }
+    if !mutable_borrow { return false }
+    return when (self.kind) {
+        FieldAccess(base, _) => base.place_is_mutable(ctx)
+        _ => false
+    }
 }

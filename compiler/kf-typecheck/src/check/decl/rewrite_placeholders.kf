@@ -6,6 +6,12 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 /// The names the library gave the types the placeholders stand for.
 @derive(Copy)
@@ -46,38 +52,38 @@ fun TypeRef.rewrite_placeholder_tref(heads: LangHeads): TypeRef {
     when (self.kind) {
         Named(n, args) => {
             val rewritten = rewrite_placeholder_tref_list(&args, heads)
-            return new_type_ref(self.span, TypeRefKind.Named(heads.head_for(n), rewritten))
+            return TypeRef.new(self.span, TypeRefKind.Named(heads.head_for(n), rewritten))
         }
         DynTrait(n, args) => {
-            return new_type_ref(self.span, TypeRefKind.DynTrait(n, rewrite_placeholder_tref_list(&args, heads)))
+            return TypeRef.new(self.span, TypeRefKind.DynTrait(n, rewrite_placeholder_tref_list(&args, heads)))
         }
         Reference(is_mut, inner) => {
             val sub = (unsafe { &*inner }).rewrite_placeholder_tref(heads)
             val q: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *q = sub }
-            return new_type_ref(self.span, TypeRefKind.Reference(is_mut, q))
+            return TypeRef.new(self.span, TypeRefKind.Reference(is_mut, q))
         }
         Function(ps, ret) => {
             val new_ps = rewrite_placeholder_tref_list(&ps, heads)
             val rsub = (unsafe { &*ret }).rewrite_placeholder_tref(heads)
             val rq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *rq = rsub }
-            return new_type_ref(self.span, TypeRefKind.Function(new_ps, rq))
+            return TypeRef.new(self.span, TypeRefKind.Function(new_ps, rq))
         }
         Array(elem, n) => {
             val esub = (unsafe { &*elem }).rewrite_placeholder_tref(heads)
             val eq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *eq = esub }
-            return new_type_ref(self.span, TypeRefKind.Array(eq, n))
+            return TypeRef.new(self.span, TypeRefKind.Array(eq, n))
         }
         Projection(owner, member) => {
             val osub = (unsafe { &*owner }).rewrite_placeholder_tref(heads)
             val oq: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *oq = osub }
-            return new_type_ref(self.span, TypeRefKind.Projection(oq, member))
+            return TypeRef.new(self.span, TypeRefKind.Projection(oq, member))
         }
-        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
-        Poison => return type_ref_poison(self.span)
+        Value(v) => return TypeRef.new(self.span, TypeRefKind.Value(v))
+        Poison => return TypeRef.new_poison(self.span)
     }
 }
 
@@ -201,6 +207,7 @@ fun rewrite_placeholder_expr(p_opt: Ptr<Expr>?, heads: LangHeads): void {
         Unary(_op, ip) => rewrite_placeholder_expr(ip, heads)
         Deref(ip) => rewrite_placeholder_expr(ip, heads)
         Call(_nm, args) => rewrite_placeholder_expr_list(&args, heads)
+        Intrinsic(_i, args) => rewrite_placeholder_expr_list(&args, heads)
         FnRef(_) => {}
         CallValue(callee_ptr, args) => {
             rewrite_placeholder_expr(callee_ptr, heads)

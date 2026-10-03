@@ -5,6 +5,10 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
@@ -18,7 +22,7 @@ fun dup_test_decl(td: TopDecl): TopDecl {
 
 fun dup_test_method(name: str): TopDecl {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
     return dup_test_decl(new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)))
 }
 

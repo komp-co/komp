@@ -4,17 +4,17 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
 
-fun TopDecl.declaration_ctx(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): TypeCtx {
-    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
-    ctx.owner_crate = self.crate
-    ctx.owner_module = self.module_path
-    ctx.owner_file = self.span.file_id
-    return ctx
+/// Resolves names as `td`'s own declaration does.
+mutating fun TypeCtx.place_at(td: &TopDecl): void {
+    self.owner_crate = td.crate
+    self.owner_module = td.module_path
+    self.owner_file = td.span.file_id
 }
 
 /// Each bound of this crate's kind target names a trait, without arguments.
@@ -45,7 +45,7 @@ pub fun TypeRef.bare_name(): String {
 /// pass's list, for resolving the function's type; `bound` receives what the
 /// annotation's type parameters stand for.
 pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, table: &SigTable,
-    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, bound: &var List<Type>,
+    sigs: Ptr<SigTable>, pass_diags: &var Diagnostics, bound: &var List<Type>,
     diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     when (declared.target) {

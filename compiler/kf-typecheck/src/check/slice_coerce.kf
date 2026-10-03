@@ -5,7 +5,12 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.type_eq
@@ -26,7 +31,7 @@ mutating fun Expr.lend_as_slice(expected: &Type, ctx: &var TypeCtx): bool {
     val source = self.ty.deref_one().sliceable_element(lend.method.as_str(), ctx) ?: return false
     if !source.type_eq(lend.element) { return false }
     if lend.method.as_str() == "as_slice_mut" && !self.lends_mutably(expected, ctx) {
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     self.become_lend_call(lend.method.as_str(), ctx)
@@ -37,7 +42,7 @@ mutating fun Expr.lend_as_slice(expected: &Type, ctx: &var TypeCtx): bool {
 /// nothing with it.
 mutating fun Expr.become_lend_call(method: str, ctx: &var TypeCtx): void {
     val receiver = self.clone()
-    *self = new_expr(receiver.span, ExprKind.MethodCall(Box.new(receiver), intern(method), List.new<Expr>()))
+    *self = Expr.new(receiver.span, ExprKind.MethodCall(Box.new(receiver), intern(method), List.new<Expr>()))
     check_expr(self, ctx)
 }
 
@@ -123,7 +128,7 @@ pub fun Type.lent_slice_name(param: &Type, ctx: &var TypeCtx): String? {
     args.push(inst.args.at(0).clone())
     // Resolved rather than mangled, so the instance is recorded for the
     // coercion that follows.
-    val lent = new_type_ref(no_span(), TypeRefKind.Named(intern(target.base.as_str()), args)).resolve_type_ref(ctx)
+    val lent = TypeRef.new(no_span(), TypeRefKind.Named(intern(target.base.as_str()), args)).resolve_type_ref(ctx)
     return when (lent.kind) {
         Struct(name) => name.as_string()
         _ => null

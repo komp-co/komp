@@ -4,7 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
 import kf_interface.emit.tyref_to_source
 import json.writer.*
 
@@ -51,7 +58,7 @@ fun Module.innermost_call_at(file_id: uint32, offset: uint32): CoveringSpan {
 }
 
 fun plain_call_miss(): CoveringSpan {
-    return CoveringSpan { span: no_span(), ty: poison_ty(), is_expr: false, is_call: false, callee: intern(""), recv_ty: poison_ty() }
+    return CoveringSpan { span: no_span(), ty: Type.new_poison(), is_expr: false, is_call: false, callee: intern(""), recv_ty: Type.new_poison() }
 }
 
 fun Span.call_width(): uint32 {

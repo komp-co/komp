@@ -1,0 +1,26 @@
+// Which argument of a call fixed a type parameter, so a later argument that
+// disagrees can be told what it disagrees with.
+
+import alloc.list.*
+
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
+
+/// The other argument a type-parameter `declared` was inferred from, when
+/// argument `index` must agree with it; `count`, past every argument, marks
+/// a parameter written or inferred from none.
+fun decided_by_argument(declared: &Type, gnames: &List<String>, inf_from: &List<uint64>, index: uint64,
+    count: uint64): uint64? {
+    val name = when (declared.kind) {
+        Generic(n) => n
+        _ => Sym { id: 0 }
+    }
+    if name.id == 0 { return null }
+    while gi in 0..gnames.size() {
+        if gnames.at(gi).as_str() == name.as_str() {
+            val from = *inf_from.at(gi)
+            if from != index && from < count { return from }
+        }
+    }
+    return null
+}

@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Pattern
+import kf_core.ast.expression.BinOp
+import kf_core.ast.expression.Expr
 
 /// A literal's value, as a template compares it.
 enum Known {

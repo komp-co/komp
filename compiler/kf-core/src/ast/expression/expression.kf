@@ -1,10 +1,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
-import kf_core.ast.poison_ty
-import kf_core.ast.array_literal_callee
-import kf_core.ast.empty_list_literal_receiver
+import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.Param
+import kf_core.ast.statement.Stmt
 
 /// Pass annotations on the outer struct are filled in as passes run.
 @derive(Clone)
@@ -35,13 +37,6 @@ pub struct Expr {
     pub var is_dynamic_call: bool
     pub var dynamic_slot: uint64
     pub var dynamic_layout: Sym
-    /// A memory intrinsic (`alloc<T>()`, `sizeof<T>()`, `take<T>(x)`), set by
-    /// the parser.
-    ///
-    /// CONSTRAINT: never re-derive this from the name. `<crate>__<fn>` has the
-    /// same shape as a folded intrinsic, so in a crate named `alloc` every
-    /// free function would look like one.
-    pub var is_intrinsic: bool
     /// The value of a safe call's `Some` arm (the `x.b` in `a?.b`). The
     /// checker decides from the member's type whether to wrap it in `Some` or
     /// flatten an `Option` chain.
@@ -58,10 +53,15 @@ pub struct Expr {
 
 impl Expr {
     pub static fun new(span: Span, kind: ExprKind): Self {
-        return Self { span: span, name_span: no_span(), kind: kind, decl: null, ty: poison_ty(), mangled_callee: intern(""), coerce: 0, type_args: [], type_args_written: false, is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""), is_intrinsic: false, is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false }
+        return Self {
+            span: span, name_span: no_span(), kind: kind, decl: null, ty: Type.new_poison(),
+            mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
+            is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
+            is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false
+        }
     }
 
-    pub fun new_poison(span: Span): Expr {
+    pub static fun new_poison(span: Span): Self {
         return Expr.new(span, ExprKind.Poison)
     }
 
@@ -74,7 +74,7 @@ impl Expr {
     /// `Type.new()`, with no type arguments of its own.
     pub static fun new_collection_new_call(span: Span, type_name: Sym): Expr {
         val receiver = Box.new(Expr.new(span, ExprKind.Variable(type_name)))
-        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), []))
+        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), List.new<Expr>()))
     }
 }
 
@@ -109,6 +109,9 @@ pub enum ExprKind {
     Deref(Box<Expr>)
     /// `f(args)`.
     Call(Sym, List<Expr>)
+    /// A memory intrinsic, `alloc_array<T>(n)`: its type arguments are the
+    /// expression's `type_args`.
+    Intrinsic(Intrinsic, List<Expr>)
     /// `receiver.method(args)`.
     MethodCall(Box<Expr>, Sym, List<Expr>)
     /// A function named as a value. The name is the one a `Call` of it
@@ -218,5 +221,3 @@ impl FieldInit {
         return Self { span: span, name: intern(name.as_str()), value: value }
     }
 }
-
-

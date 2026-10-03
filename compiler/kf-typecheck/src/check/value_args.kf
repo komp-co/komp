@@ -3,7 +3,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.is_integer_type_name
+import kf_core.ast.value_type
+import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.error_at
 import kf_typecheck.types.display_type_ref
 import kf_typecheck.check.decl.bare_name

@@ -3,10 +3,10 @@
 import core.assert.assert_eq
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
-import kf_driver.build.fresh_diag_list
 import kf_integration.harness.assemble_project
 import kf_tool.cli.new_project
 import std.fs.scratch_root
+import kf_core.diagnostic.new_diagnostics
 
 @test
 fun a_new_project_checks_without_a_diagnostic(): void {
@@ -14,6 +14,7 @@ fun a_new_project_checks_without_a_diagnostic(): void {
     val _rc = system("rm -rf ${dir}".as_str())
     new_project(dir.as_str())
     val smap = fresh_source_map()
-    var merged = assemble_project(dir.as_str(), smap, fresh_diag_list())
+    var parse_diags = new_diagnostics()
+    var merged = assemble_project(dir.as_str(), smap, &var parse_diags)
     assert_eq(merged.collect_module_diags(smap).size(), 0, "the template is the first code a user reads")
 }

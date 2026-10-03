@@ -1,5 +1,7 @@
 import kf_core.span.Span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
 import kf_parse.lexer.*
 
 /// "_" for anything but an identifier.
@@ -18,15 +20,23 @@ pub fun Token.ident_name_or_anon(): String {
     }
 }
 
+/// A poison type in a slot the caller owns, for a missing annotation.
+pub fun poison_type_ref_at(span: Span): Ptr<TypeRef> {
+    val slot: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *slot = TypeRef.new_poison(span) }
+    return slot
+}
+
 impl Parser {
-    pub mutating fun parse_type_ref_ptr(): Ptr<TypeRef> {
+    /// A type as written.
+    pub mutating fun parse_type_ref(): TypeRef {
         val t = self.peek()
-        val ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+        var parsed = TypeRef.new_poison(t.span)
         when (t.kind) {
             Identifier(name) => {
                 unsafe { self.advance() }
                 val args = self.parse_type_arguments()
-                var tr = new_type_ref(t.span, TypeRefKind.Named(intern(name.as_str()), args))
+                var tr = TypeRef.new(t.span, TypeRefKind.Named(intern(name.as_str()), args))
                 // `C.Iter`, `Self.Item`: a `.` in type position is a
                 // projection. Chains fold left.
                 while is_op(self.peek(), Operator.Dot) {
@@ -42,13 +52,13 @@ impl Parser {
                         unsafe { self.advance() }
                         val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                         unsafe { *owner_ptr = tr }
-                        tr = new_type_ref(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
+                        tr = TypeRef.new(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
                     } else {
                         self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
-                        tr = type_ref_poison(t.span)
+                        tr = TypeRef.new_poison(t.span)
                     }
                 }
-                unsafe { *ptr = tr }
+                parsed = tr
             }
             KeywordTok(k) => {
                 if t.is_keyword(Keyword.Dyn) {
@@ -58,16 +68,16 @@ impl Parser {
                         Identifier(name) => {
                             unsafe { self.advance() }
                             val args = self.parse_type_arguments()
-                            unsafe { *ptr = new_type_ref(t.span, TypeRefKind.DynTrait(intern(name.as_str()), args)) }
+                            parsed = TypeRef.new(t.span, TypeRefKind.DynTrait(intern(name.as_str()), args))
                         }
                         _ => {
                             self.parse_err(principal.span, String.from("expected a trait name after `dyn`"))
-                            unsafe { *ptr = type_ref_poison(t.span) }
+                            parsed = TypeRef.new_poison(t.span)
                         }
                     }
                 } else {
                     self.parse_err(t.span, "expected a type here, found keyword `${kw_str(k)}`")
-                    unsafe { *ptr = type_ref_poison(t.span) }
+                    parsed = TypeRef.new_poison(t.span)
                 }
             }
             Op(op) => {
@@ -81,101 +91,139 @@ impl Parser {
                             mutable = true
                         }
                         val inner: Box<TypeRef> = self.parse_type_ref_ptr()
-                        unsafe { *ptr = borrow_type_ref(t.span, mutable, inner) }
+                        parsed = borrow_type_ref(t.span, mutable, inner)
                     }
-                    LParen => unsafe { *ptr = self.parse_function_type_ref() }
+                    LParen => parsed = self.parse_function_type_ref()
                     _ => {
                         self.parse_err(t.span, "expected a type here, found `${op_str(op)}`")
-                        unsafe { *ptr = type_ref_poison(t.span) }
+                        parsed = TypeRef.new_poison(t.span)
                     }
                 }
             }
             IntLiteral(_) => {
                 self.parse_err(t.span, String.from("expected a type here, found an integer literal"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             StringLiteral(_) => {
                 self.parse_err(t.span, String.from("expected a type here, found a string literal"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             FloatLiteral(_) => {
                 self.parse_err(t.span, String.from("expected a type here, found a float literal"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             CharLiteral(_) => {
                 self.parse_err(t.span, String.from("expected a type here, found a char literal"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             Newline => {
                 self.parse_err(t.span, String.from("expected a type here, found end of line"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             Eof => {
                 self.parse_err(t.span, String.from("expected a type here, found end of file"))
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
             LexError(_) => {
                 // Already reported by report_lex_errors.
-                unsafe { *ptr = type_ref_poison(t.span) }
+                parsed = TypeRef.new_poison(t.span)
             }
         }
         val type_span = t.span
-        self.parse_array_suffixes(ptr)
+        parsed = self.parse_array_suffixes(parsed)
         // `T?` is `Option<T>`, an ordinary generic enum.
         if is_op(self.peek(), Operator.Question) {
             unsafe { self.advance() }
-            val base: TypeRef = unsafe { *ptr }
+            val base = parsed
             var oargs = List.new<TypeRef>()
             oargs.push(base)
-            unsafe { *ptr = new_type_ref(type_span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs)) }
+            parsed = TypeRef.new(type_span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs))
         }
-        return ptr
+        return parsed
     }
 
+    /// The same, in a slot the caller owns.
+    pub mutating fun parse_type_ref_ptr(): Ptr<TypeRef> {
+        val parsed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+        unsafe { *parsed = self.parse_type_ref() }
+        return parsed
+    }
+
+    /// `<A, B>` after a type name; empty when no `<` follows.
     pub mutating fun parse_type_arguments(): List<TypeRef> {
         var args = List.new<TypeRef>()
-        if !is_op(self.peek(), Operator.Lt) { return args }
-        unsafe { self.advance() }
+        if is_op(self.peek(), Operator.Lt) {
+            val _ = self.parse_type_argument_list(&var args, false)
+        }
+        return args
+    }
+
+    /// `<A, B>`, at the `<`, into `out`. Newlines inside are whitespace.
+    ///
+    /// Speculative, it reports nothing and answers false unless every argument
+    /// parsed and `>` closed the list; the caller rewinds, and `<` is read as a
+    /// comparison. Otherwise errors are reported and what parsed is kept.
+    pub mutating fun parse_type_argument_list(out: &var List<TypeRef>, speculative: bool): bool {
+        unsafe { self.advance() } // `<`
+        val was_speculative = self.speculative
+        if speculative { self.speculative = true }
+        var ok = true
         while true {
+            self.skip_newlines()
             if is_op(self.peek(), Operator.Gt) {
                 unsafe { self.advance() }
                 break
             }
             if self.at_eof() {
-                self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
+                if !speculative {
+                    self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
+                }
+                ok = false
                 break
             }
             val before: uint64 = self.pos
-            args.push(self.parse_type_argument())
+            val arg = self.parse_type_argument()
+            // A token no type starts with was reported and not consumed.
+            if self.pos == before || (speculative && tyref_is_poison(arg)) {
+                ok = false
+                break
+            }
+            out.push(arg)
+            self.skip_newlines()
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }
+            } else if speculative && !is_op(self.peek(), Operator.Gt) {
+                ok = false
+                break
             }
-            if self.pos == before { break }
         }
-        return args
+        self.speculative = was_speculative
+        return ok
     }
 
     /// `T[N]` is `Array<T, N>`, and `T[]` is `Array<T, _>`, its length taken
     /// from what initializes it. Both name core's array by its lang key.
-    mutating fun parse_array_suffixes(ptr: Ptr<TypeRef>): void {
+    mutating fun parse_array_suffixes(element: TypeRef): TypeRef {
+        var parsed = element
         while is_op(self.peek(), Operator.LBracket) {
             val span = self.peek().span
             self.advance()
             val length = if is_op(self.peek(), Operator.RBracket) {
-                new_type_ref(span, TypeRefKind.Named(intern("_"), List.new<TypeRef>()))
+                TypeRef.new(span, TypeRefKind.Named(intern("_"), List.new<TypeRef>()))
             } else {
                 self.parse_type_argument()
             }
             if !is_op(self.peek(), Operator.RBracket) {
                 self.parse_err(self.peek().span, String.from("expected `]` to close an array's length"))
-                return
+                return parsed
             }
             self.advance()
             var args = List.new<TypeRef>()
-            args.push(unsafe { *ptr })
+            args.push(parsed)
             args.push(length)
-            unsafe { *ptr = new_type_ref(span, TypeRefKind.Named(lang_placeholder(lang_array_key()), args)) }
+            parsed = TypeRef.new(span, TypeRefKind.Named(lang_placeholder(lang_array_key()), args))
         }
+        return parsed
     }
 
     /// A type, or the value a value parameter takes: `7`, `-7`.
@@ -192,12 +240,9 @@ impl Parser {
             self.advance()
             if negative { self.advance() }
             val value = if negative { 0 - magnitude } else { magnitude }
-            return new_type_ref(span, TypeRefKind.Value(value))
+            return TypeRef.new(span, TypeRefKind.Value(value))
         }
-        val arg_ptr = self.parse_type_ref_ptr()
-        val arg = unsafe { *arg_ptr }
-        unsafe { dealloc<TypeRef>(arg_ptr) }
-        return arg
+        return self.parse_type_ref()
     }
 
     /// `(A, B) -> R`, at the `(`. `(T)` with no arrow is `T`, grouped, so
@@ -208,25 +253,22 @@ impl Parser {
         var params = List.new<TypeRef>()
         while !is_op(self.peek(), Operator.RParen) && !self.at_eof() {
             val before: uint64 = self.pos
-            val param_ptr = self.parse_type_ref_ptr()
-            val param: TypeRef = unsafe { *param_ptr }
-            unsafe { dealloc<TypeRef>(param_ptr) }
-            params.push(param)
+            params.push(self.parse_type_ref())
             if is_op(self.peek(), Operator.Comma) { unsafe { self.advance() } } else if self.pos == before { break }
         }
         if !is_op(self.peek(), Operator.RParen) {
             self.parse_err(self.peek().span, String.from("unclosed function type: missing `)`"))
-            return type_ref_poison(span)
+            return TypeRef.new_poison(span)
         }
         unsafe { self.advance() } // consume `)`
         if !is_op(self.peek(), Operator.ThinArrow) {
-            if params.size() == 1 { return params.remove(0) ?: type_ref_poison(span) }
+            if params.size() == 1 { return params.remove(0) ?: TypeRef.new_poison(span) }
             self.parse_err(self.peek().span, String.from("expected `->` and a result type after a function type's parameters"))
-            return type_ref_poison(span)
+            return TypeRef.new_poison(span)
         }
         unsafe { self.advance() } // consume `->`
         val ret = self.parse_type_ref_ptr()
-        return new_type_ref(span, TypeRefKind.Function(params, ret))
+        return TypeRef.new(span, TypeRefKind.Function(params, ret))
     }
 }
 
@@ -234,11 +276,11 @@ impl Parser {
 /// length, is a slice: `&T[]` is `Slice<T>` and `&var T[]` is `SliceMut<T>`,
 /// named by their lang keys.
 fun borrow_type_ref(span: Span, mutable: bool, inner: Box<TypeRef>): TypeRef {
-    val element = inner.unsized_array_element() ?: return new_type_ref(span, TypeRefKind.Reference(mutable, inner))
+    val element = inner.unsized_array_element() ?: return TypeRef.new(span, TypeRefKind.Reference(mutable, inner))
     val key = if mutable { lang_slice_mut_key() } else { lang_slice_key() }
     var args = List.new<TypeRef>()
     args.push(element)
-    return new_type_ref(span, TypeRefKind.Named(lang_placeholder(key), args))
+    return TypeRef.new(span, TypeRefKind.Named(lang_placeholder(key), args))
 }
 
 /// `T` when this is `T[]`.
@@ -250,5 +292,20 @@ fun TypeRef.unsized_array_element(): TypeRef? {
             return args.at(0).clone()
         }
         _ => return null
+    }
+}
+
+fun tyref_is_poison(tr: TypeRef): bool {
+    return when (tr.kind) {
+        Named(_n, _a) => false
+        DynTrait(_n, _a) => false
+        Reference(_m, _i) => false
+        Function(_p, _r) => false
+        Array(_e, _n) => false
+        // `List.new<F.Out>()` is a type-argument list; the owner is the
+        // checker's concern.
+        Projection(_owner, _member) => false
+        Value(_v) => false
+        Poison => true
     }
 }

@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Crate
 import kf_core.span.*
 import kf_core.diagnostic.*
 import std.fs.scratch_path
@@ -39,11 +39,10 @@ extern "C" fun kf_create_dir_all(p: str): int32
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = new_source_map() }
-    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *pdiags = List.new<Diagnostic>() }
+    var pdiags = new_diagnostics()
 
     val none = no_overlay()
-    val c = assemble_crate_inc(root.as_str(), String.from("once"), smap, pdiags, true, &none)
+    val c = assemble_crate_inc(root.as_str(), String.from("once"), smap, &var pdiags, true, &none)
     assert_eq(c.modules.size(), 2, "the test file is assembled alongside the source")
     assert_eq(unsafe { smap.files.size() }, 2, "each file is registered exactly once")
 }
@@ -71,9 +70,8 @@ fun Overlay.assemble_overlay_crate(): Crate {
     prepare_overlay_crate()
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = new_source_map() }
-    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *pdiags = List.new<Diagnostic>() }
-    return assemble_crate_inc(scratch_path("kf_assemble_overlay"), String.from("staged"), smap, pdiags, true, self)
+    var pdiags = new_diagnostics()
+    return assemble_crate_inc(scratch_path("kf_assemble_overlay"), String.from("staged"), smap, &var pdiags, true, self)
 }
 
 @test fun an_overlay_is_parsed_in_place_of_the_file_it_names(): void {
@@ -100,10 +98,9 @@ fun Overlay.assemble_overlay_crate(): Crate {
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = new_source_map() }
-    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *pdiags = List.new<Diagnostic>() }
+    var pdiags = new_diagnostics()
 
-    val c = assemble_crate(scratch_path("kf_no_src"), String.from("nosrc"), smap, pdiags)
+    val c = assemble_crate(scratch_path("kf_no_src"), String.from("nosrc"), smap, &var pdiags)
     assert_eq(c.modules.size(), 0, "no src/ means no modules")
-    assert_eq(unsafe { pdiags.size() } > 0, true, "and the emptiness is reported, not silent")
+    assert_eq(pdiags.size() > 0, true, "and the emptiness is reported, not silent")
 }

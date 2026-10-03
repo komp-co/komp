@@ -4,7 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -34,18 +36,18 @@ fun Expr.report_written_params_against(expected: &List<Type>, open: &List<String
 /// Resolution without its diagnostics: the lambda's own check reports a bad
 /// annotation.
 fun TypeRef.resolve_quietly(ctx: &var TypeCtx): Type {
-    val before = unsafe { (*ctx.diags).size() }
+    val before = ctx.diags.items.size()
     val ty = self.resolve_type_ref(ctx)
-    if unsafe { (*ctx.diags).size() } == before { return ty }
-    while unsafe { (*ctx.diags).size() } > before {
-        unsafe { (*ctx.diags).pop() }
+    if ctx.diags.items.size() == before { return ty }
+    while ctx.diags.items.size() > before {
+        ctx.diags.items.pop()
     }
-    return poison_ty()
+    return Type.new_poison()
 }
 
 /// Whether the type's mangled form has a segment naming one of `names`:
 /// `&T` is `kf__ref__T`, `Option<T>` is `Option__T`.
-fun Type.mentions_any(names: &List<String>): bool {
+pub fun Type.mentions_any(names: &List<String>): bool {
     if self.kind.kind_tag() == TAG_GENERIC() { return true }
     val mangled = mangle_type(self.clone())
     while segment in &mangled.as_str().split("__") {

@@ -2,7 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.*
 
 @test fun mangle_struct_name_no_args(): void {
     val name: String = mangle_struct_name("Foo", List.new<Type>())
@@ -11,7 +13,7 @@ import kf_core.ast.*
 
 @test fun mangle_struct_name_single_primitive(): void {
     var args = List.new<Type>()
-    args.push(int32_ty(no_span()))
+    args.push(Type.new_int32(no_span()))
     val name: String = mangle_struct_name("List", args)
     assert_eq(name.as_str(), "List__int32", "List<int32>")
 }
@@ -31,7 +33,7 @@ import kf_core.ast.*
 
 @test fun mangle_fn_call_with_one_arg(): void {
     var ta = List.new<Type>()
-    ta.push(int32_ty(no_span()))
+    ta.push(Type.new_int32(no_span()))
     val name: String = mangle_fn_call("new_list", ta)
     assert_eq(name.as_str(), "new_list__int32", "List.new<int32>")
 }
@@ -48,20 +50,20 @@ import kf_core.ast.*
 }
 
 @test fun extract_struct_name_hides_canonical_identity(): void {
-    val identity = new_type_identity(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
+    val identity = TypeIdentity.new(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
     val t = named_struct_ty(identity, no_span())
     val n: String = extract_struct_name(t)
     assert_eq(n.as_str(), "SourceMap", "C name omits semantic identity")
 }
 
 @test fun extract_struct_name_from_int_is_empty(): void {
-    val t = int32_ty(no_span())
+    val t = Type.new_int32(no_span())
     val n: String = extract_struct_name(t)
     assert_eq(n.as_str(), "", "non-Struct gives empty string")
 }
 
 @test fun ty_to_mangle_primitive(): void {
-    val n: String = ty_to_mangle(int32_ty(no_span()))
+    val n: String = ty_to_mangle(Type.new_int32(no_span()))
     assert_eq(n.as_str(), "int32", "int32 mangle")
 }
 
@@ -71,7 +73,7 @@ import kf_core.ast.*
 }
 
 @test fun ty_to_mangle_hides_canonical_identity(): void {
-    val identity = new_type_identity(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
+    val identity = TypeIdentity.new(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
     val n: String = ty_to_mangle(named_struct_ty(identity, no_span()))
     assert_eq(n.as_str(), "SourceMap", "type mangle omits semantic identity")
 }

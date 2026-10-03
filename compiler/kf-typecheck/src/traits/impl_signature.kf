@@ -5,13 +5,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_typecheck.types.*
 
 /// Arity is checked by the caller.
-pub fun TraitMethodReq.check_impl_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, impl_method: &TopDecl, diags: Ptr<List<Diagnostic>>, ctx: &var TypeCtx): void {
+pub fun TraitMethodReq.check_impl_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, impl_method: &TopDecl, diags: &var Diagnostics, ctx: &var TypeCtx): void {
     when (impl_method.kind) {
         Function(params, ret_ptr, _b, _p, _u, _mut, _s) => {
             if params.size() != self.params.size() { return }
@@ -68,20 +70,17 @@ fun Type.resolve_impl_projection(target: str, ctx: &var TypeCtx): Type {
         // instantiations.
         RefTo(m, p) => {
             val inner = resolve_impl_projection(unsafe { &*p }, target, ctx)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         PtrTo(p) => {
             val inner = resolve_impl_projection(unsafe { &*p }, target, ctx)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = resolve_impl_projection(unsafe { &*p }, target, ctx)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         // Elsewhere the projection is folded into an instance name
@@ -97,11 +96,11 @@ fun Type.impl_type_matches(got: &Type): bool {
     return type_eq(unsafe { *self }, unsafe { *got })
 }
 
-fun emit_signature_err(diags: Ptr<List<Diagnostic>>, span: Span, what: str, want: &Type, got: &Type, req: &TraitMethodReq, tname: &String, ctx: &TypeCtx): void {
+fun emit_signature_err(diags: &var Diagnostics, span: Span, what: str, want: &Type, got: &Type, req: &TraitMethodReq, tname: &String, ctx: &TypeCtx): void {
     val wanted = want.display_type(ctx)
     val actual = got.display_type(ctx)
     val message = "`${req.name.as_str()}` declares ${what} `${actual.as_str()}` where trait `${tname.as_str()}` requires `${wanted.as_str()}`"
-    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(span, message))) }
+    diags.emit(new_diagnostic(Severity.Error, new_label(span, message)))
 }
 
 /// Generic impls carry their parameters: `impl Compare for Pair<A, B>` reads
@@ -109,7 +108,7 @@ fun emit_signature_err(diags: Ptr<List<Diagnostic>>, span: Span, what: str, want
 pub fun impl_self_type(target: str, gnames: &List<String>, span: Span, ctx: &var TypeCtx): Type {
     var args = List.new<TypeRef>()
     while gname in &gnames {
-        args.push(new_type_ref(span, TypeRefKind.Named(intern(gname.as_str()), List.new<TypeRef>())))
+        args.push(TypeRef.new(span, TypeRefKind.Named(intern(gname.as_str()), List.new<TypeRef>())))
     }
-    return (new_type_ref(span, TypeRefKind.Named(intern(target), args))).resolve_type_ref(ctx)
+    return (TypeRef.new(span, TypeRefKind.Named(intern(target), args))).resolve_type_ref(ctx)
 }

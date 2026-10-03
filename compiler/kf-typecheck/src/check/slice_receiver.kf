@@ -4,7 +4,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.resolve_type_ref
 
 /// Lends the shared slice when it has `method`, else the mutable one.
@@ -24,7 +28,7 @@ mutating fun Expr.lend_receiver_as_slice(method: str, ctx: &var TypeCtx): void {
     val slice_mut = element.slice_of(slice_mut_name.as_str(), self, ctx)
     if !slice_mut.has_method_named(method, ctx) { return }
     if !self.lends_mutably(&slice_mut, ctx) {
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return
     }
     self.become_lend_call("as_slice_mut", ctx)
@@ -34,7 +38,7 @@ mutating fun Expr.lend_receiver_as_slice(method: str, ctx: &var TypeCtx): void {
 fun Type.slice_of(base: str, at: &Expr, ctx: &var TypeCtx): Type {
     var args = List.new<TypeRef>()
     args.push(self.written_instance(at.span, ctx))
-    return new_type_ref(at.span, TypeRefKind.Named(intern(base), args)).resolve_type_ref(ctx)
+    return TypeRef.new(at.span, TypeRefKind.Named(intern(base), args)).resolve_type_ref(ctx)
 }
 
 fun Type.has_method_named(method: str, ctx: &var TypeCtx): bool {

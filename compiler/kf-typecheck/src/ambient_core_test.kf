@@ -4,7 +4,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.types.Type
 
 /// A public or private `clamp` taking `arity` parameters, so a test can tell
 /// which of several same-named functions answered.
@@ -12,10 +14,10 @@ fun ambient_clamp(crate: str, module: str, is_pub: bool, is_prelude: bool, arity
     var params = List.new<Type>()
     var i: uint64 = 0
     while i < arity {
-        params.push(int32_ty(no_span()))
+        params.push(Type.new_int32(no_span()))
         i = i + 1
     }
-    return FnSignature { name: String.from("clamp"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(module), owner_crate: new_crate_id(crate), is_pub: is_pub, borrows: 0 - 1, is_prelude: is_prelude, is_extern: false }
+    return FnSignature { name: String.from("clamp"), params: params, ret: Type.new_int32(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(module), owner_crate: new_crate_id(crate), is_pub: is_pub, borrows: 0 - 1, is_prelude: is_prelude, is_extern: false }
 }
 
 /// Visibility checked for file 7, which imports `imports` or nothing.

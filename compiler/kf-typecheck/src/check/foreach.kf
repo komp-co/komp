@@ -4,6 +4,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.Span
@@ -84,17 +89,17 @@ fun expand_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Spa
     val itname = "__forit_${tag}"
     val optname = "__foropt_${tag}"
 
-    val iter_call = new_expr(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>()))
+    val iter_call = Expr.new(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>()))
     val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *iter_call_ptr = iter_call }
-    val let_it = new_stmt(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
+    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
 
     val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *it_var_box = new_expr(span, ExprKind.Variable(intern(itname.as_str()))) }
-    val next_call = new_expr(span, ExprKind.MethodCall(it_var_box, intern("next"), List.new<Expr>()))
+    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname.as_str()))) }
+    val next_call = Expr.new(span, ExprKind.MethodCall(it_var_box, intern("next"), List.new<Expr>()))
     val next_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *next_call_ptr = next_call }
-    val let_opt = new_stmt(span, StmtKind.LetVal(intern(optname.as_str()), null, next_call_ptr))
+    val let_opt = Stmt.new(span, StmtKind.LetVal(intern(optname.as_str()), null, next_call_ptr))
 
     var some_payloads = List.new<Pattern>()
     some_payloads.push(new_pattern(span, PatternKind.Identifier(binder)))
@@ -103,7 +108,7 @@ fun expand_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Spa
     val some_arm = new_arm(span, some_pat_box, null, body)
 
     var none_body = List.new<Stmt>()
-    none_body.push(new_stmt(span, StmtKind.Break))
+    none_body.push(Stmt.new(span, StmtKind.Break))
     val none_pat_box: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *none_pat_box = new_pattern(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
     val none_arm = new_arm(span, none_pat_box, null, none_body)
@@ -112,20 +117,20 @@ fun expand_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Spa
     arms.push(some_arm)
     arms.push(none_arm)
     val opt_subj_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *opt_subj_box = new_expr(span, ExprKind.Variable(intern(optname.as_str()))) }
-    val when_stmt = new_stmt(span, StmtKind.When(opt_subj_box, arms))
+    unsafe { *opt_subj_box = Expr.new(span, ExprKind.Variable(intern(optname.as_str()))) }
+    val when_stmt = Stmt.new(span, StmtKind.When(opt_subj_box, arms))
 
     var while_body = List.new<Stmt>()
     while_body.push(let_opt)
     while_body.push(when_stmt)
     val while_cond_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *while_cond_box = new_expr(span, ExprKind.LitBool(true)) }
-    val while_stmt = new_stmt(span, StmtKind.While(while_cond_box, while_body))
+    unsafe { *while_cond_box = Expr.new(span, ExprKind.LitBool(true)) }
+    val while_stmt = Stmt.new(span, StmtKind.While(while_cond_box, while_body))
 
     var if_body = List.new<Stmt>()
     if_body.push(let_it)
     if_body.push(while_stmt)
     val if_cond_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *if_cond_box = new_expr(span, ExprKind.LitBool(true)) }
+    unsafe { *if_cond_box = Expr.new(span, ExprKind.LitBool(true)) }
     return StmtKind.If(if_cond_box, if_body, List.new<Stmt>())
 }
