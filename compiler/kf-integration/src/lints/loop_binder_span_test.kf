@@ -1,0 +1,48 @@
+// Where a lint about a loop variable points: at the name, not the loop.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.new_crate_id
+import kf_core.diagnostic.*
+import kf_parse.lexer.tokenize
+import kf_parse.parser.*
+import kf_assemble.stamp_module_owner
+import kf_lint.lint_module
+
+fun unread_loop_variable(): str {
+    return """fun f(xs: &int32[]): int32 {
+    var n = 0
+    while item in xs { n = n + 1 }
+    return n
+}
+"""
+}
+
+/// The span of the first diagnostic the source lints report over `src`.
+fun first_lint_span(src: str): Span {
+    var smap = new_source_map()
+    val file = smap.add_file(new_source_file(String.from("loop_fixture.kf"), String.from(src)))
+    var parser = new_parser(tokenize(src, file))
+    var path = List.new<String>()
+    path.push(String.from("fixture"))
+    var m = parser.parse_module(path)
+    stamp_module_owner(&var m, new_crate_id("fixture"))
+    val found = lint_module(&m, &smap, &no_lint_options())
+    if found.is_empty() { return no_span() }
+    return found[0].primary.span
+}
+
+@test
+fun an_unread_loop_variable_is_underlined_alone(): void {
+    val span = first_lint_span(unread_loop_variable())
+    assert_eq(span.end - span.start, 4, "the warning covers `item`, not the loop")
+}
+
+@test
+fun an_unread_loop_variable_is_underlined_where_it_is_written(): void {
+    val span = first_lint_span(unread_loop_variable())
+    val at = unread_loop_variable().index_of("item") ?: 0
+    assert_eq(span.start as uint64, at, "the warning starts at the name")
+}

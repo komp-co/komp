@@ -63,3 +63,26 @@ impl Ctx {
 """, "mutating")
     assert_eq(said, true, "a shared `self` cannot lend what it holds mutably")
 }
+
+fun two_traits_providing_f(): str {
+    return """trait A { fun f(): int32 }
+trait B { fun f(): int32 }
+pub struct S { val v: int32 }
+impl A for S { fun f(): int32 { return 1 } }
+impl B for S { fun f(): int32 { return 2 } }
+pub fun g(s: S): int32 { return s.f() }
+"""
+}
+
+@test
+fun a_method_two_traits_provide_is_ambiguous(): void {
+    val said = reports("kf_recv_ambiguous", two_traits_providing_f(),
+        "ambiguous method `f`: `A` and `B` both provide it for `S`; call `A.f(s)` or `B.f(s)`")
+    assert_eq(said, true, "the message names both traits and how to pick one")
+}
+
+@test
+fun a_method_two_traits_provide_is_not_said_to_have_no_impl(): void {
+    val said = reports("kf_recv_ambiguous_only", two_traits_providing_f(), "no implementation of `f`")
+    assert_eq(said, false, "both impls accept the call; the problem is the tie")
+}

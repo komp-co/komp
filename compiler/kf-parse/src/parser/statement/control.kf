@@ -119,6 +119,7 @@ impl Parser {
     // `while NAME in SUBJECT`, the name not yet consumed. `a..b` is an
     // ordinary expression, so ranges and collections share one grammar.
     mutating fun parse_while_in(span: Span): Stmt {
+        val binder = self.peek().span
         val name: String = self.expect_name("loop variable")
         unsafe { self.advance() } // consume loop variable
         unsafe { self.advance() } // consume `in`
@@ -128,7 +129,7 @@ impl Parser {
         val body = self.parse_block()
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = subject }
-        return Stmt.new(span, StmtKind.ForEach(intern(name.as_str()), subj, body))
+        return Stmt.new_binding(span, binder, StmtKind.ForEach(intern(name.as_str()), subj, body))
     }
 
     /// `for` only opens a trait impl; as a loop it gets one diagnostic and is

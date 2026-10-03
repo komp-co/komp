@@ -59,7 +59,7 @@ fun TypeCtx.invalid_deref_first_message(): String {
     var setup = mk_ctx()
     val ty = setup.invalid_deref_option_type()
     val _result = deref_test_check_in(ty, &var setup)
-    val expected = "cannot dereference `Option<int32>`: `*` applies only to a pointer, box, or borrow"
+    val expected = "cannot dereference `int32?`: `*` applies only to a pointer, box, or borrow"
     assert_eq(setup.invalid_deref_first_message().as_str(), expected, "the diagnostic uses source type syntax")
 }
 

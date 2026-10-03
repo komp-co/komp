@@ -185,7 +185,7 @@ fun main(): int32 {
 
 ```console
 $ komp check .
-src/main.kf:7:13: error: type `Option<Unique>` does not implement trait `Clone` (required by bound `T: Clone` on `dup`)
+src/main.kf:7:13: error: type `Unique?` does not implement trait `Clone` (required by bound `T: Clone` on `dup`)
 ```
 
 `.equals()` under a `T: Equal` bound works whether `T` is a primitive or a

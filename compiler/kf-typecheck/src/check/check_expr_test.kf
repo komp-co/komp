@@ -18,8 +18,9 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { *tab_ptr = table }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = sigs }
-    // A program built on alloc, whose `String` is the lang string.
+    // A program built on alloc, whose `String` and `Option` are the lang ones.
     unsafe { (*sig_ptr).lang_string = intern("String") }
+    unsafe { (*sig_ptr).lang_option = intern("Option") }
     unsafe { (*sig_ptr).note_lang_trait("equal", intern("Equal")) }
     unsafe { (*sig_ptr).note_lang_trait("clone", intern("Clone")) }
     unsafe { (*sig_ptr).note_lang_trait("drop", intern("Drop")) }

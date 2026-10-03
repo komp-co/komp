@@ -95,13 +95,15 @@ fun Sym.display_named_type(ctx: &TypeCtx): String {
     }
 }
 
-/// Arrays and slices as written: `int32[3]`, `&int32[]`, `&var int32[]`.
+/// Arrays, slices and optionals as written: `int32[3]`, `&int32[]`,
+/// `&var int32[]`, `int32?`.
 fun GenericInst.display_instance(ctx: &TypeCtx): String {
     val base = self.base.as_str()
     if base == ctx.array_name().as_str() && self.args.size() == 2 {
         return "${self.args.at(0).display_type_ref()}[${self.args.at(1).display_type_ref()}]"
     }
     if self.args.size() == 1 {
+        if base == ctx.option_name().as_str() { return "${self.args.at(0).display_type_ref()}?" }
         if base == ctx.slice_name().as_str() { return "&${self.args.at(0).display_type_ref()}[]" }
         if base == ctx.slice_mut_name().as_str() { return "&var ${self.args.at(0).display_type_ref()}[]" }
     }
@@ -124,6 +126,8 @@ fun GenericInst.display_generic_inst(): String {
 pub fun TypeRef.display_type_ref(): String {
     when (self.kind) {
         Named(name, args) => {
+            // `Option<T>` as the author writes it.
+            if name.as_str() == "Option" && args.size() == 1 { return "${args.at(0).display_type_ref()}?" }
             var result = name.as_string()
             if args.size() == 0 { return result }
             result.append("<")

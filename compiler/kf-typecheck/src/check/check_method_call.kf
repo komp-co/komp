@@ -335,8 +335,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         recv_ty.borrow_intrinsic_method_operand(method_name.as_str(), args, ctx)
         // A trait declares it but no impl accepts these arguments.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
-            val shown = recv_ty.display_type(ctx)
-            val amsg = "no implementation of `${method_name}` for `${shown}` accepts these arguments"
+            val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
             return Type.new_poison()
         }
@@ -491,7 +490,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // A trait declares it but no impl accepts these arguments: the call is
         // at fault, not the impl.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
-            val amsg = "no implementation of `${method_name}` for `${sname}` accepts these arguments"
+            val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
             return Type.new_poison()
         }

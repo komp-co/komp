@@ -33,7 +33,7 @@ fun display_test_ref_type(mutable: bool): Type {
     var ctx = mk_ctx()
     display_test_register_inst("Option__int32", "Option", display_test_named_ref("int32"), &var ctx)
     val ty = Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
-    assert_eq(ty.display_type(&ctx).as_str(), "Option<int32>", "generic arguments use source syntax")
+    assert_eq(ty.display_type(&ctx).as_str(), "int32?", "an optional is shown as written")
 }
 
 @test fun test_display_type_shows_nested_generic_arguments(): void {
@@ -41,7 +41,7 @@ fun display_test_ref_type(mutable: bool): Type {
     val list_int = display_test_generic_ref("List", display_test_named_ref("int32"))
     display_test_register_inst("Option__List__int32", "Option", list_int, &var ctx)
     val ty = Type { kind: TypeKind.Struct(intern("Option__List__int32")), provenance: Provenance.Inferred(no_span()) }
-    assert_eq(ty.display_type(&ctx).as_str(), "Option<List<int32>>", "nested generic arguments remain nested")
+    assert_eq(ty.display_type(&ctx).as_str(), "List<int32>?", "nested generic arguments remain nested")
 }
 
 @test fun test_display_type_shows_box_syntax(): void {

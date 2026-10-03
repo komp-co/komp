@@ -309,9 +309,9 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 if !trait_callee.as_str().equals("") {
                     e.mangled_callee = intern(trait_callee.as_str())
                 } else {
-                    if ambiguous_trait_method(recv.ty, method_name_sym.as_string(), args, ctx) {
-                        val lab = new_label(e.span, "ambiguous method `${method_name_sym.as_string()}`: qualify it as `Trait.${method_name_sym.as_string()}(value, ...)`")
-                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                    if !e.ty.is_poison() && ambiguous_trait_method(recv.ty, method_name_sym.as_string(), args, ctx) {
+                        val amsg = e.no_fitting_impl_message(recv.ty, method_name_sym.as_string(), args, ctx)
+                        ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, amsg)))
                     }
                     // Through the borrow: `fun emit<W: Sink>(out: &W)` arrives
                     // as `RefTo(Generic("W"))`.

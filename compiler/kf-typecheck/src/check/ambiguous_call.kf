@@ -1,0 +1,39 @@
+// What a method call that no single trait impl answers is told: which traits
+// tie for it, or that none fits.
+
+import alloc.list.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_typecheck.types.display_type
+import kf_typecheck.traits.providing_traits
+
+/// The call's receiver is `self`'s; `recv_ty` is its type.
+fun Expr.no_fitting_impl_message(recv_ty: Type, method_name: String, args: &List<Expr>, ctx: &var TypeCtx): String {
+    val shown = recv_ty.display_type(ctx)
+    val traits = providing_traits(recv_ty, method_name.clone(), args, ctx)
+    if traits.size() > 1 {
+        return ambiguous_method_message(method_name.as_str(), &traits, shown.as_str(), self.receiver_text().as_str())
+    }
+    return "no implementation of `${method_name}` for `${shown}` accepts these arguments"
+}
+
+fun Expr.receiver_text(): String {
+    return when (self.kind) {
+        MethodCall(receiver, _, _) => receiver.place_text()
+        _ => String.from("value")
+    }
+}
+
+/// "ambiguous method `f`: `A` and `B` both provide it for `S`; call
+/// `A.f(s)` or `B.f(s)`", with `receiver` the call's receiver as written.
+pub fun ambiguous_method_message(method: str, traits: &List<String>, type_shown: str, receiver: str): String {
+    var named = String.from("")
+    var calls = String.from("")
+    while i in 0..traits.size() {
+        val joiner = if i == 0 { "" } else if i + 1 == traits.size() { " and " } else { ", " }
+        val call_joiner = if i == 0 { "" } else if i + 1 == traits.size() { " or " } else { ", " }
+        named.append("${joiner}`${traits[i]}`")
+        calls.append("${call_joiner}`${traits[i]}.${method}(${receiver})`")
+    }
+    return "ambiguous method `${method}`: ${named} both provide it for `${type_shown}`; call ${calls}"
+}

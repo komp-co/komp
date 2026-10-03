@@ -211,6 +211,7 @@
 2 compiler/kf-typecheck/src/lib.kf
 2 compiler/kf-typecheck/src/sig_fn_types.kf
 23 compiler/kf-typecheck/src/sig_table_imports.kf
+3 compiler/kf-typecheck/src/traits/ambiguous_method.kf
 6 compiler/kf-typecheck/src/traits/copy_obligation.kf
 19 compiler/kf-typecheck/src/traits/dyn_coerce.kf
 1 compiler/kf-typecheck/src/traits/dyn_method.kf
@@ -221,7 +222,7 @@
 1 compiler/kf-typecheck/src/traits/supertrait_obligation.kf
 3 compiler/kf-typecheck/src/traits/trait_bound_args.kf
 4 compiler/kf-typecheck/src/traits/trait_bound_resolution.kf
-22 compiler/kf-typecheck/src/traits/trait_dispatch.kf
+19 compiler/kf-typecheck/src/traits/trait_dispatch.kf
 10 compiler/kf-typecheck/src/traits/trait_registry.kf
 3 compiler/kf-typecheck/src/traits/traits.kf
 2 compiler/kf-typecheck/src/types/borrow_storage.kf
