@@ -1,0 +1,70 @@
+// `komp add` against a scratch `file://` index that kf.toml declares under
+// `[indexes]` as `scratch`; the libraries come from `tool_index`.
+
+import core.assert.assert_eq
+import komp.build.build_project_separate
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import komp.install.add_package
+import testing.test
+
+/// A bin crate declaring `index_url` as `scratch`, whose main uses `seven()`
+/// when `uses_seven`.
+fun adding_project(name: str, index_url: str, uses_seven: bool): String {
+    val root = dir_of(name)
+    sh("rm -rf ${root} && mkdir -p ${root}/src".as_str())
+    val manifest = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n\n" +
+        "[indexes]\nscratch = \"${index_url}\"\n"
+    write_file("${root}/kf.toml".as_str(), manifest.as_str())
+    val main = if uses_seven {
+        "import komp_libadd.seven\n\nfun main(): int32 { return seven() - 7 }\n"
+    } else {
+        "fun main(): int32 { return 0 }\n"
+    }
+    write_file("${root}/src/main.kf".as_str(), main)
+    return root
+}
+
+@test
+fun an_added_library_is_written_at_its_newest_version(): void {
+    val index = tool_index("komp_liba", "lib")
+    val root = adding_project("kf_add_a", index.as_str(), false)
+    val _added = add_package(root.as_str(), "komp_liba", "", "scratch", test_cache().as_str())
+    val written = read_file("${root}/kf.toml".as_str())
+    assert_eq(written.contains("komp_liba = { version = \"0.1.0\", index = \"scratch\" }"), true,
+        "under [dependencies]")
+}
+
+@test
+fun an_added_requirement_is_written_as_given(): void {
+    val index = tool_index("komp_libb", "lib")
+    val root = adding_project("kf_add_b", index.as_str(), false)
+    val added = add_package(root.as_str(), "komp_libb", "0.1", "scratch", test_cache().as_str())
+    assert_eq(added.requirement.as_str() == "0.1" && added.version.as_str() == "0.1.0", true, "0.1, resolving to 0.1.0")
+}
+
+@test
+fun an_added_library_builds_into_the_project(): void {
+    val index = tool_index("komp_libadd", "lib")
+    val root = adding_project("kf_add_c", index.as_str(), true)
+    val _added = add_package(root.as_str(), "komp_libadd", "", "scratch", test_cache().as_str())
+    val synced = sync_sources(root.as_str(), &default_fetch_policy(), test_cache().as_str())
+    assert_eq(synced.is_empty() && build_project_separate(root.as_str(), "") == 0, true, "fetched, locked and built")
+}
+
+@test
+fun adding_a_program_is_refused(): void {
+    val index = tool_index("komp_progd", "bin")
+    val root = adding_project("kf_add_d", index.as_str(), false)
+    val added = add_package(root.as_str(), "komp_progd", "", "scratch", test_cache().as_str())
+    assert_eq(added.error.contains("is a program") && !read_file("${root}/kf.toml".as_str()).contains("komp_progd ="),
+        true, "kf.toml untouched")
+}
+
+@test
+fun adding_from_an_undeclared_index_is_an_error(): void {
+    val index = tool_index("komp_libe", "lib")
+    val root = adding_project("kf_add_e", index.as_str(), false)
+    val added = add_package(root.as_str(), "komp_libe", "", "elsewhere", test_cache().as_str())
+    assert_eq(added.error.contains("declares no index `elsewhere`"), true, "names it")
+}

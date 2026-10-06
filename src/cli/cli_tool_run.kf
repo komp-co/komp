@@ -1,0 +1,69 @@
+// `komp <command>` running an installed `komp-<command>`: the version the
+// project's `[tools]` pins, else the default.
+
+import alloc.list.*
+import komp.build.beside_self
+import komp.fetch.cache_root
+import komp.install.install_home
+import komp.install.installed_bin_dir
+import komp.install.pinned_tool
+import komp.install.project_tool_pin
+import std.env.env_var
+import std.fs.exists
+import std.process.Command
+
+/// What `komp <command>` runs: `path` "" when no program answers to it, or
+/// `error` when a pin cannot be met.
+pub struct ToolCommand {
+    pub val path: String
+    pub val error: String
+}
+
+/// The package whose program `komp <command>` runs: `komp_` and the command,
+/// `-` read as `_`.
+pub fun tool_package(command: str): String {
+    return "komp_${command.replace("-", "_")}"
+}
+
+/// The `komp-<command>` that `komp <command>` runs: the version the current
+/// project's `[tools]` pins, installed on first use, else the default.
+pub fun installed_command(command: str): ToolCommand {
+    val none = ToolCommand { path: "", error: "" }
+    if command.byte_len() == 0 || starts_with_dash(command) || command.contains("/") { return none }
+    val home = install_home()
+    val package = tool_package(command)
+    val pinned = project_tool_pin(".", package.as_str())
+    if pinned != null {
+        val pin = pinned ?: return none
+        val chosen = pinned_tool(&pin, package.as_str(), cache_root().as_str(), home.as_str())
+        return ToolCommand { path: chosen.binary.clone(), error: chosen.error.clone() }
+    }
+    val path = "${installed_bin_dir(home.as_str())}/komp-${command}"
+    return if exists(path.as_str()) { ToolCommand { path: path, error: "" } } else { none }
+}
+
+/// `komp <command>` run as a program's: its exit status, or null when no
+/// program answers to `command`.
+pub fun run_tool_command(command: str, nargs: int32): int32? {
+    val tool = installed_command(command)
+    if tool.error.byte_len() > 0 {
+        runtime_println("error: ${tool.error}")
+        return Option.Some(1)
+    }
+    if tool.path.is_empty() { return null }
+    return Option.Some(run_installed(tool.path.as_str(), nargs))
+}
+
+/// Replaces komp with `path`, given every argument after the command, so
+/// the program owns komp's process, stdio and signals. `KOMP_BIN` names this
+/// komp unless it is already set, so a program that asks komp about the
+/// project asks the one that started it. Comes back only when `path` could
+/// not be started.
+pub fun run_installed(path: str, nargs: int32): int32 {
+    var command = Command.new(path)
+    while i in 1..nargs { command.arg(cli_arg_get(i)) }
+    if env_var("KOMP_BIN") == null { command.env("KOMP_BIN", beside_self("komp").as_str()) }
+    val failed = command.exec()
+    runtime_println("error: cannot run ${path}: ${failed.message}")
+    return 127
+}

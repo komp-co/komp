@@ -41,7 +41,7 @@ ratchets() {
 # every one changed since the base.
 changed_files() {
     if [ "$mode" = "--staged" ]; then
-        git diff --cached --name-only --diff-filter=ACM -- 'compiler/*.kf' 'libs/*.kf' 'tools/*.kf'
+        git diff --cached --name-only --diff-filter=ACM -- 'src/*.kf'
         return
     fi
     base="${KF_BASE:-}"
@@ -52,20 +52,16 @@ changed_files() {
     fi
     {
         if [ -n "$base" ]; then
-            git diff --name-only --diff-filter=ACMR "$(git merge-base HEAD "$base")" -- 'compiler/*.kf' 'libs/*.kf' 'tools/*.kf'
+            git diff --name-only --diff-filter=ACMR "$(git merge-base HEAD "$base")" -- 'src/*.kf'
         fi
-        git diff --name-only --diff-filter=ACMR HEAD -- 'compiler/*.kf' 'libs/*.kf' 'tools/*.kf'
-        git ls-files --others --exclude-standard -- 'compiler/*.kf' 'libs/*.kf' 'tools/*.kf'
+        git diff --name-only --diff-filter=ACMR HEAD -- 'src/*.kf'
+        git ls-files --others --exclude-standard -- 'src/*.kf'
     } | sort -u
 }
 
-# A crate is the directory holding kf.toml: compiler/<crate>, libs/<crate> or
-# tools/<crate>.
+# komp is one crate, the repository root: changed when any .kf file is.
 changed_crates() {
-    changed_files | while read -r file; do
-        crate="$(echo "$file" | cut -d/ -f1-2)"
-        [ -f "$crate/kf.toml" ] && echo "$crate"
-    done | sort -u
+    [ -n "$(changed_files)" ] && echo "."
 }
 
 formatting() {

@@ -1,0 +1,25 @@
+// `komp new`'s template, checked by the compiler.
+
+import core.assert.assert_eq
+import komp.build.kflatc_path
+import komp.cli.new_project
+import std.env.env_var
+import std.fs.scratch_root
+import std.process.Command
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+@test
+fun a_new_project_checks_without_a_diagnostic(): void {
+    val dir = "${scratch_root()}/kf_new_clean"
+    val _rc = unsafe { system("rm -rf ${dir}".as_str()) }
+    new_project(dir.as_str())
+    // A warning fails the check too: the template is the first code a user reads.
+    var check = Command.new((env_var("KOMP") ?: "komp").as_str())
+    check.arg("check")
+    check.arg(dir.as_str())
+    check.arg("--deny-warnings")
+    check.env("KFLATC", kflatc_path().as_str())
+    assert_eq(check.status().exit_code(), 0, "the template checks with no diagnostic")
+}

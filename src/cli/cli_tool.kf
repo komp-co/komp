@@ -1,0 +1,217 @@
+// `komp tool install|list|update|remove`: the programs komp builds from a
+// package index into ~/.kflat, several versions of one side by side.
+
+import alloc.list.*
+import komp.fetch.cache_root
+import komp.install.install_home
+import json.writer.JsonWriter
+import komp.install.install_package
+import komp.install.installed_tools
+import komp.install.named
+import komp.install.stored_packages
+import komp.install.stored_versions
+import komp.project.render
+import komp.install.installed_bin_dir
+import komp.install.installed_binary_name
+import komp.install.installed_packages
+import komp.install.uninstall_package
+import komp.install.update_installed
+import komp.project.default_index_url
+import std.env.env_var
+
+/// `komp tool install|list|update|remove`.
+pub fun tool_command(nargs: int32): int32 {
+    if nargs < 2 { return usage_error("tool") }
+    return when cli_arg_get(1) {
+        "install" => tool_install(nargs)
+        "list" => tool_list(nargs)
+        "update" => tool_update(nargs)
+        "remove" => tool_remove(nargs)
+        _ => usage_error("tool")
+    }
+}
+
+/// `komp tool install <name>[@<requirement>] [--index <url>]`.
+fun tool_install(nargs: int32): int32 {
+    var package = ""
+    var index = ""
+    var i = 2
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if arg == "--index" {
+            if i + 1 >= nargs { return usage_error("tool") }
+            index = String.from(cli_arg_get(i + 1))
+            i = i + 1
+        } else if starts_with_dash(arg) || package.byte_len() > 0 {
+            return usage_error("tool")
+        } else {
+            package = String.from(arg)
+        }
+        i = i + 1
+    }
+    if package.byte_len() == 0 { return usage_error("tool") }
+    val home = install_home()
+    val at = package.index_of("@")
+    val name = when (at) {
+        Some(split) => package.substring(0, split)
+        None => package.clone()
+    }
+    val requirement = when (at) {
+        Some(split) => package.substring(split + 1, package.byte_len())
+        None => String.from("")
+    }
+    val url = if index.byte_len() > 0 { index } else { default_index_url() }
+    val done = install_package(name.as_str(), requirement.as_str(), url.as_str(), cache_root().as_str(), home.as_str())
+    if done.error.byte_len() > 0 {
+        runtime_println("error: ${done.error}")
+        return 1
+    }
+    runtime_println("installed `${name}` ${done.entry.version} as ${done.binary}")
+    val bin = installed_bin_dir(home.as_str())
+    if !on_path(bin.as_str()) { runtime_println("note: ${bin} is not on PATH; komp runs what is there all the same") }
+    return 0
+}
+
+/// `komp tool list [--format=json]`.
+fun tool_list(nargs: int32): int32 {
+    if arguments_without_format(nargs).size() != 1 { return usage_error("tool") }
+    val home = install_home()
+    if wants_json(nargs) { return list_installed_json(home.as_str()) }
+    return list_installed(home.as_str())
+}
+
+/// `komp tool remove <name>[@<version>]`.
+fun tool_remove(nargs: int32): int32 {
+    if nargs != 3 || starts_with_dash(cli_arg_get(2)) { return usage_error("tool") }
+    val package = String.from(cli_arg_get(2))
+    val at = package.index_of("@")
+    val name = if at == null { package.clone() } else { package.substring(0, at ?: 0) }
+    val version = if at == null { String.from("") } else { package.substring((at ?: 0) + 1, package.byte_len()) }
+    val error = uninstall_package(name.as_str(), version.as_str(), install_home().as_str())
+    if error.byte_len() > 0 {
+        runtime_println("error: ${error}")
+        return 1
+    }
+    runtime_println(if version.is_empty() { "removed `${name}`" } else { "removed `${name}` ${version}" })
+    return 0
+}
+
+/// `komp tool update [<name>...]`: 1 when any program could not be updated.
+fun tool_update(nargs: int32): int32 {
+    var names = List.new<String>()
+    var i = 2
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if starts_with_dash(arg) { return usage_error("tool") }
+        names.push(String.from(arg))
+        i = i + 1
+    }
+    val home = install_home()
+    val updates = update_installed(&names, cache_root().as_str(), home.as_str())
+    if updates.is_empty() { runtime_println("nothing is installed") }
+    var failed = false
+    while update in &updates {
+        if update.error.byte_len() > 0 {
+            runtime_println("error: `${update.name}` ${update.error}")
+            failed = true
+        } else if update.from.as_str() == update.to.as_str() {
+            runtime_println("`${update.name}` ${update.from} is the newest its requirement allows")
+        } else {
+            runtime_println("updated `${update.name}` ${update.from} -> ${update.to}")
+        }
+    }
+    return if failed { 1 } else { 0 }
+}
+
+/// Each default, and every version in the store beside it.
+fun list_installed(home: str): int32 {
+    val rows = installed_packages(home)
+    val stored = stored_packages(home)
+    if rows.is_empty() && stored.is_empty() {
+        runtime_println("nothing is installed")
+        return 0
+    }
+    val bin = installed_bin_dir(home)
+    while row in &rows {
+        val others = other_versions(home, row.name.as_str(), row.version.as_str())
+        val binary = "${bin}/${installed_binary_name(row.name.as_str())}"
+        val also = if others.is_empty() { String.from("") } else { "; also ${others}" }
+        runtime_println("${row.name} ${row.version}  ${binary}${also}")
+    }
+    while package in &stored {
+        var has_default = false
+        while row in &rows {
+            if row.name.as_str() == package.as_str() { has_default = true }
+        }
+        if !has_default {
+            runtime_println("${package}  ${other_versions(home, package.as_str(), "")}, for the projects that pin it")
+        }
+    }
+    return 0
+}
+
+/// `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`,
+/// `default`, `binary` and `requirement` null for a program only stored.
+fun list_installed_json(home: str): int32 {
+    val tools = installed_tools(home)
+    var names = stored_packages(home)
+    while tool in &tools {
+        if !names.contains(&tool.entry.name) { names.push(tool.entry.name.clone()) }
+    }
+    names.sort()
+    var writer = JsonWriter.object()
+    writer.key("programs")
+    writer.begin_array()
+    while name in &names {
+        writer.begin_object()
+        writer.field_string("name", name.as_str())
+        val chosen = tools.named(name.as_str())
+        when (chosen) {
+            Some(tool) => {
+                writer.field_string("default", tool.entry.version.as_str())
+                val binary = "${installed_bin_dir(home)}/${installed_binary_name(name.as_str())}"
+                writer.field_string("binary", binary.as_str())
+                writer.field_string("requirement", tool.requirement.as_str())
+            }
+            None => {
+                writer.field_null("default")
+                writer.field_null("binary")
+                writer.field_null("requirement")
+            }
+        }
+        writer.key("versions")
+        writer.begin_array()
+        val versions = stored_versions(home, name.as_str())
+        while version in &versions { writer.write_string(version.render().as_str()) }
+        writer.end_array()
+        writer.end_object()
+    }
+    writer.end_array()
+    runtime_println(writer.finish().as_str())
+    return 0
+}
+
+/// "0.1.4, 0.1.5": the stored versions other than `except`.
+fun other_versions(home: str, package: str, except: str): String {
+    var out = ""
+    val versions = stored_versions(home, package)
+    while version in &versions {
+        val shown = version.render()
+        if shown.as_str() == except { continue }
+        if out.byte_len() > 0 { out.append(", ") }
+        out.append(shown.as_str())
+    }
+    return out
+}
+
+fun on_path(dir: str): bool {
+    val path = env_var("PATH") ?: String.from("")
+    var start: uint64 = 0
+    while i in 0..(path.byte_len() + 1) {
+        if i == path.byte_len() || path.byte_at(i) == 58 {
+            if path.substring(start, i).as_str() == dir { return true }
+            start = i + 1
+        }
+    }
+    return false
+}

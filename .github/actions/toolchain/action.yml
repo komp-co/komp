@@ -1,5 +1,5 @@
 name: Install the kflat toolchain
-description: The kflat release compiler/kf.toml pins, from kf-lang's releases, with ccache in front of cc.
+description: The kflat release kf.toml pins, from kf-lang's releases, with ccache in front of cc.
 runs:
   using: composite
   steps:
@@ -30,7 +30,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
       run: |
         set -eu
-        pin=$(sed -n 's/^kflat *= *"\(.*\)"/\1/p' compiler/kf.toml)
+        pin=$(sed -n 's/^kflat *= *"\(.*\)"/\1/p' kf.toml)
         version=""
         for repo in komp-co/kf-lang komp-co/komp; do
           version=$(gh release list -R "$repo" --limit 100 --json tagName --jq '.[].tagName' \

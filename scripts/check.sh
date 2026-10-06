@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
 # komp's gate: the ratchets, komp built with the kflat toolchain its
-# workspace pins, kf-tool's tests, and the command-line checks.
+# kf.toml pins, komp's tests, and the command-line checks.
 #
 #   scripts/check.sh            # everything
-#   CHECK_TESTS=0 scripts/check.sh   # without kf-tool's tests, as CI's cli job
+#   CHECK_TESTS=0 scripts/check.sh   # without komp's tests, as CI's cli job
 #   CHECK_CLI=0 scripts/check.sh     # without the command-line checks
 #
 # The toolchain is the one `kflatc` on PATH belongs to, or KFLAT_TOOLCHAIN,
-# a directory holding `bin/kflatc` and `libs/`. compiler/kf.toml's `kflat`
+# a directory holding `bin/kflatc` and `libs/`. kf.toml's `kflat`
 # pin names the release CI installs.
 set -eu
 
@@ -40,12 +40,12 @@ sh scripts/check_file_sizes.sh
 sh scripts/check_line_lengths.sh
 
 phase "build"
-KFLATC="$TOOLCHAIN/bin/kflatc" "$TOOLCHAIN/bin/komp" build compiler
+KFLATC="$TOOLCHAIN/bin/kflatc" "$TOOLCHAIN/bin/komp" build .
 # komp runs the kflatc beside it and finds the libraries at ../libs from
 # there, so the new komp gets a toolchain's shape: $WORK/tc/bin and
 # $WORK/tc/libs. $WORK/komp links to it; komp resolves its own path.
 mkdir -p "$WORK/tc/bin"
-cp compiler/target/kflat/komp "$WORK/tc/bin/komp"
+cp target/kflat/komp "$WORK/tc/bin/komp"
 cp "$TOOLCHAIN/bin/kflatc" "$WORK/tc/bin/kflatc"
 ln -s "$TOOLCHAIN/libs" "$WORK/tc/libs"
 ln -s "$WORK/tc/bin/komp" "$WORK/komp"
@@ -53,8 +53,8 @@ ln -s "$WORK/tc/bin/kflatc" "$WORK/kflatc"
 "$WORK/komp" --version
 
 if [ "$CHECK_TESTS" = "1" ]; then
-phase "kf-tool's tests"
-"$WORK/komp" test compiler/kf-tool
+phase "komp's tests"
+"$WORK/komp" test .
 fi
 
 if [ "$CHECK_CLI" = "1" ]; then

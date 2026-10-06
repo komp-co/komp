@@ -1,0 +1,28 @@
+import core.assert.assert_eq
+import komp.build.manifest_of
+import std.fs.scratch_root
+import testing.test
+
+/// Scaffolds `name` under the scratch root, replacing any earlier one.
+fun scaffold_in_scratch(name: str): String {
+    val dir = "${scratch_root()}/${name}"
+    val _rc = system("rm -rf ${dir}".as_str())
+    new_project(dir.as_str())
+    return dir
+}
+
+@test
+fun a_new_project_at_a_path_is_named_after_its_last_component(): void {
+    val dir = scaffold_in_scratch("kf-new-named")
+    assert_eq(manifest_of(dir.as_str()).name.as_str(), "kf_new_named", "a path is not a C identifier")
+}
+
+@test
+fun a_basename_ignores_a_trailing_slash(): void {
+    assert_eq(basename_of("projects/hello/").as_str(), "hello", "`komp new hello/` names the crate hello")
+}
+
+@test
+fun a_basename_ignores_a_trailing_newline(): void {
+    assert_eq(basename_of("/home/me/hello\n").as_str(), "hello", "the current directory arrives with one")
+}

@@ -1,0 +1,6 @@
+import komp.cli.run_cli
+
+fun main(): int32 {
+    // The exit code gates CI.
+    return run_cli()
+}

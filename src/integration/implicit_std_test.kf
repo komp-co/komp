@@ -1,0 +1,54 @@
+// `std` without a manifest entry: a hosted crate that imports it gets the
+// bundled one, a crate that does not is not compiled against it, and a
+// freestanding program that uses it is refused.
+
+import core.assert.assert_eq
+import komp.build.build_crate_graph
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import testing.test
+
+/// A bin project `name` whose main.kf is `source`, with `extra` appended to
+/// its `[project]` table.
+fun std_project(name: str, source: str, extra: str): String {
+    val dir = dir_of(name)
+    sh("rm -rf ${dir} && mkdir -p ${dir}/src".as_str())
+    val manifest = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n${extra}"
+    write_file("${dir}/kf.toml".as_str(), manifest.as_str())
+    write_file("${dir}/src/main.kf".as_str(), source)
+    return dir
+}
+
+fun graph_names(dir: &String): String {
+    val graph = build_crate_graph(dir.as_str(), false)
+    var names = String.from("")
+    while item in &graph.crates { names.append("${item.name} ".as_str()) }
+    return names
+}
+
+@test
+fun a_crate_that_imports_std_gets_it(): void {
+    val dir = std_project("kf_std_uses", "import std.io.eprintln\n\nfun main(): int32 { return 0 }\n", "")
+    assert_eq(graph_names(&dir).contains("std "), true, "std is in the graph")
+}
+
+@test
+fun a_crate_that_does_not_import_std_is_not_built_against_it(): void {
+    val dir = std_project("kf_std_plain", "fun main(): int32 { return 0 }\n", "")
+    assert_eq(graph_names(&dir).contains("std "), false, "std is left out")
+}
+
+@test
+fun a_freestanding_program_that_imports_std_is_refused(): void {
+    val dir = std_project("kf_std_bare", "import std.io.eprintln\n\nfun main(): int32 { return 0 }\n",
+        "freestanding = true\n")
+    assert_eq(build_crate_graph(dir.as_str(), false).error.contains("freestanding"), true, "the error names the flag")
+}
+
+@test
+fun a_path_dependency_that_does_not_exist_is_an_error(): void {
+    val dir = std_project("kf_std_missing", "fun main(): int32 { return 0 }\n",
+        "\n[dependencies]\nnowhere = { path = \"/nonexistent/nowhere\" }\n")
+    val error = sync_sources(dir.as_str(), &default_fetch_policy(), test_cache().as_str())
+    assert_eq(error.contains("`nowhere`") && error.contains("/nonexistent/nowhere"), true, "names the dependency")
+}

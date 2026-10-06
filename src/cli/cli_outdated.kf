@@ -1,0 +1,103 @@
+// `komp outdated`: a project's index dependencies and tools beside what kf.lock
+// holds, the newest versions their requirements allow, and the newest.
+
+import alloc.list.*
+import json.writer.JsonWriter
+import komp.build.OutdatedRow
+import komp.build.outdated
+import komp.fetch.cache_root
+import komp.project.command_dir
+import std.env.current_dir
+import std.fs.exists
+import alloc.path.Path
+
+/// The project directory, wherever it sits among the flags; `.` when there
+/// is none.
+fun outdated_project(nargs: int32): String {
+    val from_manifest = manifest_root(nargs)
+    if !from_manifest.is_empty() { return from_manifest }
+    var i: int32 = 1
+    while i < nargs {
+        val arg = cli_arg_get(i)
+        if arg == "--manifest-path" {
+            i = i + 1
+        } else if !starts_with_dash(arg) {
+            return String.from(arg)
+        }
+        i = i + 1
+    }
+    return String.from(".")
+}
+
+pub fun outdated_command(nargs: int32): int32 {
+    if positionals_from(nargs, 1) > 1 { return usage_error("outdated") }
+    val as_json = wants_json(nargs)
+    val dir = command_dir(outdated_project(nargs).as_str())
+    val root = current_dir().join(dir.as_str()).normalized().raw
+    if !exists("${root}/kf.toml".as_str()) {
+        return report_error("no kf.toml in ${root}", as_json)
+    }
+    val found = outdated(root.as_str(), cache_root().as_str(), has_own_flag(nargs, "--offline"))
+    if as_json {
+        var writer = JsonWriter.object()
+        writer.field_string("project", root.as_str())
+        writer.key("dependencies")
+        write_rows(&var writer, &found.dependencies)
+        writer.key("tools")
+        write_rows(&var writer, &found.tools)
+        runtime_println(writer.finish().as_str())
+        return 0
+    }
+    if found.dependencies.is_empty() && found.tools.is_empty() {
+        runtime_println("${root} takes nothing from a package index")
+        return 0
+    }
+    print_rows("dependencies", &found.dependencies)
+    print_rows("tools", &found.tools)
+    return 0
+}
+
+fun write_rows(writer: &var JsonWriter, rows: &List<OutdatedRow>): void {
+    writer.begin_array()
+    while row in rows {
+        writer.begin_object()
+        writer.field_string("name", row.name.as_str())
+        writer.field_string("requirement", row.requirement.as_str())
+        writer.write_optional("index", row.index.as_str())
+        writer.write_optional("locked", row.locked.as_str())
+        writer.write_optional("allowed", row.allowed.as_str())
+        writer.write_optional("newest", row.newest.as_str())
+        writer.write_optional("error", row.error.as_str())
+        writer.end_object()
+    }
+    writer.end_array()
+}
+
+/// A heading, then one row per package: its requirement, then locked,
+/// allowed and newest, each `-` when there is none.
+fun print_rows(heading: str, rows: &List<OutdatedRow>): void {
+    if rows.is_empty() { return }
+    runtime_println(heading)
+    var width: uint64 = 0
+    while row in rows {
+        if row.name.byte_len() > width { width = row.name.byte_len() }
+    }
+    while row in rows {
+        var line = String.from("  ")
+        line.append(row.name.as_str())
+        line.append(padded("", width - row.name.byte_len() + 2).as_str())
+        line.append(padded(row.requirement.as_str(), 11).as_str())
+        if row.error.byte_len() > 0 {
+            line.append("error: ${row.error}")
+        } else {
+            line.append(padded("locked ${or_dash(row.locked.as_str())}", 17).as_str())
+            line.append(padded("allowed ${or_dash(row.allowed.as_str())}", 18).as_str())
+            line.append("newest ${or_dash(row.newest.as_str())}")
+        }
+        runtime_println(line.as_str())
+    }
+}
+
+fun or_dash(text: str): str {
+    return if text.is_empty() { "-" } else { text }
+}

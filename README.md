@@ -26,37 +26,37 @@ checker suggests. Every command takes a project directory, one containing a
 
 ## Build it
 
-komp is built with a released kflat toolchain, the one `compiler/kf.toml`'s
+komp is built with a released kflat toolchain, the one `kf.toml`'s
 `kflat` pin names. With that toolchain installed (its `komp` and `kflatc` on
 `PATH`):
 
 ```sh
-komp build compiler   # compiler/target/kflat/komp
+komp build .   # target/kflat/komp
 ```
 
 ## Repository layout
 
 | | |
 |---|---|
-| `compiler/komp/` | the `komp` program |
-| `compiler/kf-tool/` | everything it does: manifests, fetching, the build graph, `cc`, tests, installs, toolchains |
+| `kf.toml`, `src/` | komp, one program crate: manifests, fetching, the build graph, `cc`, tests, installs, toolchains |
+| `native/` | the C it links |
 | `scripts/` | `check.sh` and the ratchets CI runs |
 | `docs/book/` | komp's book: installing, projects, the commands |
 
 komp links no part of the compiler. It runs kflatc as a process and talks to
 it through kflatc's documented command line; tools that need the resolved
-crate graph read `komp metadata`. komp's whole-project tests are in kf-tool's
+crate graph read `komp metadata`. komp's whole-project tests are its
 `integration` module.
 
 ## Contributing
 
 ```sh
-scripts/check.sh                   # build, kf-tool's tests, the CLI checks
+scripts/check.sh                   # build, komp's tests, the CLI checks
 CHECK_TESTS=0 scripts/check.sh     # without the tests
 CHECK_CLI=0 scripts/check.sh       # without the CLI checks
 ```
 
-kf-tool depends on the [`json`](https://github.com/komp-co/json) package, and
+komp depends on the [`json`](https://github.com/komp-co/json) package, and
 its tests on [`komp_test`](https://github.com/komp-co/komp-test)'s `testing`,
 both from the index, so the first build needs the network.
 

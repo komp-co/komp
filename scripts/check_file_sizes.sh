@@ -43,7 +43,7 @@ BASELINE="scripts/file_size_baseline.txt"
 TRIGGER=350
 
 sizes() {
-    find compiler -name '*.kf' -type f | sort | while read -r f; do
+    find src -name '*.kf' -type f | sort | while read -r f; do
         printf '%s %s\n' "$(grep -cvE '^[[:space:]]*//|^import ' "$f")" "$f"
     done
 }

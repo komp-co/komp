@@ -1,0 +1,153 @@
+// `komp tool install` and `komp tool remove`: a program built from a `file://`
+// index in scratch space, into an install home of its own.
+
+import core.assert.assert_eq
+import komp.install.install_package
+import komp.install.installed_packages
+import komp.install.uninstall_package
+import komp.install.update_installed
+import alloc.list.*
+import std.fs.exists
+import testing.test
+
+/// An index listing `name` 0.1.0 of `kind`, from a repository of its own;
+/// the index's `file://` URL.
+fun tool_index(name: str, kind: str): String {
+    val repo = dir_of("${name}_repo".as_str())
+    sh("rm -rf ${repo} && mkdir -p ${repo}/src".as_str())
+    val manifest = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\nkind = \"${kind}\"\n"
+    write_file("${repo}/kf.toml".as_str(), manifest.as_str())
+    if kind == "bin" {
+        write_file("${repo}/src/main.kf".as_str(), "fun main(): int32 { return 7 }\n")
+    } else {
+        write_file("${repo}/src/lib.kf".as_str(), "pub fun seven(): int32 { return 7 }\n")
+    }
+    sh("cd ${repo} && git init -q && git add . && ${git_commit()} -qm one".as_str())
+    sh("cd ${repo} && git rev-parse HEAD > ${repo}.head".as_str())
+    val rev = read_file("${repo}.head".as_str()).as_str().substring(0, 40)
+    val index = dir_of("${name}_index".as_str())
+    val file = "${index}/${name.substring(0, 2)}/${name.substring(2, 4)}"
+    sh("rm -rf ${index} && mkdir -p ${file}".as_str())
+    write_file("${index}/config.toml".as_str(), "schema = 1\n")
+    val row = "\n[[version]]\nversion = \"0.1.0\"\nsource = { git = \"file://${repo}\", rev = \"${rev}\" }\n"
+    write_file("${file}/${name}.toml".as_str(), "schema = 1\nname = \"${name}\"\n${row}".as_str())
+    sh("cd ${index} && git init -q && git add . && ${git_commit()} -qm index".as_str())
+    return "file://${index}"
+}
+
+fun fresh_home(name: str): String {
+    val home = dir_of(name)
+    sh("rm -rf ${home}".as_str())
+    return home
+}
+
+@test
+fun an_installed_program_runs_from_the_bin_directory(): void {
+    val index = tool_index("komp_seven", "bin")
+    val home = fresh_home("kf_install_home_a")
+    val _done = install_package("komp_seven", "", index.as_str(), test_cache().as_str(), home.as_str())
+    assert_eq(sh("${home}/bin/komp-seven".as_str()) / 256, 7, "komp-seven is the program, built")
+}
+
+@test
+fun an_install_is_recorded(): void {
+    val index = tool_index("komp_eight", "bin")
+    val home = fresh_home("kf_install_home_b")
+    val _done = install_package("komp_eight", "0.1", index.as_str(), test_cache().as_str(), home.as_str())
+    val rows = installed_packages(home.as_str())
+    assert_eq(rows.size() == 1 && rows[0].version.as_str() == "0.1.0", true, "komp_eight 0.1.0")
+}
+
+@test
+fun uninstalling_removes_the_program_and_its_record(): void {
+    val index = tool_index("komp_nine", "bin")
+    val home = fresh_home("kf_install_home_c")
+    val _done = install_package("komp_nine", "", index.as_str(), test_cache().as_str(), home.as_str())
+    val error = uninstall_package("komp_nine", "", home.as_str())
+    assert_eq(error.is_empty() && !exists("${home}/bin/komp-nine".as_str()) &&
+            installed_packages(home.as_str()).is_empty(), true, "nothing left")
+}
+
+@test
+fun uninstalling_what_is_not_installed_says_so(): void {
+    val home = fresh_home("kf_install_home_d")
+    assert_eq(uninstall_package("komp_never", "", home.as_str()).as_str(), "`komp_never` is not installed", "no row")
+}
+
+@test
+fun a_library_is_not_installed(): void {
+    val index = tool_index("kf_lib_ten", "lib")
+    val home = fresh_home("kf_install_home_e")
+    val done = install_package("kf_lib_ten", "", index.as_str(), test_cache().as_str(), home.as_str())
+    assert_eq(done.error.contains("is a library"), true, "a library goes in [dependencies]")
+}
+
+/// Publishes `version` of `name`, whose program exits with `code`, to the
+/// repository and index `tool_index` made.
+fun publish_tool_version(name: str, version: str, code: int32): void {
+    val repo = dir_of("${name}_repo".as_str())
+    val manifest = "[project]\nname = \"${name}\"\nversion = \"${version}\"\nkind = \"bin\"\n"
+    write_file("${repo}/kf.toml".as_str(), manifest.as_str())
+    write_file("${repo}/src/main.kf".as_str(), "fun main(): int32 { return ${code} }\n".as_str())
+    sh("cd ${repo} && git add . && ${git_commit()} -qm ${version} && git rev-parse HEAD > ${repo}.head".as_str())
+    val rev = read_file("${repo}.head".as_str()).as_str().substring(0, 40)
+    val index = dir_of("${name}_index".as_str())
+    val file = "${index}/${name.substring(0, 2)}/${name.substring(2, 4)}/${name}.toml"
+    val row = "\n[[version]]\nversion = \"${version}\"\nsource = { git = \"file://${repo}\", rev = \"${rev}\" }\n"
+    write_file(file.as_str(), "${read_file(file.as_str())}${row}".as_str())
+    sh("cd ${index} && git add . && ${git_commit()} -qm ${version}".as_str())
+}
+
+/// `name` installed with `requirement` at 0.1.0, then 0.1.1 (exiting 8) and
+/// 0.2.0 (exiting 9) published.
+fun installed_then_published(name: str, home_name: str, requirement: str): String {
+    val index = tool_index(name, "bin")
+    val home = fresh_home(home_name)
+    val _done = install_package(name, requirement, index.as_str(), test_cache().as_str(), home.as_str())
+    publish_tool_version(name, "0.1.1", 8)
+    publish_tool_version(name, "0.2.0", 9)
+    return home
+}
+
+@test
+fun an_update_takes_the_newest_its_requirement_allows(): void {
+    val home = installed_then_published("komp_upa", "kf_update_home_a", "0.1")
+    val none = List.new<String>()
+    val updates = update_installed(&none, test_cache().as_str(), home.as_str())
+    assert_eq(updates.size() == 1 && updates[0].to.as_str() == "0.1.1", true, "0.1.1, not 0.2.0")
+}
+
+@test
+fun an_updated_program_is_rebuilt(): void {
+    val home = installed_then_published("komp_upb", "kf_update_home_b", "0.1")
+    val none = List.new<String>()
+    val _updates = update_installed(&none, test_cache().as_str(), home.as_str())
+    assert_eq(sh("${home}/bin/komp-upb".as_str()) / 256, 8, "the 0.1.1 program runs")
+}
+
+@test
+fun an_install_without_a_requirement_updates_to_the_newest(): void {
+    val home = installed_then_published("komp_upc", "kf_update_home_c", "")
+    val none = List.new<String>()
+    val updates = update_installed(&none, test_cache().as_str(), home.as_str())
+    assert_eq(updates[0].to.as_str(), "0.2.0", "any version")
+}
+
+@test
+fun a_program_already_newest_is_left_alone(): void {
+    val index = tool_index("komp_upd", "bin")
+    val home = fresh_home("kf_update_home_d")
+    val _done = install_package("komp_upd", "0.1", index.as_str(), test_cache().as_str(), home.as_str())
+    val none = List.new<String>()
+    val updates = update_installed(&none, test_cache().as_str(), home.as_str())
+    assert_eq(updates[0].from.as_str() == "0.1.0" && updates[0].to.as_str() == "0.1.0", true, "nothing newer")
+}
+
+@test
+fun updating_a_program_not_installed_is_an_error(): void {
+    val home = fresh_home("kf_update_home_e")
+    var names = List.new<String>()
+    names.push(String.from("komp_nothing"))
+    val updates = update_installed(&names, test_cache().as_str(), home.as_str())
+    assert_eq(updates[0].error.as_str(), "is not installed", "named, not skipped")
+}

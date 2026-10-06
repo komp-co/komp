@@ -1,0 +1,92 @@
+// Installing a program as the default: its version built into the tool
+// store if it is not there yet, `bin/<binary>` under the install home
+// pointing at it, and `installed.toml` recording it.
+
+import alloc.list.*
+import komp.build.ensure_dir
+import komp.fetch.LockEntry
+import komp.fetch.empty_lock_entry
+import komp.fetch.remove_tree
+import komp.project.render
+import std.fs.exists
+import std.fs.remove_file
+import std.process.Command
+
+/// What an install did: the row it recorded, or `error` saying why nothing
+/// changed.
+pub struct Installed {
+    pub val entry: LockEntry
+    pub val binary: String
+    pub val error: String
+}
+
+fun install_failed(message: String): Installed {
+    return Installed { entry: empty_lock_entry(), binary: "", error: message }
+}
+
+/// Makes the highest version of `name` that `requirement` allows ("" any)
+/// the default, replacing the one before, which stays in the store.
+pub fun install_package(name: str, requirement: str, index_url: str, cache: str, home: str): Installed {
+    val stored = store_tool(name, requirement, index_url, cache, home)
+    if stored.error.byte_len() > 0 { return install_failed(stored.error.clone()) }
+    val bin = installed_bin_dir(home)
+    val destination = "${bin}/${installed_binary_name(name)}"
+    if !ensure_dir(bin.as_str()) || !link_default(stored.binary.as_str(), destination.as_str()) {
+        return install_failed("cannot write ${destination}")
+    }
+    var tools = installed_tools(home)
+    tools.remove_named(name)
+    tools.push(InstalledTool { entry: stored.entry.clone(), requirement: String.from(requirement) })
+    if !write_installed(home, &tools) { return install_failed("cannot write ${installed_record(home)}") }
+    return Installed { entry: stored.entry.clone(), binary: destination, error: "" }
+}
+
+/// `name` removes every version and the default; `name` with a `version`
+/// removes that one, and the default when it is that one. "" on success,
+/// else why not.
+pub fun uninstall_package(name: str, version: str, home: str): String {
+    if name.is_empty() || name.contains("/") || version.contains("/") || name.starts_with(".") {
+        return "`${name}` is not a package name"
+    }
+    var tools = installed_tools(home)
+    var default_version = String.from("")
+    while tool in &tools {
+        if tool.entry.name.as_str() == name { default_version = tool.entry.version.clone() }
+    }
+    val stored = stored_versions(home, name)
+    if version.is_empty() {
+        if default_version.is_empty() && stored.is_empty() { return "`${name}` is not installed" }
+        remove_tree("${home}/tools/${name}".as_str())
+    } else {
+        var found = false
+        while have in &stored {
+            if have.render().as_str() == version { found = true }
+        }
+        if !found { return "`${name}` ${version} is not installed" }
+        remove_tree(tool_dir(home, name, version).as_str())
+        if default_version.as_str() != version { return "" }
+    }
+    val binary = "${installed_bin_dir(home)}/${installed_binary_name(name)}"
+    if exists(binary.as_str()) && remove_file(binary.as_str()).is_err() { return "cannot remove ${binary}" }
+    tools.remove_named(name)
+    if !write_installed(home, &tools) { return "cannot write ${installed_record(home)}" }
+    return ""
+}
+
+/// Every installed package's exact source.
+pub fun installed_packages(home: str): List<LockEntry> {
+    var out = List.new<LockEntry>()
+    val tools = installed_tools(home)
+    while tool in &tools { out.push(tool.entry.clone()) }
+    return out
+}
+
+/// `link` made a symbolic link to `target`, replacing what was there: a
+/// link, or the binary an earlier komp copied in.
+fun link_default(target: str, link: str): bool {
+    var command = Command.new("ln")
+    command.arg("-sfn")
+    command.arg(target)
+    command.arg(link)
+    return command.status().success()
+}

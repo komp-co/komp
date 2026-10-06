@@ -1,0 +1,79 @@
+// A workspace's members build into one target, and `check` reads an
+// interface there only when this komp wrote it from the current sources.
+
+import core.assert.assert_eq
+import komp.build.build_project_separate
+import komp.build.check_project_with_kflatc
+import std.fs.scratch_path
+import komp.build.publish_text
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun access(path: str, mode: int32): int32
+
+/// `shared_dep` and two members that use it, `first` and `second`.
+fun write_workspace(ws: str): void {
+    unsafe { system("rm -rf ${ws} && mkdir -p ${ws}/dep/src ${ws}/first/src ${ws}/second/src") }
+    write_file("${ws}/kf.toml".as_str(), "[workspace]\nmembers = [\"dep\", \"first\", \"second\"]\n")
+    write_file("${ws}/dep/kf.toml".as_str(), "[project]\nname = \"shared_dep\"\nkind = \"lib\"\n")
+    write_file("${ws}/dep/src/lib.kf".as_str(), "pub fun answer(): int32 { return 42 }\n")
+    write_user(ws, "first")
+    write_user(ws, "second")
+}
+
+fun write_user(ws: str, name: str): void {
+    val manifest = "[project]\nname = \"${name}\"\nkind = \"lib\"\n\n" +
+        "[dependencies]\nshared_dep = { path = \"../dep\" }\n"
+    write_file("${ws}/${name}/kf.toml".as_str(), manifest.as_str())
+    val source = "import shared_dep.answer\n\npub fun twice(): int32 { return answer() * 2 }\n"
+    write_file("${ws}/${name}/src/lib.kf".as_str(), source)
+}
+
+@test
+fun members_build_into_the_workspace_target(): void {
+    val ws = scratch_path("kf_ws_shared_build")
+    write_workspace(ws)
+    assert_eq(build_project_separate("${ws}/first".as_str(), ""), 0, "the first member builds")
+    assert_eq(build_project_separate("${ws}/second".as_str(), ""), 0, "the second member builds")
+    val shared = unsafe { access("${ws}/target/kflat/libshared_dep.a".as_str(), 0) } == 0
+    val both = unsafe { access("${ws}/target/kflat/libsecond.a".as_str(), 0) } == 0
+    assert_eq(shared && both, true, "every member's artifacts are in the workspace target")
+    val own = unsafe { access("${ws}/first/target".as_str(), 0) } == 0
+    assert_eq(own, false, "a member writes no target of its own")
+    assert_eq(unsafe { system("ls ${ws}/target/kflat | grep -q '[.]tmp[.]'") } != 0, true, "no staged file is left")
+}
+
+@test
+fun a_crate_built_as_a_library_is_rebuilt_to_be_linked(): void {
+    // `shared_dep` says `bin` without a `main`. Built first as a dependency,
+    // its artifacts are the library form; the program needs the program form.
+    val ws = scratch_path("kf_ws_role_flip")
+    write_workspace(ws)
+    write_file("${ws}/dep/kf.toml".as_str(), "[project]\nname = \"shared_dep\"\n")
+    assert_eq(build_project_separate("${ws}/first".as_str(), ""), 0, "the member builds its dependency")
+    assert_eq(build_project_separate("${ws}/dep".as_str(), ""), 0, "the dependency links as a program")
+    assert_eq(build_project_separate("${ws}/second".as_str(), ""), 0, "and is a library again for the next member")
+}
+
+@test
+fun check_does_not_trust_an_interface_from_older_sources(): void {
+    val ws = scratch_path("kf_ws_stale_interface")
+    write_workspace(ws)
+    assert_eq(build_project_separate("${ws}/first".as_str(), ""), 0, "the member builds")
+    // An unreadable interface recorded for since-changed sources.
+    write_file("${ws}/target/kflat/shared_dep.kfi".as_str(), "not an interface")
+    write_file("${ws}/dep/src/lib.kf".as_str(), "pub fun answer(): int32 { return 43 }\n")
+    val checked = check_project_with_kflatc("${ws}/first".as_str(), false)
+    assert_eq(checked, 0, "check reads the dependency's sources instead")
+}
+
+@test
+fun a_published_file_replaces_the_old_one_whole(): void {
+    val dir = scratch_path("kf_publish_text")
+    unsafe { system("rm -rf ${dir} && mkdir -p ${dir}") }
+    val path = "${dir}/artifact.h"
+    write_file(path.as_str(), "old")
+    assert_eq(publish_text(path.as_str(), "new"), true, "publishing succeeds")
+    assert_eq(read_file(path.as_str()).as_str() == "new", true, "the new content is in place")
+    assert_eq(unsafe { system("ls ${dir} | grep -q tmp") } != 0, true, "the staged file is gone")
+}

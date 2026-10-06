@@ -1,0 +1,15 @@
+[project]
+name = "komp"
+version = "1.0.0"
+kind = "bin"
+# The compiler komp is built with: a released kflat toolchain.
+kflat = "0.24"
+
+[dependencies]
+json = "0.2"
+
+[native]
+c_sources = ["native/file_hash.c"]
+
+[dev-dependencies]
+komp_test = "0.1"

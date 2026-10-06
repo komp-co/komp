@@ -1,0 +1,98 @@
+// Artifact-backed `komp test`: the test TU lives in the test subdirectory and
+// links dependency archives.
+
+import std.fs.*
+import std.process.*
+import alloc.list.*
+import komp.build.*
+import komp.build.crate_artifact_manifest_path
+import komp.build.crate_archive_path
+import komp.build.test_crate_dir
+import komp.build.test_artifact_path
+import komp.build.crate_kf_files
+
+/// Each crate of the package in turn, the library first; the first failing
+/// status, else 0.
+pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str): int32 {
+    var status = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val tested = test_graph_root(graph, root_dir, case_filter, test_filter)
+        if status == 0 { status = tested }
+    }
+    return status
+}
+
+fun test_graph_root(graph: &BuildGraph, root_dir: str, case_filter: str, test_filter: str): int32 {
+    val cflags = user_cflags()
+    val built = build_graph_separate(graph, root_dir, cflags.as_str(), false, "")
+    if built != 0 { return built }
+    if graph.crates.size() == 0 { return 1 }
+
+    val artifacts = target_dir(root_dir)
+    val root = *graph.crates.at(graph.crates.size() - 1)
+    if !root.has_test_files() { return report_no_tests() }
+    val manifest_path = crate_artifact_manifest_path(artifacts.as_str(), root.name.as_str())
+    val parsed = parse_artifact_manifest(read_file(manifest_path.as_str()).as_str())
+    if !parsed.ok {
+        runtime_println("komp test: root artifact metadata is unavailable")
+        return 1
+    }
+
+    val test_dir = test_crate_dir(artifacts.as_str())
+    val entry = if ensure_dir(test_dir.as_str()) { write_test_main(test_dir.as_str(), root.name.as_str()) } else { "" }
+    if entry.is_empty() || root.invoke_kflatc_tests(root_dir, artifacts.as_str(), &parsed.manifest.dep_hashes,
+        entry.as_str()) != 0 {
+        runtime_println("komp test: errors found; test binary not written")
+        return 1
+    }
+    val source = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".c")
+    val object = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".o")
+    val binary = test_artifact_path(test_dir.as_str(), root.name.as_str(), "")
+
+    var include_dirs = List.new<String>()
+    include_dirs.push(test_dir.clone())
+    include_dirs.push(artifacts.clone())
+    if !compile_object_with_include_dirs(source.as_str(), object.as_str(), &include_dirs, cflags.as_str()) { return 1 }
+
+    var objects = List.new<String>()
+    objects.push(object)
+    // The root's own C sources, since its archive is not used here.
+    if !root.compile_crate_c_sources(artifacts.as_str(), cflags.as_str(), &var objects) { return 1 }
+    var archives = List.new<String>()
+    var i: uint64 = graph.crates.size() - 1
+    while i > 0 {
+        val dependency = *graph.crates.at(i - 1)
+        archives.push(crate_archive_path(artifacts.as_str(), dependency.name.as_str()))
+        i = i - 1
+    }
+    if !link_binary(binary.as_str(), &objects, &archives, cflags.as_str()) { return 1 }
+    // Command.status(), not system(): a wait status of 256 truncates to 0.
+    var run = Command.new(binary.as_str())
+    // A test that builds a project runs the compiler this komp would, and
+    // this komp, as Cargo hands its tests `CARGO`.
+    run.env("KFLATC", kflatc_path().as_str())
+    val komp = beside_self("komp")
+    if exists(komp.as_str()) { run.env("KOMP", komp.as_str()) }
+    if case_filter.byte_len() > 0 {
+        run.arg("--case")
+        run.arg(case_filter)
+    }
+    if test_filter.byte_len() > 0 {
+        run.arg("--filter")
+        run.arg(test_filter)
+    }
+    return run.status().exit_code()
+}
+
+fun BuildCrate.has_test_files(): bool {
+    return crate_kf_files(self.src.as_str(), true).size() > crate_kf_files(self.src.as_str(), false).size()
+}
+
+/// What a test program with no tests prints, without building one.
+fun report_no_tests(): int32 {
+    runtime_println("running 0 tests")
+    runtime_println("")
+    runtime_println("test result: ok. 0 passed")
+    return 0
+}

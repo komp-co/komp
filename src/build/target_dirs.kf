@@ -1,0 +1,16 @@
+// Separate-build artifacts land under `<output root>/kflat`, the output root
+// being the workspace's shared `target` or the crate's own.
+
+import komp.project.build_output_root
+
+pub fun target_dir(project_root: str): String {
+    return build_output_root(project_root) + String.from("/kflat")
+}
+
+/// Where the whole-program form writes without `-o`: beside the crate's other
+/// build output, not the working directory. Creates the directory.
+pub fun default_unity_output(project_root: str): String {
+    val dir = target_dir(project_root)
+    val _made = ensure_dir(dir.as_str())
+    return dir + String.from("/komp_out.c")
+}

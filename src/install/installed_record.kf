@@ -1,0 +1,84 @@
+// `installed.toml`: every installed program in `kf.lock`'s format, each row
+// adding the requirement it was installed with, which `komp update
+// --installed` resolves again.
+
+import alloc.list.*
+import komp.build.ensure_dir
+import komp.fetch.LockEntry
+import komp.fetch.parse_lockfile
+import komp.fetch.render_lockfile
+import komp.project.read_key
+import komp.project.read_string_value
+import komp.project.split_lines
+import std.fs.exists
+import std.fs.write_text
+
+@derive(Clone)
+pub struct InstalledTool {
+    pub val entry: LockEntry
+    /// As `komp tool install <name>@<requirement>` gave it; "" allows any version.
+    pub val requirement: String
+}
+
+/// Every installed program, in the record's order. A row that names no
+/// requirement, as rows written before requirements were do, keeps to its
+/// own version's series.
+pub fun installed_tools(home: str): List<InstalledTool> {
+    var out = List.new<InstalledTool>()
+    val record = installed_record(home)
+    if !exists(record.as_str()) { return out }
+    val text = read_file(record.as_str())
+    val entries = parse_lockfile(text.as_str())
+    val requirements = recorded_requirements(text.as_str())
+    while i in 0..entries.size() {
+        val written = if i < requirements.size() { requirements[i].clone() } else { String.from("") }
+        val requirement = if written.as_str() == "-" { entries[i].version.clone() } else { written }
+        out.push(InstalledTool { entry: entries[i].clone(), requirement: requirement })
+    }
+    return out
+}
+
+/// Each `[[package]]` row's `requirement`, in order; "-" for a row without one.
+fun recorded_requirements(text: str): List<String> {
+    var out = List.new<String>()
+    val lines = split_lines(text)
+    while raw in &lines {
+        val line = raw.as_str().trim()
+        if line.as_str() == "[[package]]" {
+            out.push(String.from("-"))
+        } else if out.size() > 0 && read_key(String.from(line.as_str())).as_str() == "requirement" {
+            out[out.size() - 1] = read_string_value(line)
+        }
+    }
+    return out
+}
+
+pub fun write_installed(home: str, tools: &List<InstalledTool>): bool {
+    if !ensure_dir(home) { return false }
+    var text = String.from("# Written by komp tool install: every installed program, its exact source and ")
+    text.append("the requirement it was installed with.\nschema = 1\n")
+    while tool in tools {
+        var one = List.new<LockEntry>()
+        one.push(tool.entry.clone())
+        val rendered = render_lockfile(&one)
+        val start = rendered.index_of("\n[[package]]") ?: 0
+        text.append(rendered.substring(start, rendered.byte_len()).as_str())
+        text.append("requirement = \"${tool.requirement}\"\n".as_str())
+    }
+    return write_text(installed_record(home).as_str(), text.as_str()).is_ok()
+}
+
+pub fun List<InstalledTool>.named(name: str): InstalledTool? {
+    while tool in &self {
+        if tool.entry.name.as_str() == name { return Option.Some(tool.clone()) }
+    }
+    return null
+}
+
+pub mutating fun List<InstalledTool>.remove_named(name: str): void {
+    var kept = List.new<InstalledTool>()
+    while tool in &self {
+        if tool.entry.name.as_str() != name { kept.push(tool.clone()) }
+    }
+    *self = kept
+}

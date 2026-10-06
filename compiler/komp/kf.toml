@@ -1,7 +1,0 @@
-[project]
-name = "komp"
-version = "0.1.0"
-kind = "bin"
-
-[dependencies]
-kf_tool = { path = "../kf-tool" }
