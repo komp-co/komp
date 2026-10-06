@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-// Both operands are literals, so the sum is `int32`, and 3000000000 does not
-// fit it.
-
-fun main(): int32 {
-    val r: int32 = 3000000000 + 1
-    return r
-}

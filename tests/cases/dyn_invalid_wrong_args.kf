@@ -1,9 +1,0 @@
-//! build: fail
-
-trait Sink<T> { fun sink(value: T): int32 }
-
-fun invalid(value: &dyn Sink<int32, bool>): int32 {
-    return value.sink(1)
-}
-
-fun main(): int32 { return 0 }

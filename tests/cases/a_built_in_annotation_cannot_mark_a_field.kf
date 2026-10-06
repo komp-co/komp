@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-
-struct User {
-    @derive(Clone)
-    val id: int64
-}
-
-fun main(): int32 { return 0 }

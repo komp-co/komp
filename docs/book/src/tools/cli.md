@@ -480,7 +480,7 @@ with its `_test.kf` files and writes `test/<name>_tests.h` and `.c` under
 as the module `entry`, whose `main` is the program's; a `main` of the crate's
 own is set aside. kflatc knows nothing of how tests run: `komp test` writes the
 main that hands the crate's `@test` functions to
-[`testing`](../libs/testing.md), passes it as the entry file, and compiles and
+[`testing`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/testing.md), passes it as the entry file, and compiles and
 links the translation unit into the test binary.
 
 The names kflatc reads and writes under `--out` are part of its command line;
@@ -521,7 +521,7 @@ replacing kflatc rebuilds every crate.
 `kflatc serve` keeps the compiler running and answers JSON requests on its
 standard input, for editors and other tools: the questions an editor asks
 about a file, and checks of unsaved text. Its protocol is
-[its own chapter](serve.md).
+[its own chapter](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/tools/serve.md).
 
 Every subcommand exits 0 on success, 1 when the crate has errors (reported as
 usual), and 2 on a malformed command line.

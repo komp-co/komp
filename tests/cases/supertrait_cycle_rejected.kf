@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-// A trait cannot require a trait requiring it back.
-
-trait Alpha: Beta { fun a(): int32 }
-trait Beta: Alpha { fun b(): int32 }
-
-fun main(): int32 { return 0 }

@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// `_` stands for a whole parameter or result, or one behind `&`; not for a
-// type argument.
-
-annotation listed on (List<_>) -> bool
-
-fun main(): int32 { return 0 }

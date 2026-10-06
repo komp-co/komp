@@ -1,8 +1,0 @@
-//! build: fail
-// The type arguments of `alloc_array` not followed by `(`: no length is
-// passed, which is an error rather than a crash in codegen.
-
-fun main(): int32 {
-    val p: Ptr<int32> = unsafe { alloc_array<int32>2) }
-    return 0
-}

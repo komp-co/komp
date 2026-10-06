@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// A bitwise copy of a String would free its buffer twice.
-
-@derive(Copy)
-struct Named { pub var id: int32, pub var label: String }
-
-fun main(): int32 { return 0 }

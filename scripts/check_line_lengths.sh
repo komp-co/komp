@@ -19,7 +19,7 @@ BASELINE="scripts/line_length_baseline.txt"
 LIMIT=120
 
 counts() {
-    find compiler libs tests -name '*.kf' -type f | sort | while read -r f; do
+    find compiler -name '*.kf' -type f | sort | while read -r f; do
         n=$(awk -v lim="$LIMIT" 'length > lim { c++ } END { print c+0 }' "$f")
         if [ "$n" -gt 0 ]; then printf '%s %s\n' "$n" "$f"; fi
     done

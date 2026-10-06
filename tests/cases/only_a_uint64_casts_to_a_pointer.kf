@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-// An `int32` would be widened into an address nobody took.
-
-fun main(): int32 {
-    val x: int32 = 30
-    val p = unsafe { x as Ptr<int32> }
-    return unsafe { *p }
-}

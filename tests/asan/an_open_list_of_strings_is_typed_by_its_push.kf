@@ -1,9 +1,0 @@
-//! asan: clean
-import alloc.list.*
-
-fun main(): int32 {
-    var names = List.new()
-    names.push(String.from("ada"))
-    names.push(String.from("grace"))
-    return names.size() as int32 - 2
-}

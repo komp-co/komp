@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-
-import alloc.list.*
-
-fun size(values: &List<>): uint64 { return values.size() }
-
-fun main(): int32 { return 0 }

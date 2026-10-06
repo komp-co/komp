@@ -1,6 +1,0 @@
-//! build: fail
-// A type error, bool into an int32 binding: no C is emitted.
-fun main(): int32 {
-    val x: int32 = true
-    return x
-}

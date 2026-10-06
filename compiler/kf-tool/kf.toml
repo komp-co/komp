@@ -10,4 +10,4 @@ json = "0.2"
 c_sources = ["native/file_hash.c"]
 
 [dev-dependencies]
-testing = { path = "../../libs/testing" }
+komp_test = "0.1"

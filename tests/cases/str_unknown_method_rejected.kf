@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-
-fun main(): int32 {
-    val value: str = "hello"
-    value.nope()
-    return 0
-}

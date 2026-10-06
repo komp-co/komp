@@ -1,5 +1,0 @@
-import kf_driver.cli.kflatc_cli
-
-fun main(): int32 {
-    return kflatc_cli()
-}

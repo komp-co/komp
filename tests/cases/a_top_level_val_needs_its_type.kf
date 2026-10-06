@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-
-val LIMIT = 9
-
-fun main(): int32 {
-    return LIMIT
-}

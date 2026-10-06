@@ -1,6 +1,0 @@
-// Integer bitwise and shift operator traits.
-pub trait BitAnd { fun bit_and(other: &Self): Self }
-pub trait BitOr { fun bit_or(other: &Self): Self }
-pub trait BitXor { fun bit_xor(other: &Self): Self }
-pub trait Shl { fun shl(other: &Self): Self }
-pub trait Shr { fun shr(other: &Self): Self }

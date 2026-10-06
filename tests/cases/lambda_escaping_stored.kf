@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-// A returned lambda needs an existential result type, and is rejected.
-
-
-fun main(): int32 {
-    return |x: int32| x + 1
-}

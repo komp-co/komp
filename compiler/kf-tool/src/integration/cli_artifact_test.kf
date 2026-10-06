@@ -78,6 +78,7 @@ fun test_dispatch_links_a_separate_test_binary(): void {
     write_file(scratch_path("kf_sc8_test_lib/kf.toml"), "${test_lib_manifest}${testing_dev_dependency()}".as_str())
     write_file(scratch_path("kf_sc8_test_lib/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
     write_file(scratch_path("kf_sc8_test_lib/src/lib_test.kf"), "import testing.test\n\n@test\nfun answer_runs(): void { val value = answer() }\n")
+    assert_eq(fetch_test_dependencies(scratch_path("kf_sc8_test_lib")).as_str(), "", "komp_test is fetched")
     val tested = test_project_separate(scratch_path("kf_sc8_test_lib"), "", "")
     val have_binary = unsafe { access(scratch_path("kf_sc8_test_lib/target/kflat/test/test_lib_tests"), 0) } == 0
     assert_eq(prepared == 0 && tested == 0 && have_binary, true, "test dispatch links a separate test binary against crate artifacts")
@@ -87,6 +88,7 @@ fun write_check_tests_fixture(broken: bool): void {
     unsafe { system("rm -rf ${scratch_path("kf_check_tests")} && mkdir -p ${scratch_path("kf_check_tests/src")}") }
     val manifest = "[project]\nname = \"check_tests\"\nkind = \"lib\"\n${testing_dev_dependency()}"
     write_file(scratch_path("kf_check_tests/kf.toml"), manifest.as_str())
+    val _fetched = fetch_test_dependencies(scratch_path("kf_check_tests"))
     write_file(scratch_path("kf_check_tests/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
     if broken {
         write_file(scratch_path("kf_check_tests/src/lib_test.kf"), """import testing.test

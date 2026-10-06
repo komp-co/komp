@@ -1,9 +1,0 @@
-import std.fs.write_text_atomic
-
-/// Written whole or not at all, since a workspace's komp processes share one
-/// target directory. False, reported, when it cannot be written.
-pub fun publish_text(path: str, content: str): bool {
-    if write_text_atomic(path, content).is_ok() { return true }
-    runtime_println("error: could not write ${path}")
-    return false
-}

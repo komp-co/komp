@@ -28,8 +28,8 @@ That is a finding, not an obstacle. In order:
    works, or document the limitation with a link to the issue. Never quietly
    route around a defect and leave the reader to rediscover it.
 
-Add the limitation to `src/limitations.md` as well. That chapter is written
-last precisely because it is assembled from what the other chapters hit.
+A limitation of the language or compiler goes to kf-lang's `limitations.md`; one
+of komp's stays in the chapter that hits it, with its issue.
 
 ## What good looks like
 

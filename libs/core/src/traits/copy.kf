@@ -1,6 +1,0 @@
-// A type whose values are duplicated by copying their bytes: reading one out of
-// a place leaves the place intact. Every `impl Copy` is checked to own nothing
-// and run no destructor; `@derive(Copy)` also supplies the Clone impl.
-@lang("copy")
-pub trait Copy: Clone {
-}

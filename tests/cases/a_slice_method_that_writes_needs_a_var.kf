@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-// `swap` writes through a mutable slice, which a `val` array cannot lend.
-
-fun main(): int32 {
-    val xs: int32[3] = [3, 1, 2]
-    xs.swap(0, 1)
-    return xs[0]
-}

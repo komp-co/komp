@@ -1,0 +1,47 @@
+name: Install the kflat toolchain
+description: The kflat release compiler/kf.toml pins, from kf-lang's releases, with ccache in front of cc.
+runs:
+  using: composite
+  steps:
+    - name: Install ccache
+      shell: sh
+      run: sudo apt-get install -y -qq --no-install-recommends ccache > /dev/null
+
+    - uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache-${{ github.job }}-${{ github.sha }}
+        restore-keys: ccache-${{ github.job }}-
+
+    - name: Put ccache in front of cc
+      shell: sh
+      run: |
+        echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+        echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+        echo "CCACHE_BASEDIR=/tmp" >> "$GITHUB_ENV"
+        mkdir -p "$HOME/.ccache"
+        CCACHE_DIR="$HOME/.ccache" ccache --set-config max_size=1G
+
+    # The highest release the pin allows, so a patch release is picked up
+    # without an edit here.
+    - name: Install the pinned kflat
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -eu
+        pin=$(sed -n 's/^kflat *= *"\(.*\)"/\1/p' compiler/kf.toml)
+        version=""
+        for repo in komp-co/kf-lang komp-co/komp; do
+          version=$(gh release list -R "$repo" --limit 100 --json tagName --jq '.[].tagName' \
+            | sed 's/^v//' | grep -E "^${pin//./\\.}(\\.|$)" | sort -V | tail -1 || true)
+          if [ -n "$version" ]; then source_repo=$repo; break; fi
+        done
+        [ -n "$version" ] || { echo "no release allows kflat = \"$pin\"" >&2; exit 1; }
+        echo "kflat $version from $source_repo"
+        cd "$RUNNER_TEMP"
+        gh release download "v$version" -R "$source_repo" -p "kflat-$version.tar.gz" -p "kflat-$version.tar.gz.sha256"
+        sha256sum -c "kflat-$version.tar.gz.sha256"
+        tar -xzf "kflat-$version.tar.gz"
+        KFLAT_HOME="$HOME/.kflat" sh "kflat-$version/install.sh"
+        echo "$HOME/.kflat/bin" >> "$GITHUB_PATH"

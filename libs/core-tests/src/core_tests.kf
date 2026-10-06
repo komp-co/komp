@@ -1,2 +1,0 @@
-// core's tests, kept in a crate of their own: `testing`, which declares
-// `@test`, depends on core, so core cannot hold tests itself.

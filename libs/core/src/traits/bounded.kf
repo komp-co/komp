@@ -1,9 +1,0 @@
-// The limits of a numeric type, static so a bound reaches them:
-// `var best = T.min_value()`.
-
-/// The smallest and largest value a type can hold; for a float, the finite
-/// limits.
-pub trait Bounded {
-    static fun min_value(): Self
-    static fun max_value(): Self
-}

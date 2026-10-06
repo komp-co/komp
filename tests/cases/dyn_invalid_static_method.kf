@@ -1,8 +1,0 @@
-//! build: fail
-
-trait Factory {
-    static fun make(): int32
-}
-
-fun invalid(value: &dyn Factory): int32 { return value.make() }
-fun main(): int32 { return 0 }

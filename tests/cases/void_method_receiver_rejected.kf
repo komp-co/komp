@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-
-fun discard(): void {}
-
-fun main(): int32 {
-    discard().nope()
-    return 0
-}

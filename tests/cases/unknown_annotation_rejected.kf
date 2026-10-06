@@ -1,5 +1,0 @@
-//! build: fail
-//! deps: core
-
-@tset
-fun main(): int32 { return 0 }

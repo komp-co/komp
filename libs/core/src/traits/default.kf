@@ -1,6 +1,0 @@
-// `T.default()` builds a `T` with every field at its natural default (0,
-// false, "", nested `.default()`). `@derive(Default)` synthesizes it.
-@lang("default")
-pub trait Default {
-    static fun default(): Self
-}

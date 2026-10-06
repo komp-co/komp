@@ -1,5 +1,0 @@
-// Structural equality; `==` and `!=` dispatch to `equals`.
-@lang("equal")
-pub trait Equal {
-    fun equals(other: &Self): bool
-}

@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-// An assignment whose value does not match the target's type.
-
-fun main(): int32 {
-    var a: int32 = 1
-    a = true
-    return 0
-}

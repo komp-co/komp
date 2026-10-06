@@ -1,7 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// A declared type parameter the target never names has nothing to bind it.
-
-annotation <U> unused on (int32) -> bool
-
-fun main(): int32 { return 0 }

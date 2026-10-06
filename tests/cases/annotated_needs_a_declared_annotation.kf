@@ -1,7 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// The query names an annotation the same way a function does.
-
-fun main(): int32 {
-    return annotated<missing>().size() as int32
-}
