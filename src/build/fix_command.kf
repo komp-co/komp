@@ -1,0 +1,182 @@
+// `komp check --fix`: writes MachineApplicable repairs only, read off `kflatc check
+// --format=json`. Re-checks after each pass, since a pass skips overlapping repairs
+// and fixing one error changes what is reported next.
+
+import alloc.list.*
+import json.reader.*
+
+import komp.cli.*
+import alloc.path.Path
+import std.fs.absolute
+
+/// A fix names its own file: an import lands at the top, not where the name
+/// was written.
+struct LocatedFix {
+    val path: String
+    val fix: PendingFix
+}
+
+/// Only bounds a repair that keeps being re-suggested.
+fun max_fix_passes(): uint64 {
+    return 4
+}
+
+/// `dry_run` reports without touching disk.
+pub fun run_fix(root_dir: str, dry_run: bool): int32 {
+    var total = 0
+    var pass = 0
+    while pass < max_fix_passes() {
+        val wrote = fix_one_pass(root_dir, dry_run) ?: return 1
+        total = total + wrote
+        if wrote == 0 { break }
+        // A dry run changes nothing, so the next pass would repeat.
+        if dry_run { break }
+        pass = pass + 1
+    }
+    if total == 0 {
+        runtime_println("fix: nothing to apply")
+        return 0
+    }
+    if dry_run {
+        runtime_println("fix: would apply ${total} (dry run, nothing written)")
+        return 0
+    }
+    runtime_println("fix: applied ${total}")
+    return 0
+}
+
+/// How many repairs were written, or None when the project could not be
+/// checked.
+fun fix_one_pass(root_dir: str, dry_run: bool): uint64? {
+    var wrote: uint64 = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val root = prepare_check(graph, root_dir, false) ?: return Option.None
+        val tdir = target_dir(root_dir)
+        val report = "${tdir}/fix.jsonl"
+        // Errors are expected here; the repairs are what is read.
+        val _status = root.invoke_kflatc_check_into(root_dir, tdir.as_str(), report.as_str())
+        val located = fixes_from_report(read_file(report.as_str()).as_str(), root_dir)
+        wrote = wrote + write_fixes(&located, dry_run)
+    }
+    return Option.Some(wrote)
+}
+
+/// The machine-applicable repairs in a report of JSON diagnostics, one per
+/// line, skipping those with no file and those outside `root_dir` (a
+/// dependency's source).
+/// CONSTRAINT: both paths canonical before comparing: a path dependency is
+/// spelled through its parent (`<root>/app/../lib/...`), a textual prefix
+/// match for `<root>/app`.
+fun fixes_from_report(report: str, root_dir: str): List<LocatedFix> {
+    var out = List.new<LocatedFix>()
+    val root = absolute(root_dir).normalized().raw
+    val lines = report.lines()
+    while line in &lines {
+        if line.byte_len() > 0 {
+            var reader = JsonReader.new(line.as_str())
+            read_diagnostic_fix(&var reader, root.as_str(), &var out)
+        }
+    }
+    return out
+}
+
+fun read_diagnostic_fix(reader: &var JsonReader, root: str, out: &var List<LocatedFix>): void {
+    if !reader.begin_object() { return }
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        if key.as_str() == "fix" && !reader.take_null() {
+            read_fix(reader, root, out)
+        } else {
+            reader.skip_value()
+        }
+    }
+}
+
+fun read_fix(reader: &var JsonReader, root: str, out: &var List<LocatedFix>): void {
+    var title = String.from("")
+    var replacement = String.from("")
+    var applicability = String.from("")
+    var file = String.from("")
+    var start: int64 = 0
+    var end: int64 = 0
+    if !reader.begin_object() { return }
+    while reader.object_has_next() {
+        val key = reader.read_key()
+        when key {
+            "title" => title = reader.read_string()
+            "replacement" => replacement = reader.read_string()
+            "applicability" => applicability = reader.read_string()
+            "byte_start" => start = reader.read_int64()
+            "byte_end" => end = reader.read_int64()
+            "file" => if !reader.take_null() { file = reader.read_string() }
+            _ => reader.skip_value()
+        }
+    }
+    if reader.has_error() || applicability.as_str() != "machine-applicable" || file.byte_len() == 0 { return }
+    // Canonical, so one file reached two ways groups once.
+    val here = absolute(file.as_str()).normalized().raw
+    if !fix_targets_root(here.as_str(), root) { return }
+    out.push(LocatedFix {
+        path: here,
+        fix: PendingFix { start: start as uint32, end: end as uint32, replacement: replacement, title: title }
+    })
+}
+
+/// Both arguments must already be canonical; see `fixes_from_report`.
+pub fun fix_targets_root(canonical_file: str, canonical_root: str): bool {
+    return Path.new(canonical_file).starts_with(&Path.new(canonical_root))
+}
+
+/// Grouped by file, since the engine orders and checks overlaps per file.
+fun write_fixes(located: &List<LocatedFix>, dry_run: bool): uint64 {
+    var written = 0
+    var done = List.new<String>()
+    while item in &located {
+        val path = item.path.clone()
+        if !seen_path(&done, path.as_str()) {
+            done.push(path.clone())
+            written = written + fix_one_file(located, path.as_str(), dry_run)
+        }
+    }
+    return written
+}
+
+fun fix_one_file(located: &List<LocatedFix>, path: str, dry_run: bool): uint64 {
+    var mine = List.new<PendingFix>()
+    while lf in &located {
+        if lf.path.as_str().equals(path) {
+            mine.push(PendingFix {
+                start: lf.fix.start,
+                end: lf.fix.end,
+                replacement: lf.fix.replacement.clone(),
+                title: lf.fix.title.clone()
+            })
+        }
+    }
+    val src = read_file(path)
+    val outcome = apply_fixes(src.as_str(), &mine)
+    if outcome.applied == 0 { return 0 }
+    report_file(path, &outcome, dry_run)
+    if !dry_run { write_file(path, outcome.text.as_str()) }
+    return outcome.applied
+}
+
+fun report_file(path: str, outcome: &FixOutcome, dry_run: bool): void {
+    var line = ""
+    if dry_run { line.append("  would fix ") } else { line.append("  fixed ") }
+    line.append(path)
+    line.append(" (${outcome.applied})")
+    if outcome.skipped > 0 {
+        // A skipped repair is named, so the reader runs again.
+        line.append(", ${outcome.skipped} left for the next pass")
+    }
+    runtime_println(line.as_str())
+}
+
+fun seen_path(done: &List<String>, path: str): bool {
+    while item in &done {
+        if item.as_str().equals(path) { return true }
+    }
+    return false
+}

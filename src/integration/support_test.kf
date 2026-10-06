@@ -1,0 +1,18 @@
+// What several of these tests share.
+
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import komp.fetch.cache_root
+
+/// The `[dev-dependencies]` table a scratch project with tests names:
+/// `komp_test` from the package index, whose library is `testing`, as a user's project names it.
+fun testing_dev_dependency(): String {
+    return "\n[dev-dependencies]\nkomp_test = \"0.1\"\n"
+}
+
+/// Fetches what `root`'s manifest names, `komp_test` included, as
+/// `komp test` does before it builds; the tests calling komp's functions directly skip
+/// that step otherwise. "" once fetched, else why not.
+fun fetch_test_dependencies(root: str): String {
+    return sync_sources(root, &default_fetch_policy(), cache_root().as_str())
+}

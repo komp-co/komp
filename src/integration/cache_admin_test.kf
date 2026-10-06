@@ -1,0 +1,76 @@
+// `komp cache` over a cache of its own per test: `greet` fetched from a
+// scratch git repository by `make_greet_repo` and `git_app`.
+
+import core.assert.assert_eq
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import komp.fetch.cached_sources
+import komp.fetch.clean_cache
+import komp.fetch.recorded_digest
+import komp.fetch.remove_cached
+import komp.fetch.verify_cache
+import std.fs.exists
+import testing.test
+
+/// A cache in scratch space holding `greet` 1.0.0, fetched.
+fun cache_with_greet(name: str): String {
+    val cache = dir_of("${name}_cache".as_str())
+    sh("rm -rf ${cache}".as_str())
+    val repo = make_greet_repo("${name}_repo".as_str(), "42")
+    val app = git_app("${name}_app".as_str(), &repo, "tag = \"v1\"")
+    val _synced = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    return cache
+}
+
+@test
+fun a_fetched_source_is_listed_by_name_and_version(): void {
+    val sources = cached_sources(cache_with_greet("kf_cache_a").as_str())
+    assert_eq(sources.size() == 1 && sources[0].name.as_str() == "greet" && sources[0].version.as_str() == "1.0.0",
+        true, "greet 1.0.0, from git")
+}
+
+@test
+fun a_fetch_records_its_digest(): void {
+    val sources = cached_sources(cache_with_greet("kf_cache_b").as_str())
+    assert_eq(recorded_digest(sources[0].root.as_str()).byte_len(), 64, "a sha256 beside the source")
+}
+
+@test
+fun an_untouched_source_verifies(): void {
+    val verified = verify_cache(cache_with_greet("kf_cache_c").as_str())
+    assert_eq(verified[0].state.as_str(), "ok", "the digest still matches")
+}
+
+@test
+fun a_damaged_source_is_found_and_removed(): void {
+    val cache = cache_with_greet("kf_cache_d")
+    val root = cached_sources(cache.as_str())[0].root.clone()
+    write_file("${root}/src/lib.kf".as_str(), "pub fun answer(): int32 { return 41 }\n")
+    val verified = verify_cache(cache.as_str())
+    assert_eq(verified[0].state.as_str() == "damaged" && !exists(root.as_str()), true, "gone, to be fetched again")
+}
+
+@test
+fun a_removed_source_is_fetched_again(): void {
+    val cache = cache_with_greet("kf_cache_e")
+    val _removed = remove_cached(cache.as_str(), "greet", "")
+    val app = dir_of("kf_cache_e_app")
+    val synced = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(synced.is_empty() && cached_sources(cache.as_str()).size() == 1, true, "the lock's commit, fetched anew")
+}
+
+@test
+fun removing_another_version_keeps_the_source(): void {
+    val cache = cache_with_greet("kf_cache_f")
+    val removed = remove_cached(cache.as_str(), "greet", "2.0.0")
+    assert_eq(removed.is_empty() && cached_sources(cache.as_str()).size() == 1, true, "only 2.0.0 would go")
+}
+
+@test
+fun cleaning_keeps_the_bootstrap_seeds(): void {
+    val cache = cache_with_greet("kf_cache_g")
+    sh("mkdir -p ${cache}/seeds && touch ${cache}/seeds/kflat-seed-0.5.3.tar.gz".as_str())
+    clean_cache(cache.as_str())
+    val kept = exists("${cache}/seeds/kflat-seed-0.5.3.tar.gz".as_str()) && !exists("${cache}/git".as_str())
+    assert_eq(kept, true, "sources gone, seeds kept")
+}

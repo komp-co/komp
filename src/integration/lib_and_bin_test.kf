@@ -1,0 +1,93 @@
+// A package holding a library and a program, driven through komp's commands:
+// the program links against the library, a dependent gets the library, and
+// test and check cover both crates.
+
+import core.assert.assert_eq
+import komp.cli.run_project_mode
+import komp.testing.test_project_separate
+import komp.build.check_project_with_kflatc
+import std.fs.scratch_path
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun access(path: str, mode: int32): int32
+
+fun write_lib_and_bin(name: str, library_test: str): String {
+    val root = String.from(scratch_path(name))
+    val _made = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/lib ${root}/src/bin") }
+    val manifest = "[project]\nname = \"pair\"\nversion = \"0.1.0\"\n\n[lib]\n\n[bin]\n${testing_dev_dependency()}"
+    write_file("${root}/kf.toml".as_str(), manifest.as_str())
+    val _fetched = fetch_test_dependencies(root.as_str())
+    write_file("${root}/src/lib/answer.kf".as_str(), "pub fun answer(): int32 { return 42 }\n")
+    write_file("${root}/src/lib/answer_test.kf".as_str(), library_test)
+    write_file("${root}/src/bin/main.kf".as_str(), """import pair.answer.answer
+import pair_bin.offset.offset
+
+fun main(): int32 { return answer() - offset() }
+""")
+    write_file("${root}/src/bin/offset.kf".as_str(), "pub fun offset(): int32 { return 42 }\n")
+    write_file("${root}/src/bin/offset_test.kf".as_str(), """import testing.test
+
+@test
+fun offset_runs(): void { val _n = offset() }
+""")
+    return root
+}
+
+fun sound_library_test(): str {
+    return "import testing.test\n\n@test\nfun answer_runs(): void { val _n = answer() }\n"
+}
+
+fun exists_at(path: str): bool {
+    return unsafe { access(path, 0) } == 0
+}
+
+@test
+fun a_package_holding_both_runs_its_program(): void {
+    val root = write_lib_and_bin("kf_pair_run", sound_library_test())
+    assert_eq(run_project_mode(root.as_str(), BuildMode.Separate), 0, "main returns answer() - offset()")
+}
+
+@test
+fun the_built_program_lands_under_the_package_name(): void {
+    val root = write_lib_and_bin("kf_pair_binary", sound_library_test())
+    val _ran = run_project_mode(root.as_str(), BuildMode.Separate)
+    assert_eq(exists_at("${root}/target/kflat/pair".as_str()), true, "not pair_bin")
+}
+
+@test
+fun a_dependent_links_the_library_of_a_package_holding_both(): void {
+    val _package = write_lib_and_bin("kf_pair_dep", sound_library_test())
+    val root = scratch_path("kf_pair_user")
+    val _made = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file("${root}/kf.toml".as_str(), """[project]
+name = "pair_user"
+
+[dependencies]
+pair = { path = "../kf_pair_dep" }
+""")
+    write_file("${root}/src/main.kf".as_str(), """import pair.answer.answer
+
+fun main(): int32 { return answer() - 42 }
+""")
+    assert_eq(run_project_mode(root, BuildMode.Separate), 0, "the library, without the program")
+}
+
+@test
+fun test_runs_the_library_tests_and_the_program_tests(): void {
+    val root = write_lib_and_bin("kf_pair_test", sound_library_test())
+    val tested = test_project_separate(root.as_str(), "", "")
+    val library = exists_at("${root}/target/kflat/test/pair_tests".as_str())
+    val program = exists_at("${root}/target/kflat/test/pair_bin_tests".as_str())
+    assert_eq(tested == 0 && library && program, true, "one test binary per crate")
+}
+
+@test
+fun check_reports_an_error_in_a_library_test(): void {
+    val root = write_lib_and_bin("kf_pair_check", """import testing.test
+
+@test
+fun broken(): void { val n: int32 = missing() }
+""")
+    assert_eq(check_project_with_kflatc(root.as_str(), false) != 0, true, "the library is checked with its tests")
+}

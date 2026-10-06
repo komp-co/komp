@@ -1,8 +1,0 @@
-[workspace]
-members = [
-    "komp",
-    "kf-tool"
-]
-default-member = "komp"
-# The compiler komp is built with: a released kflat toolchain.
-kflat = "0.24"

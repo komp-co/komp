@@ -1,0 +1,93 @@
+// `komp publish` against a `file://` index in scratch space. Such an index
+// is not on GitHub, so the entry is committed locally and no `gh` runs.
+
+import core.assert.assert_eq
+import komp.publish.publish_package
+import testing.test
+
+/// `greet` 0.1.0 of `kind`, whose `origin` is a bare repository beside it,
+/// tagged `v0.1.0` and pushed unless `tagged` is false. A bin gets a `main`.
+fun make_package(name: str, kind: str, tagged: bool): String {
+    val dir = dir_of(name)
+    val remote = "${dir}.git"
+    sh("rm -rf ${dir} ${remote} && git init -q --bare ${remote} && mkdir -p ${dir}/src".as_str())
+    val manifest = "[project]\nname = \"greet\"\nversion = \"0.1.0\"\nkind = \"${kind}\"\n"
+    write_file("${dir}/kf.toml".as_str(), manifest.as_str())
+    write_file("${dir}/src/lib.kf".as_str(), "pub fun answer(): int32 { return 42 }\n")
+    if kind == "bin" { write_file("${dir}/src/main.kf".as_str(), "fun main(): int32 { return answer() - 42 }\n") }
+    write_file("${dir}/.gitignore".as_str(), "target/\n")
+    sh("cd ${dir} && git init -q && git remote add origin ${remote} && git add . && ${git_commit()} -qm one".as_str())
+    if tagged { sh("cd ${dir} && git tag v0.1.0 && git push -q origin HEAD v0.1.0 2>/dev/null".as_str()) }
+    return dir
+}
+
+/// An index holding nothing, or `greet` 0.1.0 when `holding` is set.
+fun empty_index(name: str, holding: bool): String {
+    val index = dir_of(name)
+    sh("rm -rf ${index} && mkdir -p ${index}/gr/ee".as_str())
+    write_file("${index}/config.toml".as_str(), "schema = 1\n")
+    if holding {
+        write_file("${index}/gr/ee/greet.toml".as_str(),
+            "schema = 1\nname = \"greet\"\n\n[[version]]\nversion = \"0.1.0\"\nsource = { git = \"x\", rev = \"y\" }\n")
+    }
+    sh("cd ${index} && git init -q && git add . && ${git_commit()} -qm index".as_str())
+    return "file://${index}"
+}
+
+fun publish(package: &String, index: &String, cache: &String): int32 {
+    return publish_package(package.as_str(), index.as_str(), cache.as_str())
+}
+
+@test
+fun a_tagged_release_is_committed_for_review(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_a", "lib", true)
+    val index = empty_index("kf_pub_index_a", false)
+    publish(&package, &index, &cache)
+    val entry = read_file("${cache}/publish/greet-0.1.0/gr/ee/greet.toml".as_str())
+    assert_eq(entry.as_str().contains("version = \"0.1.0\""), true, "the entry is on its branch in the work clone")
+}
+
+@test
+fun an_unopened_pull_request_fails_the_command(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_b", "lib", true)
+    val index = empty_index("kf_pub_index_b", false)
+    assert_eq(publish(&package, &index, &cache), 1, "a script must see that nothing reached the index")
+}
+
+@test
+fun an_untagged_release_is_refused(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_c", "lib", false)
+    val index = empty_index("kf_pub_index_c", false)
+    assert_eq(publish(&package, &index, &cache), 1, "the tag says which commit is the release")
+}
+
+@test
+fun a_dirty_tree_is_refused(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_d", "lib", true)
+    val index = empty_index("kf_pub_index_d", false)
+    write_file("${package}/src/lib.kf".as_str(), "pub fun answer(): int32 { return 7 }\n")
+    assert_eq(publish(&package, &index, &cache), 1, "what is checked would not be what is published")
+}
+
+@test
+fun a_program_is_committed_for_review(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_e", "bin", true)
+    val index = empty_index("kf_pub_index_e", false)
+    publish(&package, &index, &cache)
+    val entry = read_file("${cache}/publish/greet-0.1.0/gr/ee/greet.toml".as_str())
+    val listed = entry.as_str().contains("version = \"0.1.0\"")
+    assert_eq(listed, true, "`komp tool install` installs programs from the index")
+}
+
+@test
+fun a_published_version_is_refused(): void {
+    val cache = test_cache()
+    val package = make_package("kf_pub_f", "lib", true)
+    val index = empty_index("kf_pub_index_f", true)
+    assert_eq(publish(&package, &index, &cache), 1, "a published version is immutable")
+}

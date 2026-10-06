@@ -13,17 +13,20 @@
 
 komp is KFlat's project tool. The compiler, its libraries and the seed are in
 komp-co/kf-lang; komp is built with a released kflat toolchain, the one
-`compiler/kf.toml`'s `kflat` pin names.
+`kf.toml`'s `kflat` pin names.
 
 ```
-compiler/    — the workspace (`kf.toml`): `komp/`, the program, and
-               `kf-tool/`, everything it does
+kf.toml      — komp, one program crate, and the kflat release it is built with
+src/         — its sources: `main.kf`, and a module per area (build, cli,
+               fetch, install, project, publish, testing)
+native/      — the C it links
 docs/book/   — komp's book
 scripts/     — check.sh and the ratchets CI runs
 ```
 
-`kf-tool` holds manifests, fetching, the build graph, cc, tests, installs and
-toolchains; komp's whole-project tests are its `integration` module. komp
+komp is one crate and nothing links it as a library: tools that need a
+project's crates read `komp metadata`. Declare what other modules use
+`internal`, not `pub`. Its whole-project tests are the `integration` module. komp
 links no part of the compiler: it runs `kflatc` per crate and cc after it.
 What the two must agree on (the files kflatc writes, which files make a crate,
 the `serve` protocol) is kflatc's documented command line, and komp keeps its
@@ -37,9 +40,9 @@ no single-file mode.
 
 | Command | Purpose |
 |---|---|
-| `sh scripts/check.sh` | The gate before pushing: build with the pinned toolchain, kf-tool's tests, the CLI checks |
-| `komp build compiler` | Build komp, to `compiler/target/kflat/komp` |
-| `komp test compiler/kf-tool` | Run kf-tool's `@test` functions |
+| `sh scripts/check.sh` | The gate before pushing: build with the pinned toolchain, komp's tests, the CLI checks |
+| `komp build .` | Build komp, to `target/kflat/komp` |
+| `komp test .` | Run komp's `@test` functions |
 
 ## Coding Style & Naming
 
@@ -79,7 +82,7 @@ no single-file mode.
   writes.
 - **komp's source uses only what the pinned kflat release compiles.** A newer
   language feature waits for the release that has it and a bump of the
-  `kflat` pin in `compiler/kf.toml`.
+  `kflat` pin in `kf.toml`.
 - **Replace, don't accrete.** No `parse_expr_v2` beside `parse_expr`, no
   TODO comments (file an issue), no helper until there is a third use.
 
@@ -146,16 +149,12 @@ fun int32_ty_is_not_poison(): void {
 - A change that breaks an existing test fixes the test or the change in the
   same commit — never leave the suite red
 - One assertion per test; split unrelated assertions into named tests
-- A test that builds a whole project goes in kf-tool's `integration` module
+- A test that builds a whole project goes in the `integration` module
 
 ### Verifying a change
 
 **`komp check` passing does not mean the program builds.** Confirm a change to
 how komp builds with `komp run`, not `komp check`.
-
-**kf_tool is a library, so no capturing lambda in it.** With the released
-compilers a capturing lambda in a library breaks every crate using it
-(komp-co/kf-lang#528), and komp is one.
 
 **Only komp reads a manifest.** The build graph (`effective_deps`) is the one
 place a crate's dependencies are worked out, for every command. kflatc is

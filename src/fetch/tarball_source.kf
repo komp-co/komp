@@ -1,0 +1,104 @@
+// A `tarball` source: download, check the sha256, unpack. Runs `curl`, `tar`
+// and `sha256sum` (or `shasum -a 256`); any URL curl reads works.
+
+import alloc.list.*
+import alloc.path.Path
+import std.process.Command
+import komp.project.Dependency
+
+/// `pinned_checksum` is a lock row's, or "" to take `dep`'s, if any.
+pub fun fetch_tarball(dep: &Dependency, pinned_checksum: str, cache: str): Fetched {
+    val wanted = if pinned_checksum != "" { String.from(pinned_checksum) } else { dep.checksum.clone() }
+    if wanted.byte_len() > 0 {
+        val known = "${cache}/tarball/${wanted.as_str().substring(7, wanted.byte_len())}"
+        if is_fetched(known.as_str()) { return tarball_entry(dep, known.as_str(), wanted) }
+    }
+    val staged = fresh_staging(cache, "tarball")
+    if staged.byte_len() == 0 { return fetch_failed("cannot create the cache under ${cache}") }
+    val archive = "${staged}.tar.gz"
+    var download = Command.new("curl")
+    download.arg("-fsSL")
+    download.arg("-o")
+    download.arg(archive.as_str())
+    download.arg(dep.tarball.as_str())
+    if !download.status().success() { return fetch_failed("downloading ${dep.tarball} failed") }
+
+    val digest = sha256_of(archive.as_str())
+    if digest.byte_len() == 0 {
+        remove_tree(archive.as_str())
+        return fetch_failed("cannot hash the download: neither `sha256sum` nor `shasum` ran")
+    }
+    val got = "sha256:${digest}"
+    if wanted.byte_len() > 0 && wanted.as_str() != got.as_str() {
+        remove_tree(archive.as_str())
+        return fetch_failed("checksum mismatch for ${dep.tarball}: expected ${wanted}, downloaded ${got}")
+    }
+    val root = "${cache}/tarball/${digest}"
+    if !is_fetched(root.as_str()) {
+        val unpacked = unpack(archive.as_str(), staged.as_str())
+        remove_tree(archive.as_str())
+        if unpacked.byte_len() == 0 {
+            remove_tree(staged.as_str())
+            return fetch_failed("${dep.tarball} does not unpack to a crate: no kf.toml at its root or one level down")
+        }
+        val digest = tree_digest(unpacked.as_str())
+        val published = publish_fetched(unpacked.as_str(), root.as_str())
+        remove_tree(staged.as_str())
+        if !published { return fetch_failed("cannot write ${root}") }
+        val _recorded = write_digest(root.as_str(), digest.as_str())
+    } else {
+        remove_tree(archive.as_str())
+    }
+    return tarball_entry(dep, root.as_str(), got)
+}
+
+fun tarball_entry(dep: &Dependency, root: str, checksum: String): Fetched {
+    return entry_at(root, &dep.git, &dep.tag, &dep.branch, String.from(""), &dep.tarball, checksum)
+}
+
+/// The crate root inside `archive` once unpacked under `into`, or "". A
+/// release archive usually wraps the crate in one directory; that one level
+/// is stripped.
+fun unpack(archive: str, into: str): String {
+    if !extract(archive, into, false) { return "" }
+    if is_fetched(into) { return String.from(into) }
+    remove_tree(into)
+    if !extract(archive, into, true) { return "" }
+    if is_fetched(into) { return String.from(into) }
+    return ""
+}
+
+pub fun extract(archive: str, into: str, strip_one: bool): bool {
+    var mkdir = Command.new("mkdir")
+    mkdir.arg("-p")
+    mkdir.arg(into)
+    if !mkdir.status().success() { return false }
+    var tar = Command.new("tar")
+    tar.arg("-xzf")
+    tar.arg(archive)
+    tar.arg("-C")
+    tar.arg(into)
+    if strip_one { tar.arg("--strip-components=1") }
+    return tar.status().success()
+}
+
+/// Lowercase hex, or "" when no hashing tool ran.
+pub fun sha256_of(file: str): String {
+    val out = "${file}.sha256"
+    var sha = Command.new("sha256sum")
+    sha.arg(file)
+    sha.stdout_to(Path.new(out.as_str()))
+    var ok = sha.status().success()
+    if !ok {
+        var shasum = Command.new("shasum")
+        shasum.arg("-a")
+        shasum.arg("256")
+        shasum.arg(file)
+        shasum.stdout_to(Path.new(out.as_str()))
+        ok = shasum.status().success()
+    }
+    val text = read_file(out.as_str())
+    remove_tree(out.as_str())
+    if !ok { return "" }
+    return first_word(text.as_str())
+}

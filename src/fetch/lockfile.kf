@@ -1,0 +1,162 @@
+// `kf.lock`: the exact source of every fetched crate, written by komp.
+//
+//   schema = 1
+//
+//   [[package]]
+//   name = "json"
+//   version = "0.1.0"
+//   source = { git = "https://host/json.git", tag = "v0.1.0", rev = "<commit>" }
+//
+//   [[package]]
+//   name = "yaml"
+//   version = "0.3.1"
+//   source = { git = "https://host/yaml.git", rev = "<commit>" }
+//   index = "https://github.com/komp-co/index"
+//
+//   [[package]]
+//   name = "text"
+//   version = "1.2.0"
+//   source = { tarball = "https://host/text-1.2.0.tar.gz" }
+//   checksum = "sha256:<hex digest>"
+//
+// Unknown keys are ignored, so a later schema can add to a row.
+
+import alloc.list.*
+import komp.project.Dependency
+import komp.project.inline_table_value
+import komp.project.parse_requirement
+import komp.project.parse_version
+import komp.project.read_key
+import komp.project.read_string_value
+import komp.project.split_lines
+import komp.project.trim_string
+
+/// A git row's `rev` is a full commit id; a tarball row's `checksum` is
+/// `sha256:<hex>`. `index` is set when a version requirement chose the row.
+@derive(Clone)
+pub struct LockEntry {
+    pub val name: String
+    pub val version: String
+    pub val index: String
+    pub val git: String
+    pub val tag: String
+    pub val branch: String
+    pub val rev: String
+    pub val tarball: String
+    pub val checksum: String
+}
+
+impl LockEntry {
+    /// Whether this row is what `dep` asks for. A `rev` may be abbreviated.
+    pub fun satisfies(dep: &Dependency): bool {
+        if dep.version.byte_len() > 0 {
+            val wanted = parse_requirement(dep.version.as_str()) ?: return false
+            val have = parse_version(self.version.as_str()) ?: return false
+            return self.name.as_str() == dep.name.as_str() && self.index.as_str() == dep.index_url.as_str() &&
+                wanted.allows(&have)
+        }
+        if dep.git.byte_len() > 0 {
+            return self.git.as_str() == dep.git.as_str() && self.tag.as_str() == dep.tag.as_str() &&
+                self.branch.as_str() == dep.branch.as_str() && self.rev.as_str().starts_with(dep.rev.as_str())
+        }
+        if dep.tarball.byte_len() > 0 {
+            return self.tarball.as_str() == dep.tarball.as_str() &&
+                (dep.checksum.byte_len() == 0 || self.checksum.as_str() == dep.checksum.as_str())
+        }
+        return false
+    }
+
+    /// The `source = { ... }` table, which is also how a message names it.
+    pub fun source_table(): String {
+        if self.tarball.byte_len() > 0 { return "{ tarball = \"${self.tarball}\" }" }
+        var out = "{ git = \"${self.git}\""
+        if self.tag.byte_len() > 0 { out.append(", tag = \"${self.tag}\"") }
+        if self.branch.byte_len() > 0 { out.append(", branch = \"${self.branch}\"") }
+        out.append(", rev = \"${self.rev}\" }")
+        return out
+    }
+
+    /// This row, chosen from the index at `url`.
+    pub fun in_index(url: &String): LockEntry {
+        return LockEntry {
+            name: self.name.clone(), version: self.version.clone(), index: url.clone(), git: self.git.clone(),
+            tag: self.tag.clone(), branch: self.branch.clone(), rev: self.rev.clone(),
+            tarball: self.tarball.clone(), checksum: self.checksum.clone()
+        }
+    }
+
+    /// The same crate from the same place: name, source and pin all agree.
+    pub fun same_as(other: &LockEntry): bool {
+        return self.compare(other) == 0
+    }
+}
+
+impl Compare for LockEntry {
+    /// By name, then source, then checksum: the order rows are written in.
+    fun compare(other: &LockEntry): int32 {
+        val by_name = self.name.compare(&other.name)
+        if by_name != 0 { return by_name }
+        val by_source = self.source_table().compare(&other.source_table())
+        if by_source != 0 { return by_source }
+        return self.checksum.compare(&other.checksum)
+    }
+}
+
+pub fun parse_lockfile(src: str): List<LockEntry> {
+    var out = List.new<LockEntry>()
+    var in_package = false
+    var name = ""
+    var version = ""
+    var source = ""
+    var checksum = ""
+    var index = ""
+    val lines = split_lines(src)
+    while raw in &lines {
+        val line = trim_string(raw.clone())
+        if line.as_str() == "[[package]]" {
+            if in_package { out.push(lock_entry_from(name, version, source.as_str(), checksum, index)) }
+            in_package = true
+            name = ""
+            version = ""
+            source = ""
+            checksum = ""
+            index = ""
+        } else if in_package {
+            val key = read_key(line.clone())
+            when key.as_str() {
+                "name" => name = read_string_value(line.clone())
+                "version" => version = read_string_value(line.clone())
+                "source" => source = line.clone()
+                "checksum" => checksum = read_string_value(line.clone())
+                "index" => index = read_string_value(line.clone())
+                _ => { }
+            }
+        }
+    }
+    if in_package { out.push(lock_entry_from(name, version, source.as_str(), checksum, index)) }
+    return out
+}
+
+fun lock_entry_from(name: String, version: String, source: str, checksum: String, index: String): LockEntry {
+    return LockEntry {
+        name: name, version: version, index: index, git: inline_table_value(source, "git"),
+        tag: inline_table_value(source, "tag"),
+        branch: inline_table_value(source, "branch"), rev: inline_table_value(source, "rev"),
+        tarball: inline_table_value(source, "tarball"), checksum: checksum
+    }
+}
+
+/// Sorted, so the same graph always writes the same bytes.
+pub fun render_lockfile(entries: &List<LockEntry>): String {
+    var sorted = List.new<LockEntry>()
+    while entry in &entries { sorted.push(entry.clone()) }
+    sorted.sort()
+    var out = "# Written by komp: the exact source of every fetched dependency.\nschema = 1\n"
+    while entry in &sorted {
+        out.append("\n[[package]]\nname = \"${entry.name}\"\nversion = \"${entry.version}\"\n")
+        out.append("source = ${entry.source_table()}\n")
+        if entry.checksum.byte_len() > 0 { out.append("checksum = \"${entry.checksum}\"\n") }
+        if entry.index.byte_len() > 0 { out.append("index = \"${entry.index}\"\n") }
+    }
+    return out
+}

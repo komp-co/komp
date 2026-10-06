@@ -1,0 +1,65 @@
+import core.assert.assert_eq
+import komp.project.new_dependency
+import komp.project.parse_dependency
+import testing.test
+
+fun git_row(name: str, tag: str, rev: str): LockEntry {
+    return LockEntry {
+        name: String.from(name), version: "1.0.0", index: "", git: "https://example.org/${name}.git",
+        tag: String.from(tag),
+        branch: "", rev: String.from(rev), tarball: "", checksum: ""
+    }
+}
+
+fun tarball_row(): LockEntry {
+    return LockEntry {
+        name: "text", version: "2.0.0", index: "", git: "", tag: "", branch: "", rev: "",
+        tarball: "https://example.org/text.tar.gz", checksum: "sha256:abc"
+    }
+}
+
+fun sample_rows(): List<LockEntry> {
+    var rows = List.new<LockEntry>()
+    rows.push(tarball_row())
+    rows.push(git_row("json", "v1", "0123456789abcdef"))
+    return rows
+}
+
+@test
+fun a_lockfile_is_written_in_name_order(): void {
+    val text = render_lockfile(&sample_rows())
+    val json_at = text.as_str().index_of("name = \"json\"") ?: 0
+    val text_at = text.as_str().index_of("name = \"text\"") ?: 0
+    assert_eq(json_at < text_at, true, "the same graph always writes the same bytes")
+}
+
+@test
+fun a_lockfile_reads_back_what_it_wrote(): void {
+    val rows = sample_rows()
+    val again = parse_lockfile(render_lockfile(&rows).as_str())
+    assert_eq(render_lockfile(&again).as_str() == render_lockfile(&rows).as_str(), true, "a round trip is exact")
+}
+
+@test
+fun a_tarball_row_keeps_its_checksum(): void {
+    val again = parse_lockfile(render_lockfile(&sample_rows()).as_str())
+    assert_eq(again.at(1).checksum.as_str(), "sha256:abc", "the checksum is what pins a tarball")
+}
+
+@test
+fun an_abbreviated_rev_is_satisfied_by_its_commit(): void {
+    val dep = parse_dependency("json", "json = { git = \"https://example.org/json.git\", rev = \"0123\" }")
+    assert_eq(git_row("json", "", "0123456789abcdef").satisfies(&dep), true, "a short rev names the full one")
+}
+
+@test
+fun a_row_for_another_tag_does_not_satisfy(): void {
+    val dep = parse_dependency("json", "json = { git = \"https://example.org/json.git\", tag = \"v2\" }")
+    assert_eq(git_row("json", "v1", "0123456789abcdef").satisfies(&dep), false, "a changed tag re-resolves")
+}
+
+@test
+fun a_path_dependency_is_never_satisfied(): void {
+    val dep = new_dependency("json", "../json")
+    assert_eq(git_row("json", "v1", "0123").satisfies(&dep), false, "a lock row is only for a fetched crate")
+}

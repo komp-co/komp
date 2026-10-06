@@ -27,20 +27,20 @@ describes. Run every example before you write it down;
 
 ## The compiler komp is built with
 
-komp is built with a released kflat toolchain: `compiler/kf.toml` pins it
+komp is built with a released kflat toolchain: `kf.toml` pins it
 with `kflat = "<version>"`, and CI installs the highest release the pin
 allows from kf-lang's releases. komp's source may use only what that release
 compiles; a newer language feature waits for a kf-lang release and a bump of
 the pin, in a PR of its own.
 
-With the pinned toolchain installed, `komp build compiler` builds komp, and
-`komp test compiler/kf-tool` runs its tests.
+With the pinned toolchain installed, `komp build .` builds komp, and
+`komp test .` runs its tests.
 
 ## CI
 
 Two jobs, each installing the pinned toolchain and building komp with it:
 
-1. **test**: kf-tool's tests (`CHECK_CLI=0 sh scripts/check.sh`),
+1. **test**: komp's tests (`CHECK_CLI=0 sh scripts/check.sh`),
 2. **cli**: the command-line checks (`CHECK_TESTS=0 sh scripts/check.sh`).
 
 Both run the ratchets first: no `.kf` file may grow past 350 lines of code

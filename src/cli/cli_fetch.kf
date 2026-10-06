@@ -1,0 +1,62 @@
+// Fetching what a command builds, and `komp update`.
+
+import komp.build.FetchPolicy
+import komp.build.sync_sources
+import komp.fetch.cache_root
+import komp.install.choose_or_install_toolchain
+import komp.install.install_home
+import komp.install.kflat_pin_for
+import komp.project.command_dir
+import komp.project.select_crate_roots
+import komp.build.default_kflatc_version
+import std.env.env_var
+import std.env.set_env_var
+
+pub fun is_fetch_flag(arg: str): bool {
+    return arg == "--locked" || arg == "--offline"
+}
+
+/// False once the reason has been printed.
+pub fun fetched_for(root: str, nargs: int32): bool {
+    val no_toolchain = toolchain_error_for(root, has_own_flag(nargs, "--offline"))
+    if no_toolchain.byte_len() > 0 {
+        runtime_println(no_toolchain.as_str())
+        return false
+    }
+    val policy = FetchPolicy {
+        locked: has_own_flag(nargs, "--locked"), offline: has_own_flag(nargs, "--offline"), update: false
+    }
+    val error = sync_sources(root, &policy, cache_root().as_str())
+    if error.byte_len() == 0 { return true }
+    runtime_println(error.as_str())
+    return false
+}
+
+/// Re-resolves every tag and branch and rewrites `kf.lock`.
+pub fun update_project(project: str, nargs: int32): int32 {
+    if has_own_flag(nargs, "--locked") || has_own_flag(nargs, "--offline") {
+        runtime_println("error: `komp update` rewrites kf.lock, so it takes neither `--locked` nor `--offline`")
+        return 1
+    }
+    val roots = select_crate_roots(command_dir(project).as_str(), package_flag(nargs), false)
+    if roots.size() == 0 { return 1 }
+    val policy = FetchPolicy { locked: false, offline: false, update: true }
+    val error = sync_sources(roots.at(0).as_str(), &policy, cache_root().as_str())
+    if error.byte_len() == 0 { return 0 }
+    runtime_println(error.as_str())
+    return 1
+}
+
+/// Points `KFLATC` at the compiler `root`'s `kflat` pin picks, installing it
+/// unless `offline`, for this process and what it runs; a `KFLATC` already
+/// set wins. "" once chosen, else why none fits.
+pub fun toolchain_error_for(root: str, offline: bool): String {
+    val given = env_var("KFLATC") ?: String.from("")
+    if !given.is_empty() { return "" }
+    val pin = kflat_pin_for(root)
+    if pin.is_empty() { return "" }
+    val choice = choose_or_install_toolchain(pin.as_str(), default_kflatc_version().as_str(), install_home().as_str(),
+        cache_root().as_str(), offline)
+    if choice.kflatc.byte_len() > 0 { set_env_var("KFLATC", choice.kflatc.as_str()) }
+    return choice.error
+}

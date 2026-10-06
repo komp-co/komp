@@ -1,0 +1,91 @@
+// A `git` source: clone, pin the commit the ref names, publish its tree.
+// Runs the `git` program; any host git can reach works, `file://` included.
+
+import alloc.list.*
+import alloc.path.Path
+import std.process.Command
+import komp.project.Dependency
+
+/// `pinned_rev` is a lock row's full commit, or "" to resolve `dep`'s ref.
+pub fun fetch_git(dep: &Dependency, pinned_rev: str, cache: str): Fetched {
+    if pinned_rev != "" {
+        val known = "${cache}/git/${pinned_rev}"
+        if is_fetched(known.as_str()) { return git_entry(dep, known.as_str(), String.from(pinned_rev)) }
+    }
+    val staged = fresh_staging(cache, "git")
+    if staged.byte_len() == 0 { return fetch_failed("cannot create the cache under ${cache}") }
+    var clone = Command.new("git")
+    clone.arg("clone")
+    clone.arg("--quiet")
+    clone.arg("--no-checkout")
+    clone.arg(dep.git.as_str())
+    clone.arg(staged.as_str())
+    if !clone.status().success() { return fetch_failed("`git clone ${dep.git}` failed") }
+
+    val wanted = if pinned_rev != "" { String.from(pinned_rev) } else { dep.git_ref() }
+    val rev = resolve_commit(staged.as_str(), wanted.as_str())
+    if rev.byte_len() == 0 {
+        remove_tree(staged.as_str())
+        return fetch_failed("${dep.git} has no commit named `${wanted}`")
+    }
+    val root = "${cache}/git/${rev}"
+    if is_fetched(root.as_str()) {
+        remove_tree(staged.as_str())
+        return git_entry(dep, root.as_str(), rev)
+    }
+    var checkout = Command.new("git")
+    checkout.arg("-C")
+    checkout.arg(staged.as_str())
+    checkout.arg("checkout")
+    checkout.arg("--quiet")
+    checkout.arg("--detach")
+    checkout.arg(rev.as_str())
+    if !checkout.status().success() {
+        remove_tree(staged.as_str())
+        return fetch_failed("`git checkout ${rev}` failed in a clone of ${dep.git}")
+    }
+    remove_tree("${staged}/.git".as_str())
+    val digest = tree_digest(staged.as_str())
+    if !publish_fetched(staged.as_str(), root.as_str()) { return fetch_failed("cannot write ${root}") }
+    val _recorded = write_digest(root.as_str(), digest.as_str())
+    return git_entry(dep, root.as_str(), rev)
+}
+
+fun git_entry(dep: &Dependency, root: str, rev: String): Fetched {
+    return entry_at(root, &dep.git, &dep.tag, &dep.branch, rev, &dep.tarball, String.from(""))
+}
+
+/// What `git rev-parse` resolves in a fresh clone: a tag, a branch as the
+/// remote has it, a commit, or the remote's default branch.
+fun Dependency.git_ref(): String {
+    if self.tag.byte_len() > 0 { return "refs/tags/${self.tag}" }
+    if self.branch.byte_len() > 0 { return "refs/remotes/origin/${self.branch}" }
+    if self.rev.byte_len() > 0 { return self.rev.clone() }
+    return "HEAD"
+}
+
+/// The full commit id `name` resolves to in `repo`, or "".
+fun resolve_commit(repo: str, name: str): String {
+    val out = "${repo}.rev"
+    var parse = Command.new("git")
+    parse.arg("-C")
+    parse.arg(repo)
+    parse.arg("rev-parse")
+    parse.arg("--verify")
+    parse.arg("--quiet")
+    parse.arg("${name}^{commit}".as_str())
+    parse.stdout_to(Path.new(out.as_str()))
+    val ok = parse.status().success()
+    val text = read_file(out.as_str())
+    remove_tree(out.as_str())
+    if !ok { return "" }
+    return first_word(text.as_str())
+}
+
+/// Up to the first whitespace: a digest or a commit id from a tool's output.
+pub fun first_word(text: str): String {
+    val n = text.byte_len()
+    var i: uint64 = 0
+    while i < n && text.byte_at(i) != 32 && text.byte_at(i) != 10 && text.byte_at(i) != 9 { i = i + 1 }
+    return text.substring(0, i)
+}

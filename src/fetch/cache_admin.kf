@@ -1,0 +1,105 @@
+// What `komp cache` lists, removes, cleans and verifies: the fetched sources
+// under `<cache>/git/<commit>` and `<cache>/tarball/<sha256>`, each with the
+// digest `<root>.sum` recorded when it was fetched, and the index checkouts
+// under `<cache>/index`.
+
+import alloc.list.*
+import komp.project.parse_manifest
+import std.fs.is_directory
+import std.fs.read_dir
+
+/// One fetched source: `kind` is "git" or "tarball", `key` its commit or
+/// sha256, named and versioned by its own kf.toml.
+@derive(Clone)
+pub struct CachedSource {
+    pub val kind: String
+    pub val key: String
+    pub val root: String
+    pub val name: String
+    pub val version: String
+}
+
+/// Every fetched source, by kind and then key.
+pub fun cached_sources(cache: str): List<CachedSource> {
+    var out = List.new<CachedSource>()
+    while kind in &["git", "tarball"] {
+        val dir = "${cache}/${kind}"
+        val listed = read_dir(dir.as_str())
+        if listed.is_err() { continue }
+        while key in &listed.unwrap() {
+            val root = "${dir}/${key}"
+            // Staging directories and `.sum` records are not sources.
+            if !is_fetched(root.as_str()) { continue }
+            val manifest = parse_manifest(read_file("${root}/kf.toml".as_str()).as_str())
+            out.push(CachedSource {
+                kind: String.from(kind), key: key.clone(), root: root, name: manifest.name.clone(),
+                version: manifest.version.clone()
+            })
+        }
+    }
+    return out
+}
+
+/// The index checkouts, as directories under `<cache>/index`.
+pub fun cached_indexes(cache: str): List<String> {
+    var out = List.new<String>()
+    val listed = read_dir("${cache}/index".as_str())
+    if listed.is_err() { return out }
+    while name in &listed.unwrap() {
+        val dir = "${cache}/index/${name}"
+        if is_directory(dir.as_str()) && !name.contains(".tmp.") { out.push(dir) }
+    }
+    return out
+}
+
+/// Removes the sources named `name`, only those at `version` unless it is
+/// "", with their digests; the ones removed.
+pub fun remove_cached(cache: str, name: str, version: str): List<CachedSource> {
+    var removed = List.new<CachedSource>()
+    val sources = cached_sources(cache)
+    while source in &sources {
+        if source.name.as_str() != name { continue }
+        if !version.is_empty() && source.version.as_str() != version { continue }
+        remove_tree(source.root.as_str())
+        remove_tree(digest_record(source.root.as_str()).as_str())
+        removed.push(source.clone())
+    }
+    return removed
+}
+
+/// Everything komp fetched or staged, the bootstrap seeds aside, which
+/// `bootstrap/seed.sh` keeps in the same directory.
+pub fun clean_cache(cache: str): void {
+    val listed = read_dir(cache)
+    if listed.is_err() { return }
+    while name in &listed.unwrap() {
+        if name.as_str() != "seeds" { remove_tree("${cache}/${name}".as_str()) }
+    }
+}
+
+/// What verifying one source found: "ok", "damaged" (removed, to be fetched
+/// again), or "recorded" (it had no digest; one is recorded now).
+pub struct VerifiedSource {
+    pub val source: CachedSource
+    pub val state: String
+}
+
+pub fun verify_cache(cache: str): List<VerifiedSource> {
+    var out = List.new<VerifiedSource>()
+    val sources = cached_sources(cache)
+    while source in &sources {
+        val now = tree_digest(source.root.as_str())
+        val recorded = recorded_digest(source.root.as_str())
+        var state = String.from("ok")
+        if recorded.is_empty() {
+            val _written = write_digest(source.root.as_str(), now.as_str())
+            state = String.from("recorded")
+        } else if recorded.as_str() != now.as_str() {
+            remove_tree(source.root.as_str())
+            remove_tree(digest_record(source.root.as_str()).as_str())
+            state = String.from("damaged")
+        }
+        out.push(VerifiedSource { source: source.clone(), state: state })
+    }
+    return out
+}

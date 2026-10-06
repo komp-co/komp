@@ -5,16 +5,16 @@
 # of what was already there when the ratchet went in. Shrinking is
 # always allowed; growing needs this file updated in the same commit,
 # which is the point at which someone has to look.
-1 compiler/kf-tool/src/build/artifact_manifest_test.kf
-8 compiler/kf-tool/src/build/build_graph_test.kf
-2 compiler/kf-tool/src/build/build_separate.kf
-1 compiler/kf-tool/src/build/compile_c.kf
-2 compiler/kf-tool/src/build/compile_c_test.kf
-1 compiler/kf-tool/src/build/fingerprint.kf
-11 compiler/kf-tool/src/build/fingerprint_test.kf
-2 compiler/kf-tool/src/build/native_sources.kf
-2 compiler/kf-tool/src/build/native_sources_test.kf
-2 compiler/kf-tool/src/cli/cli_help.kf
-16 compiler/kf-tool/src/integration/cli_artifact_test.kf
-10 compiler/kf-tool/src/integration/incremental_build_test.kf
-2 compiler/kf-tool/src/project/manifest_test.kf
+1 src/build/artifact_manifest_test.kf
+8 src/build/build_graph_test.kf
+2 src/build/build_separate.kf
+1 src/build/compile_c.kf
+2 src/build/compile_c_test.kf
+1 src/build/fingerprint.kf
+11 src/build/fingerprint_test.kf
+2 src/build/native_sources.kf
+2 src/build/native_sources_test.kf
+2 src/cli/cli_help.kf
+16 src/integration/cli_artifact_test.kf
+10 src/integration/incremental_build_test.kf
+2 src/project/manifest_test.kf
