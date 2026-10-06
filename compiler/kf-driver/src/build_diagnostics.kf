@@ -1,0 +1,28 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_mono.mono_module
+import kf_lower.check_ownership
+import kf_lower.ownership.check_generic_copies
+import kf_codegen.emit.glue.deep_clone_module
+import kf_codegen.emit.symbols.qualify_type_symbols
+
+/// The errors the build's ownership passes find in a well-typed module: a
+/// move or copy it cannot make. They run on a copy, so the checked tree stays
+/// as TypeCheck left it.
+pub fun Module.ownership_errors(smap: Ptr<SourceMap>): List<Diagnostic> {
+    var copy = self.deep_clone_module()
+    qualify_type_symbols(&var copy)
+    var found = new_diagnostics()
+    val clone_trait = copy.lang_trait_name(lang_clone_key())
+    check_generic_copies(&var copy, smap, clone_trait, copy.lang_trait_name(lang_copy_key()), &var found)
+    mono_module(&var copy)
+    while d in &copy.check_ownership(smap, copy.lang_type_name(lang_list_key())) { found.emit(d.clone()) }
+    var errors = List.new<Diagnostic>()
+    while d in &found.items {
+        if d.diag_is_error() { errors.push(d.clone()) }
+    }
+    return errors
+}

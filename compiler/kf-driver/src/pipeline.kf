@@ -13,7 +13,6 @@ import kf_lower.*
 import kf_lower.ownership.borrow_liveness_module
 import kf_lower.ownership.borrow_exclusivity_module
 import kf_lower.ownership.check_generic_copies
-import kf_lower.ownership.check_generic_copies
 import kf_codegen.emit_module_kind
 import kf_codegen.emit_module_unit
 import kf_driver.cli.print_json_diag
@@ -152,12 +151,27 @@ pub mutating fun Module.checked_diagnostics(smap: Ptr<SourceMap>, cfg: &LintConf
     val diags = apply_lint_levels(typecheck_module_with_imports(self, &var table, callers, targets, names), self, cfg)
     while d in &diags { out.push(d.clone()) }
     if count_errors(&out) > 0 { return out }
+    // CONSTRAINT: before alpha_rename, as the build lowers the typed tree.
+    val built = self.ownership_errors(smap)
     alpha_rename_module(self)
     var live = new_diagnostics()
     borrow_liveness_module(self, &var live)
     borrow_exclusivity_module(self, &var live)
     while d in &live.items { out.push(d.clone()) }
+    while d in &built {
+        if !out.reports(&d) { out.push(d.clone()) }
+    }
     return out
+}
+
+/// The same message at the same place: the build's own liveness pass repeats
+/// what the one above found.
+fun List<Diagnostic>.reports(d: &Diagnostic): bool {
+    while seen in &self {
+        val here = seen.primary.span.file_id == d.primary.span.file_id && seen.primary.span.start == d.primary.span.start
+        if here && seen.primary.message.as_str() == d.primary.message.as_str() { return true }
+    }
+    return false
 }
 
 pub fun count_errors(diags: &List<Diagnostic>): int32 {

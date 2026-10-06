@@ -9,6 +9,16 @@ import kf_lower.refcount.rc_insert_module
 
 /// Returns every diagnostic the sub-passes raise.
 pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List<Diagnostic> {
+    val live = self.check_ownership(smap, list_name)
+    // Move-out-of-borrow is repaired with an auto-clone and a warning.
+    self.desugar_module()
+    self.rc_insert_module(list_name)
+    return live
+}
+
+/// The ownership passes, which reject a move or copy and insert the clones
+/// they repair one with. What they report is returned.
+pub mutating fun Module.check_ownership(smap: Ptr<SourceMap>, list_name: Sym): List<Diagnostic> {
     var discarded = new_diagnostics()
     // Counts move-out-of-borrow errors. The analysis-only channel (discarded)
     // carries use-after-move and friends, which are not liveness-accurate and
@@ -29,8 +39,5 @@ pub mutating fun Module.lower_module(smap: Ptr<SourceMap>, list_name: Sym): List
     // shallow; reject it.
     self.derive_clone_check_module(&var live)
     self.borrow_exclusivity_module(&var live)
-    // Move-out-of-borrow is repaired with an auto-clone and a warning.
-    self.desugar_module()
-    self.rc_insert_module(list_name)
     return live.items
 }
