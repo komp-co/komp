@@ -1,9 +1,0 @@
-[project]
-name = "kflatc"
-version = "0.1.0"
-kind = "bin"
-
-[dependencies]
-alloc = { path = "../../libs/alloc" }
-kf_driver = { path = "../kf-driver" }
-std = { path = "../../libs/std" }

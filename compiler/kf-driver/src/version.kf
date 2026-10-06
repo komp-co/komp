@@ -1,6 +1,0 @@
-/// The release this compiler becomes, printed by `kflatc version` and named
-/// by a project's `kflat = "..."` pin.
-/// CONSTRAINT: a `vX.Y.Z` release tag must name this version.
-pub fun kflat_version(): str {
-    return "0.24.0"
-}

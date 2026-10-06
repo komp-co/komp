@@ -1,8 +1,0 @@
-//! run: exit 6
-//! deps: core
-// An array whose elements are arrays needs its element's layout first.
-
-fun main(): int32 {
-    val grid: Array<Array<int32, 2>, 3> = [[1, 2], [3, 4], [5, 6]]
-    return grid[2][1]
-}

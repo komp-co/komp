@@ -1,24 +1,8 @@
 [workspace]
 members = [
     "komp",
-    "kflatc",
-    "kf-core",
-    "kf-parse",
-    "kf-assemble",
-    "kf-resolve",
-    "kf-typecheck",
-    "kf-mono",
-    "kf-lower",
-    "kf-codegen",
-    "kf-interface",
-    "kf-lint",
-    "kf-driver",
-    "kf-tool",
-    "kf-integration",
-    "../libs/core",
-    "../libs/core-tests",
-    "../libs/testing",
-    "../libs/alloc",
-    "../libs/std"
+    "kf-tool"
 ]
 default-member = "komp"
+# The compiler komp is built with: a released kflat toolchain.
+kflat = "0.24"

@@ -1,9 +1,0 @@
-import kf_core.diagnostic.*
-
-/// A sink for a test's context to borrow, which outlives the test; leaked,
-/// as a test process is short-lived.
-pub fun leaked_diagnostics(): Ptr<Diagnostics> {
-    val sink: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *sink = new_diagnostics() }
-    return sink
-}

@@ -1,7 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// No literal spells a list, so a list cannot be an annotation parameter.
-
-annotation bench(sizes: List<int32>)
-
-fun main(): int32 { return 0 }

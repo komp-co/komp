@@ -17,6 +17,7 @@ fun write_lib_and_bin(name: str, library_test: str): String {
     val _made = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/lib ${root}/src/bin") }
     val manifest = "[project]\nname = \"pair\"\nversion = \"0.1.0\"\n\n[lib]\n\n[bin]\n${testing_dev_dependency()}"
     write_file("${root}/kf.toml".as_str(), manifest.as_str())
+    val _fetched = fetch_test_dependencies(root.as_str())
     write_file("${root}/src/lib/answer.kf".as_str(), "pub fun answer(): int32 { return 42 }\n")
     write_file("${root}/src/lib/answer_test.kf".as_str(), library_test)
     write_file("${root}/src/bin/main.kf".as_str(), """import pair.answer.answer

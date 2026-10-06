@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-// Nothing gives `z` a width, so it stays `int32`, where 3000000000 does not fit.
-
-fun main(): int32 {
-    val z = 3000000000
-    return 0
-}

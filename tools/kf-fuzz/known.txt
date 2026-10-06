@@ -1,4 +1,0 @@
-# Findings already filed, one per line: the issue, then the signature exactly
-# as kf-fuzz prints it. Delete a line when its issue closes, so a recurrence
-# fails the gate again.
-

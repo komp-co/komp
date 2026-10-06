@@ -24,7 +24,7 @@ The function is annotated with `@test`, returns `void`, and takes no
 arguments. `@test(name = "...")` shows a name of your choosing in the report,
 `@test(panics = FaultKind.UnwrapNone)` passes only when the test panics with
 that kind, and `@disabled("reason")` beside `@test` keeps a test checked but
-out of the run (see [`@test`](../lang/annotations.md#test)). `@test` and
+out of the run (see [`@test`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/lang/annotations.md#test)). `@test` and
 `@disabled` are imported from `testing` like any other name, and the crate
 names `testing` in its [`[dev-dependencies]`](../start/projects.md#dev-dependencies). The test file and the source file share the same scope — `add` is
 callable without any import, because the test file sits in the same
@@ -71,7 +71,7 @@ test result: FAILED. 2 passed, 1 failed
 
 komp builds a test binary whose `main` hands every `@test` function of the
 crate, and every `@disabled` one, to `testing`'s
-[`run_tests`](../libs/testing.md#running-tests), and runs it. A disabled test is
+[`run_tests`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/testing.md#running-tests), and runs it. A disabled test is
 reported as `ignored`, with its reason, and counted in the result line.
 The exit code is 0 when every test passed and 1 otherwise — it is not a
 failure count.

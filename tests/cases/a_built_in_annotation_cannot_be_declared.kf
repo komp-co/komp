@@ -1,7 +1,0 @@
-//! build: fail
-//! deps: core
-// `derive` is built in; declaring it again would give `@derive` two meanings.
-
-annotation derive
-
-fun main(): int32 { return 0 }

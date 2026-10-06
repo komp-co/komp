@@ -1,8 +1,0 @@
-// The String-returning runtime entry points needing an OS, kept out of a
-// freestanding build.
-
-pub extern "C" fun read_file(path: str): String
-pub extern "C" fun join(a: str, b: str): String
-pub extern "C" fun kf_current_dir(): String
-pub extern "C" fun kf_self_dir(): String
-pub extern "C" fun kf_temp_dir(prefix: str): String

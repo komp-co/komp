@@ -1,6 +1,0 @@
-// Value conversion: `impl From<S> for T` gives `T.from(s)`. A type may have
-// several, one per source type. Generic code calls it through the parameter:
-// `fun make<T: From<int32>>(n: int32): T { return T.from(n) }`.
-pub trait From<T> {
-    static fun from(value: T): Self
-}

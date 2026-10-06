@@ -1,9 +1,0 @@
-//! build: fail
-// An import whose path starts with punctuation is reported where it is
-// written, and resolves nothing.
-
-import .list.*
-
-fun main(): int32 {
-    return 0
-}

@@ -1,8 +1,0 @@
-// Everything `str` implements.
-
-import core.display.Write
-import core.hash.hash_bytes
-
-impl Display for str { fun display(out: &var dyn Write): void { out.write_str(self) } }
-
-impl Hash for str { fun hash(): uint64 { return hash_bytes(self) } }

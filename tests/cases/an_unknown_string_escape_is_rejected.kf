@@ -1,6 +1,0 @@
-//! build: fail
-// `\q` names no escape and is an error, not something handed to C.
-fun main(): int32 {
-    val bad = "\q"
-    return bad.byte_len() as int32
-}

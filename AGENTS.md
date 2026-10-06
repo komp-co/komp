@@ -2,51 +2,33 @@
 
 ## Where the truth lives
 
-- **The issue tracker** (Gitea, milestones + issues) sets direction and holds
-  every piece of open work. There is no roadmap document; do not write one.
-- **`docs/book/`** describes the language, libraries and CLI as they are.
-- **This file, `CONTRIBUTING.md`, `README.md` and `bootstrap/README.md`**
-  hold the working rules.
-
-Nothing else under `docs/` is kept. Design reasoning goes in the PR body and
-the issue, where it is archived and cannot go stale in the tree.
+- **The issue tracker** (GitHub issues) sets direction and holds every piece
+  of open work. There is no roadmap document; do not write one. Compiler and
+  language issues are komp-co/kf-lang's.
+- **`docs/book/`** describes komp, its commands and `kf.toml` as they are.
+  The language, libraries and compiler are documented in kf-lang's book.
+- **This file, `CONTRIBUTING.md` and `README.md`** hold the working rules.
 
 ## Project Structure
 
-Komp is a self-hosted KFlat compiler. Its source workspace lives under
-`compiler/`; repository-level assets stay at the root:
+komp is KFlat's project tool. The compiler, its libraries and the seed are in
+komp-co/kf-lang; komp is built with a released kflat toolchain, the one
+`compiler/kf.toml`'s `kflat` pin names.
 
 ```
-bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
-compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
-docs/book/   — the user-facing book
-libs/        — KFlat language libraries (core, alloc, std), `testing`, which
-               crates with tests name in `[dev-dependencies]`, and core-tests,
-               which tests core from outside
+compiler/    — the workspace (`kf.toml`): `komp/`, the program, and
+               `kf-tool/`, everything it does
+docs/book/   — komp's book
 scripts/     — check.sh and the ratchets CI runs
-tests/       — black-box executable integration fixtures
-tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer
-               that shrinks what it finds
-build.sh     — root-level compiler build entry point
 ```
 
-The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
-`kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
-shared AST and diagnostics, `kf-interface` the compiled crate metadata
-(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`serve` and the editor answers it gives). `kf-tool` is the project tool: manifests, fetching, the
-build graph, cc. Each side has its own version: kflatc's `kflat_version()` in
-kf-driver, which a project's `kflat = "..."` pin names, and komp's
-`komp_version()` in kf-tool. `kf-integration` holds the compiler's whole-project tests: it links no part of
-kf-tool, and reads a fixture's crates through `komp metadata` and builds it by
-running komp (`KOMP`, which `komp test` sets). komp's own whole-project tests
-are in kf-tool's `integration` module. What else
-they must agree on (the files kflatc writes, which files make a crate) is
-kflatc's documented command line, and each side keeps its own copy. Two binaries sit on top: `kflatc`, the compiler, which
-links kf-driver and turns one crate into C, and `komp`, the project tool, which
-links only kf-tool and runs `kflatc` per crate and cc after it. A crate may
-only import its declared dependencies; kf-tool must never depend on a compiler
-crate.
+`kf-tool` holds manifests, fetching, the build graph, cc, tests, installs and
+toolchains; komp's whole-project tests are its `integration` module. komp
+links no part of the compiler: it runs `kflatc` per crate and cc after it.
+What the two must agree on (the files kflatc writes, which files make a crate,
+the `serve` protocol) is kflatc's documented command line, and komp keeps its
+own copy of those rules. komp drives every kflatc from `oldest_kflatc_driven()`
+up, so a change to how it calls kflatc must keep the older ones working.
 
 ## Build, Test, and Development Commands
 
@@ -55,13 +37,9 @@ no single-file mode.
 
 | Command | Purpose |
 |---|---|
-| `sh bootstrap/build.sh` | Full build from the released seed via `cc` + fixpoint self-compile |
-| `sh scripts/check.sh` | The quick gate before pushing: ratchets, formatting, lints, changed crates' tests |
-| `sh scripts/check.sh --full` | Everything CI runs, to reproduce a red job |
-| `komp test compiler/<crate>` | Run one crate's `@test` functions |
-| `komp build <dir>` | Compile to C and link, artifacts under `target/kflat` |
-| `komp run <dir>` | Build and execute |
-| `komp check <dir>` | Type-check without codegen; exit code for CI |
+| `sh scripts/check.sh` | The gate before pushing: build with the pinned toolchain, kf-tool's tests, the CLI checks |
+| `komp build compiler` | Build komp, to `compiler/target/kflat/komp` |
+| `komp test compiler/kf-tool` | Run kf-tool's `@test` functions |
 
 ## Coding Style & Naming
 
@@ -92,13 +70,16 @@ no single-file mode.
   the formatter from the package index (`komp tool install komp_fmt`); run
   `komp fmt` on what you touch before committing. The `pre-commit` hook in
   `.githooks` checks the staged files when the formatter is installed.
-- **Lints are errors in CI.** The sweep runs `komp lint --deny-warnings` on
-  every crate. Fix what it reports; when a finding must stay, put
-  `@allow(<lint>)` on the declaration and say why in the commit. The seed
-  refuses an `@allow` naming a lint it predates, so for a lint newer than
-  `bootstrap/stage0.toml`'s release, set it in the crate's `lint.toml`.
-- **Output is deterministic.** The fixpoint is a byte comparison, so nothing
-  whose order depends on hashing or addresses may reach emitted C or a `.kfi`.
+- **Lints are fixed, not tolerated.** Fix what `komp lint` reports; when a
+  finding must stay, put `@allow(<lint>)` on the declaration and say why in
+  the commit. The pinned toolchain refuses an `@allow` naming a lint it
+  predates, so for a newer lint set it in the crate's `lint.toml`.
+- **komp's output is deterministic.** Artifacts are reused by content hash, so
+  nothing whose order depends on hashing or addresses may reach a file komp
+  writes.
+- **komp's source uses only what the pinned kflat release compiles.** A newer
+  language feature waits for the release that has it and a bump of the
+  `kflat` pin in `compiler/kf.toml`.
 - **Replace, don't accrete.** No `parse_expr_v2` beside `parse_expr`, no
   TODO comments (file an issue), no helper until there is a third use.
 
@@ -165,20 +146,16 @@ fun int32_ty_is_not_poison(): void {
 - A change that breaks an existing test fixes the test or the change in the
   same commit — never leave the suite red
 - One assertion per test; split unrelated assertions into named tests
-- End-to-end behaviour goes in `tests/cases/*.kf` as a directive fixture
-- A fuzz finding is fixed with its reduced program as a fixture, or filed and
-  named in `tools/kf-fuzz/known.txt`; CONTRIBUTING.md has the steps
-- `tools/` drives kflatc and komp as programs and imports no compiler crate
+- A test that builds a whole project goes in kf-tool's `integration` module
 
 ### Verifying a change
 
-**`komp check` passing does not mean the program builds.** A good number of
-open bugs pass the checker and fail in cc or at link, naming a mangled symbol
-nobody wrote. Confirm with `komp run`, not `komp check`.
+**`komp check` passing does not mean the program builds.** Confirm a change to
+how komp builds with `komp run`, not `komp check`.
 
-Put a scratch compiler in `bin/` — it is gitignored, and the stdlib sysroot
-resolves through `<binary>/../libs`. A binary built anywhere else only works
-when the working directory happens to be the repository root.
+**kf_tool is a library, so no capturing lambda in it.** With the released
+compilers a capturing lambda in a library breaks every crate using it
+(komp-co/kf-lang#528), and komp is one.
 
 **Only komp reads a manifest.** The build graph (`effective_deps`) is the one
 place a crate's dependencies are worked out, for every command. kflatc is
@@ -195,7 +172,7 @@ Tests fetch from `file://` sources in scratch space, never from a real host.
 - **Subject under 70 chars**, body wraps at 72; **name the *why*, not what**
 - **One concept per commit** — split if the subject says "and" or "also"
 - **Every commit passes CI** — tests green at every history point
-- **Area prefix** in subjects: `parse:`, `typecheck:`, `codegen:`, `docs:`, `mono:`, `lower:`
+- **Area prefix** in subjects: `tool:`, `build:`, `fetch:`, `install:`, `docs:`, `ci:`
 
 ## Documentation
 
@@ -204,23 +181,18 @@ commit**, so the tree never contradicts itself at any point in history.
 
 | You changed | Update |
 |---|---|
-| syntax, semantics, or a diagnostic's text | `docs/book/src/lang/` |
-| the library surface (`libs/`) | `docs/book/src/libs/` |
 | the CLI, its flags, or `kf.toml` | `docs/book/src/tools/cli.md`, `start/projects.md` |
+| testing or linting | `docs/book/src/tools/testing.md`, `lint.md` |
 | a rule other code must follow | this file |
-| a keyword, an operator, or a builtin type name | regenerate the grammar in komp-co/kf-extensions (`vscode/scripts/generate-grammar.js`) |
 
-**Fixing a bug the book documents as a limitation? Delete the entry.** Every
-gap in `docs/book/src/limitations.md` names its issue; when the issue closes,
-the entry and every in-chapter warning pointing at it go with it.
-
-**Every book example is compiled before it is written down**, with a komp
-built from the tree being changed. `docs/book/AUTHORING.md` has the method.
+**Every book example is run before it is written down**, with a komp built
+from the tree being changed. `docs/book/AUTHORING.md` has the method.
 
 ## Git and Forge
 
-The repository is `komp-co/komp` on GitHub, with `json`, `kf-lsp` and
-`kf-extensions` beside it in the same organization. Use the `gh` CLI:
+The repository is `komp-co/komp` on GitHub, with `kf-lang` (the compiler),
+`json`, `komp-test`, `kf-lsp` and `kf-extensions` beside it in the same
+organization. Use the `gh` CLI:
 
 | Command | Purpose |
 |---|---|
@@ -229,5 +201,4 @@ The repository is `komp-co/komp` on GitHub, with `json`, `kf-lsp` and
 | `gh pr checks <n> --repo komp-co/komp` | Watch a PR's CI |
 | `gh pr merge <n> --repo komp-co/komp` | Merge once CI is green |
 
-Work merges into `development`. A PR from `development` into `main` is a
-release; CONTRIBUTING.md has the steps.
+Work merges into `development`.

@@ -1,5 +1,0 @@
-//! build: fail
-
-trait Score { fun score(): int32 }
-fun invalid(value: dyn Score): int32 { return value.score() }
-fun main(): int32 { return 0 }

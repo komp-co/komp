@@ -1,9 +1,0 @@
-//! asan: clean
-// An interpolation copies each slot, so a slot's temporary is dropped.
-
-fun make(): String { return String.from("hello world") }
-
-fun main(): int32 {
-    val s = "x ${make().as_str()} y"
-    return 0
-}

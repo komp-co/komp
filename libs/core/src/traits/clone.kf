@@ -1,9 +1,0 @@
-// Explicit deep copy into an independently owned `Self`, so generic code can
-// require `<T: Clone>`.
-@lang("clone")
-pub trait Clone {
-    fun clone(): Self
-}
-
-// CONSTRAINT: every primitive needs its own `impl Clone`: a bound is
-// satisfied only by an impl. `str` is exempt, being a borrowed view.

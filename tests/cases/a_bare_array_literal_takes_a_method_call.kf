@@ -1,8 +1,0 @@
-//! run: exit 6
-//! deps: core
-// Without alloc, a literal named by no type is an array of its first
-// element's type, and that instance exists for a method called on it.
-
-fun main(): int32 {
-    return [4, 5, 6].size() as int32 + [1, 2, 3][2]
-}

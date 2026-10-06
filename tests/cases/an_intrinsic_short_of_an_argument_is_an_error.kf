@@ -1,9 +1,0 @@
-//! build: fail
-// `alloc_array<T>` takes the length: without it, the call is an error rather
-// than a crash in codegen.
-
-fun main(): int32 {
-    val p: Ptr<int32> = unsafe { alloc_array<int32>() }
-    unsafe { dealloc<int32>(p) }
-    return 0
-}

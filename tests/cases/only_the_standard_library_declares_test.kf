@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// `test` is declarable only by the `testing` crate; anywhere else, declaring
-// it is an error.
-
-annotation test
-
-fun main(): int32 { return 0 }

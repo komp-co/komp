@@ -121,10 +121,19 @@ fun CratePlaces.source_of(root: str): String {
 
 /// Which of `deps` only the crate's tests need: its `[dev-dependencies]`
 /// that are not also `[dependencies]`.
+///
+/// CONSTRAINT: no capturing lambda. kf_tool is a library, and a capturing
+/// lambda in one breaks every crate using it with the released compilers.
 fun BuildCrate.dev_deps_of(manifest: &Manifest): List<String> {
-    val regular = manifest.deps.map(|dep: Dependency| dep.name)
-    val dev = manifest.dev_deps.map(|dep: Dependency| dep.name)
-    return self.deps.filter(|name: String| dev.contains(&name) && !regular.contains(&name))
+    var dev: List<String> = []
+    while dep in &manifest.dev_deps { dev.push(dep.name.clone()) }
+    var regular: List<String> = []
+    while dep in &manifest.deps { regular.push(dep.name.clone()) }
+    var out: List<String> = []
+    while name in &self.deps {
+        if dev.contains(name) && !regular.contains(name) { out.push(name.clone()) }
+    }
+    return out
 }
 
 fun BuildCrate.write_metadata(writer: &var JsonWriter, members: &List<String>, places: &CratePlaces): void {

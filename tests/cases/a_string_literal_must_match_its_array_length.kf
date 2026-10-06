@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// `uint8[4]` holds four bytes, so a three-byte string cannot build it.
-
-fun main(): int32 {
-    val tag: uint8[4] = "abc"
-    return tag[0] as int32
-}

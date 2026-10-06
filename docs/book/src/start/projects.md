@@ -243,7 +243,7 @@ covers every member.
 crate that declares no dependencies of its own, and a crate that *does* have
 dependencies inherits theirs. `std` needs no entry either: any crate of a
 hosted program that imports from it gets it, and only those crates are
-compiled against it. See [std](../libs/std.md).
+compiled against it. See [std](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/std.md).
 
 A `path` dependency whose directory holds no `kf.toml` is an error naming it,
 from every command that reads the dependencies.
@@ -262,7 +262,7 @@ They are part of the graph only when the tests are: `komp test`, `komp check`,
 `komp lint`, `komp fix` and the editor, which all compile the `_test.kf` files.
 `komp build` and `komp run` leave them out, and a crate depending on this one
 never sees them. komp fetches and locks them like other dependencies. Tests
-import [`testing`](../libs/testing.md), which declares `@test`, so a crate
+import [`testing`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/testing.md), which declares `@test`, so a crate
 with tests names it here.
 
 ## Workspaces
@@ -410,7 +410,7 @@ c_sources = ["src/wrapper.c", "src/helper.c"]
 
 These are compiled and linked into the final binary. Any KFlat function
 declared `extern "C"` can call them and be called by them. See
-[unsafe, extern, and C interop](../lang/unsafe.md).
+[unsafe, extern, and C interop](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/lang/unsafe.md).
 
 ### The freestanding tier
 
@@ -442,7 +442,7 @@ linking it has a `stdout`, so the program has to be the one that answers.
 What komp emits is already freestanding. It includes `<stdint.h>`,
 `<stdbool.h>` and `<stddef.h>` — the three C guarantees a freestanding
 implementation provides — and routes every allocation through the
-[allocation seam](../libs/core.md). So a freestanding build of a program
+[allocation seam](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/core.md). So a freestanding build of a program
 compiles with no C library present at all:
 
 ```console

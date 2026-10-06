@@ -32,7 +32,7 @@ esac
 failed=""
 
 ratchets() {
-    for gate in file_sizes line_lengths unsafe; do
+    for gate in file_sizes line_lengths; do
         sh "scripts/check_$gate.sh" || failed="$failed $gate"
     done
 }

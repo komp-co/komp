@@ -6,3 +6,9 @@ name = "json"
 version = "0.2.0"
 source = { git = "https://github.com/komp-co/json.git", rev = "44a09fc776814a7aa1871619f1c1b5786a9d5b43" }
 index = "https://github.com/komp-co/index"
+
+[[package]]
+name = "komp_test"
+version = "0.1.0"
+source = { git = "https://github.com/komp-co/komp-test", rev = "d27fe77226d6666cdbf459e4823eed74a0c890c2" }
+index = "https://github.com/komp-co/index"
