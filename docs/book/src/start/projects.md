@@ -231,6 +231,9 @@ commit or that archive, from the cache, without the network, even after the
 branch or tag has moved or a newer version has been published. `komp update`
 resolves every dependency again and rewrites the lock. `--locked` makes a command fail rather than change
 `kf.lock`, and `--offline` makes it fail rather than fetch; CI wants both.
+A package index is a git checkout in the cache, brought up to date once per
+command. When that update fails, as it can while another komp updates the
+same checkout, komp says so and reads the index as it was last fetched.
 
 A fetched crate's `core`, `alloc` and `std` are always the ones bundled with
 komp, whatever path its own manifest gives them. A crate name may come from
