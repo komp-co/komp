@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// `Array<int32, 3>` holds three elements, so a literal of two cannot build it.
-
-fun main(): int32 {
-    val a: Array<int32, 3> = [1, 2]
-    return a[0]
-}

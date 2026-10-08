@@ -6,25 +6,3 @@
 # claim that the file is one concept at that length. Shrinking is
 # always allowed; growing needs this file updated in the same commit,
 # which is the point at which someone has to look.
-533 compiler/kf-codegen/src/emit/stmt/emit_stmt.kf
-494 compiler/kf-codegen/src/emit/symbols/qualify_test.kf
-376 compiler/kf-core/src/ast/subst/subst_test.kf
-377 compiler/kf-driver/src/lint_levels_test.kf
-613 compiler/kf-integration/src/editor/typed_test.kf
-479 compiler/kf-integration/src/integration/generics_test.kf
-382 compiler/kf-interface/src/parse/parse.kf
-378 compiler/kf-lower/src/reachable.kf
-430 compiler/kf-lower/src/refcount/rc_insert_test.kf
-476 compiler/kf-mono/src/collect/mono_test.kf
-550 compiler/kf-parse/src/lexer/lexer.kf
-397 compiler/kf-parse/src/lexer/lexer_test.kf
-377 compiler/kf-parse/src/parser/top_decl/top_decl_test.kf
-433 compiler/kf-parse/src/parser/top_decl/trait_test.kf
-449 compiler/kf-typecheck/src/check/check_expr.kf
-795 compiler/kf-typecheck/src/check/check_expr_test.kf
-432 compiler/kf-typecheck/src/check/check_method_call.kf
-495 compiler/kf-typecheck/src/check/check_stmt_test.kf
-380 compiler/kf-typecheck/src/check/control/exhaustive_test.kf
-417 compiler/kf-typecheck/src/check/decl/check_decl.kf
-458 compiler/kf-typecheck/src/check/lambda_capture.kf
-1227 compiler/kf-typecheck/src/lib_test.kf

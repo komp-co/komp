@@ -1,8 +1,0 @@
-//! run: exit 182
-// A signed 64-bit literal reaches generated C unchanged: 5,000,000,000 mod
-// 251 is 182.
-
-fun main(): int32 {
-    val big: int64 = 5000000000
-    return (big % 251) as int32
-}

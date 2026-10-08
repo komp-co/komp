@@ -1,7 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// `..` stands for the parameters after the written ones, so it ends the list.
-
-annotation flag on (.., bool) -> bool
-
-fun main(): int32 { return 0 }

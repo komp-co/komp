@@ -1,0 +1,42 @@
+// A remote dev-dependency is fetched and locked like a dependency, so a
+// test build finds it in the cache.
+
+import core.assert.assert_eq
+import komp.build.build_crate_graph
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import testing.test
+
+/// An app whose tests use `greet` from git.
+fun dev_app(name: str, repo: &String): String {
+    val app = dir_of(name)
+    sh("rm -rf ${app} && mkdir -p ${app}/src".as_str())
+    val row = "greet = { git = \"file://${repo}\", tag = \"v1\" }"
+    val manifest = "[project]\nname = \"app\"\nkind = \"lib\"\n\n[dev-dependencies]\n${row}\n"
+    write_file("${app}/kf.toml".as_str(), manifest.as_str())
+    write_file("${app}/src/lib.kf".as_str(), "pub fun app(): int32 { return 0 }\n")
+    return app
+}
+
+@test
+fun a_git_dev_dependency_is_locked(): void {
+    val cache = test_cache()
+    val repo = make_greet_repo("kf_dev_greet_repo", "42")
+    val app = dev_app("kf_dev_greet_app", &repo)
+    val synced = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(synced.is_empty() && lock_text(&app).contains("name = \"greet\""), true, "kf.lock pins it")
+}
+
+@test
+fun a_fetched_dev_dependency_joins_the_test_graph(): void {
+    val cache = test_cache()
+    val repo = make_greet_repo("kf_dev_greet_graph_repo", "42")
+    val app = dev_app("kf_dev_greet_graph_app", &repo)
+    val _synced = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    val graph = build_crate_graph(app.as_str(), true)
+    var found = false
+    while item in &graph.crates {
+        if item.name.as_str() == "greet" { found = true }
+    }
+    assert_eq(found, true, "the test build reads it from the cache")
+}

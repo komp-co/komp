@@ -9,7 +9,7 @@ holds the VS Code extension and the TextMate grammar.
 
 The server speaks the Language Server Protocol over standard input and
 output, so any editor with an LSP client can use it. It never parses KFlat
-itself: it keeps one [`kflatc serve`](serve.md) running and passes it the
+itself: it keeps one [`kflatc serve`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/tools/serve.md) running and passes it the
 editor's unsaved text, so every answer is about the buffer on screen, not
 the file as last saved. `komp metadata` tells it where that kflatc is and how
 the workspace is laid out.

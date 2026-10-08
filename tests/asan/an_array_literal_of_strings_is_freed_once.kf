@@ -1,7 +1,0 @@
-//! asan: clean
-// A literal builds the array in place: each string is owned once, by it.
-
-fun main(): int32 {
-    val words: Array<String, 2> = [String.from("first element"), String.from("second element")]
-    return words[1].byte_len() as int32
-}

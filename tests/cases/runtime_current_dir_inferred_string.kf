@@ -1,7 +1,0 @@
-//! run: exit 0
-//! deps: core, std
-
-fun main(): int32 {
-    val cwd = kf_current_dir()
-    return 0
-}

@@ -1,0 +1,155 @@
+// `komp self update`: komp's own release for this machine, downloaded,
+// checked against its published sha256 and put in place of `bin/komp` under
+// the install home. The toolchains are `komp toolchain`'s.
+
+import alloc.path.Path
+import komp.build.ensure_dir
+import komp.fetch.extract
+import komp.fetch.first_word
+import komp.fetch.fresh_staging
+import komp.fetch.remove_tree
+import komp.fetch.sha256_of
+import std.env.env_var
+import std.fs.exists
+import std.fs.scratch_path
+import std.process.Command
+
+/// What an update did: `version` installed, nothing when already current,
+/// or `error` saying why not.
+pub struct SelfUpdate {
+    pub val version: String
+    pub val installed: bool
+    pub val error: String
+}
+
+fun update_failed(message: String): SelfUpdate {
+    return SelfUpdate { version: "", installed: false, error: message }
+}
+
+/// `$KOMP_RELEASES`, else komp's releases on GitHub: `<url>/latest` names
+/// the newest, and `<url>/download/v<version>/` holds each one's archives.
+pub fun releases_url(): String {
+    val explicit = env_var("KOMP_RELEASES") ?: String.from("")
+    if explicit.byte_len() > 0 { return explicit }
+    return String.from("https://github.com/komp-co/komp/releases")
+}
+
+/// The version a release page's URL names, as `.../tag/v0.5.1` does; "" for
+/// any other URL.
+pub fun version_in_release_url(url: str): String {
+    val page = String.from(url)
+    val at = page.index_of("/tag/v") ?: return String.from("")
+    return page.substring(at + 6, page.byte_len())
+}
+
+/// The release target `uname -s` and `uname -m` describe, as komp's archives
+/// name it; "" for a machine komp publishes no build for.
+pub fun release_target(system: str, machine: str): String {
+    val x86 = machine == "x86_64" || machine == "amd64"
+    val arm = machine == "aarch64" || machine == "arm64"
+    if system == "Linux" && x86 { return "linux-x86_64" }
+    if system == "Linux" && arm { return "linux-aarch64" }
+    if system == "Darwin" && arm { return "macos-arm64" }
+    return ""
+}
+
+/// Installs komp release `requested`, or the newest when it is "", as
+/// `<home>/bin/komp`. The newest is not installed again when it is `current`.
+pub fun self_update(requested: str, current: str, home: str, cache: str): SelfUpdate {
+    val releases = releases_url()
+    val version = if requested.byte_len() > 0 { String.from(requested) } else { latest_release(releases.as_str()) }
+    if version.byte_len() == 0 { return update_failed("cannot tell the newest release from ${releases}/latest") }
+    if requested.byte_len() == 0 && version.as_str() == current {
+        return SelfUpdate { version: version, installed: false, error: "" }
+    }
+    val target = this_release_target()
+    if target.byte_len() == 0 { return update_failed("komp publishes no build for this machine") }
+    val error = install_komp(releases.as_str(), version.as_str(), target.as_str(), home, cache)
+    if error.byte_len() > 0 { return update_failed(error) }
+    return SelfUpdate { version: version, installed: true, error: "" }
+}
+
+/// Downloads `komp-<version>-<target>.tar.gz`, checks it against its
+/// published sha256 and moves its `bin/komp` over `<home>/bin/komp`. "" once
+/// installed, else why not.
+fun install_komp(releases: str, version: str, target: str, home: str, cache: str): String {
+    val staging = fresh_staging(cache, "komp")
+    if staging.byte_len() == 0 { return "cannot create a directory under ${cache}" }
+    val name = "komp-${version}-${target}"
+    val url = "${releases}/download/v${version}/${name}.tar.gz"
+    val archive = "${staging}.tar.gz"
+    val digest_file = "${staging}.tar.gz.published"
+    if !download(url.as_str(), archive.as_str()) || !download("${url}.sha256".as_str(), digest_file.as_str()) {
+        clean_up(staging.as_str(), archive.as_str())
+        remove_tree(digest_file.as_str())
+        return "cannot download ${url} and its .sha256; is ${version} a release?"
+    }
+    val published = first_word(read_file(digest_file.as_str()).as_str())
+    remove_tree(digest_file.as_str())
+    val got = sha256_of(archive.as_str())
+    if got.byte_len() == 0 || got.as_str() != published.as_str() {
+        clean_up(staging.as_str(), archive.as_str())
+        return "${name}.tar.gz does not match its published sha256"
+    }
+    val binary = "${staging}/${name}/bin/komp"
+    if !extract(archive.as_str(), staging.as_str(), false) || !exists(binary.as_str()) {
+        clean_up(staging.as_str(), archive.as_str())
+        return "${name}.tar.gz holds no ${name}/bin/komp"
+    }
+    val bin = "${home}/bin"
+    if !ensure_dir(bin.as_str()) {
+        clean_up(staging.as_str(), archive.as_str())
+        return "cannot create ${bin}"
+    }
+    // Copied beside the old one, then renamed over it: a rename replaces a
+    // running binary, or the link an earlier install left, whole.
+    var put = Command.new("sh")
+    put.arg("-c")
+    put.arg("cp \"$1\" \"$2/komp.new\" && chmod 755 \"$2/komp.new\" && mv -f \"$2/komp.new\" \"$2/komp\"")
+    put.arg("sh")
+    put.arg(binary.as_str())
+    put.arg(bin.as_str())
+    val ok = put.status().success()
+    clean_up(staging.as_str(), archive.as_str())
+    return if ok { "" } else { "cannot put ${name}'s komp in ${bin}" }
+}
+
+/// The newest release's version, from where `<releases>/latest` redirects;
+/// "" when that cannot be read.
+pub fun latest_release(releases: str): String {
+    val out = scratch_file("latest")
+    var ask = Command.new("curl")
+    ask.arg("-fsSLI")
+    ask.arg("-o")
+    ask.arg("/dev/null")
+    ask.arg("-w")
+    ask.arg("%{url_effective}")
+    ask.arg("${releases}/latest".as_str())
+    ask.stdout_to(Path.new(out.as_str()))
+    val ok = ask.status().success()
+    val landed = read_file(out.as_str())
+    remove_tree(out.as_str())
+    if !ok { return String.from("") }
+    return version_in_release_url(landed.as_str())
+}
+
+/// `release_target` for the machine komp runs on.
+internal fun this_release_target(): String {
+    return release_target(uname("-s").as_str(), uname("-m").as_str())
+}
+
+/// What `uname <flag>` prints, trimmed; "" when it does not run.
+fun uname(flag: str): String {
+    val out = scratch_file("uname")
+    var ask = Command.new("uname")
+    ask.arg(flag)
+    ask.stdout_to(Path.new(out.as_str()))
+    val ok = ask.status().success()
+    val said = read_file(out.as_str())
+    remove_tree(out.as_str())
+    return if ok { said.as_str().trim() } else { String.from("") }
+}
+
+fun scratch_file(kind: str): String {
+    return String.from(scratch_path("komp_self_update_${kind}".as_str()))
+}

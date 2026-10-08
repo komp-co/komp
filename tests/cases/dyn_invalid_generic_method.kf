@@ -1,8 +1,0 @@
-//! build: fail
-
-trait Mapper {
-    fun map<T>(value: T): int32
-}
-
-fun invalid(value: &dyn Mapper): int32 { return value.map<int32>(1) }
-fun main(): int32 { return 0 }

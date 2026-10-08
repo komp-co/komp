@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// Each element of an array literal has the array's element type.
-
-fun main(): int32 {
-    val b: Array<int32, 2> = [1, "x"]
-    return b[0]
-}

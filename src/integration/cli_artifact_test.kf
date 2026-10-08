@@ -1,0 +1,132 @@
+// The dispatch helpers run_cli uses, so the parser and builder cannot drift.
+
+import core.assert.assert_eq
+import komp.cli.build_project_mode
+import komp.cli.run_project_mode
+import komp.testing.test_project_separate
+import std.fs.scratch_path
+import komp.cli.is_quiet_flag
+import komp.build.build_project_separate
+import komp.build.check_project_with_kflatc
+import komp.build.default_unity_output
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun access(path: str, mode: int32): int32
+
+@test
+fun quiet_flag_spellings_are_recognized(): void {
+    val recognized = is_quiet_flag("-q") && is_quiet_flag("--quiet") && !is_quiet_flag("--verbose")
+    assert_eq(recognized, true, "-q and --quiet are the only quiet flag spellings")
+}
+
+@test
+fun build_dispatch_produces_library_artifacts(): void {
+    val prepared = unsafe { system("rm -rf ${scratch_path("kf_sc8_cli_lib")} && mkdir -p ${scratch_path("kf_sc8_cli_lib/src")}") }
+    write_file(scratch_path("kf_sc8_cli_lib/kf.toml"), "[project]\nname = \"cli_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
+    write_file(scratch_path("kf_sc8_cli_lib/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
+    val built = build_project_mode(scratch_path("kf_sc8_cli_lib"), BuildMode.Separate, "")
+    val have_interface = unsafe { access(scratch_path("kf_sc8_cli_lib/target/kflat/cli_lib.kfi"), 0) } == 0
+    val have_header = unsafe { access(scratch_path("kf_sc8_cli_lib/target/kflat/cli_lib.h"), 0) } == 0
+    val have_archive = unsafe { access(scratch_path("kf_sc8_cli_lib/target/kflat/libcli_lib.a"), 0) } == 0
+    assert_eq(prepared == 0 && built == 0 && have_interface && have_header && have_archive, true, "build dispatch produces crate-owned runtime artifacts")
+}
+
+@test
+fun run_dispatch_executes_the_artifact_binary(): void {
+    val prepared = unsafe { system("rm -rf ${scratch_path("kf_sc8_cli_bin")} && mkdir -p ${scratch_path("kf_sc8_cli_bin/src")}") }
+    write_file(scratch_path("kf_sc8_cli_bin/kf.toml"), "[project]\nname = \"cli_bin\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
+    write_file(scratch_path("kf_sc8_cli_bin/src/main.kf"), "fun main(): int32 { return 0 }\n")
+    val ran = run_project_mode(scratch_path("kf_sc8_cli_bin"), BuildMode.Separate)
+    val have_binary = unsafe { access(scratch_path("kf_sc8_cli_bin/target/kflat/cli_bin"), 0) } == 0
+    assert_eq(prepared == 0 && ran == 0 && have_binary, true, "run dispatch executes the linked artifact binary")
+}
+
+@test
+fun check_uses_interfaces_without_c_artifacts(): void {
+    val prepared = unsafe { system("rm -rf ${scratch_path("kf_sc8_check_dep")} ${scratch_path("kf_sc8_check_app")} && mkdir -p ${scratch_path("kf_sc8_check_dep/src")} ${scratch_path("kf_sc8_check_app/src")}") }
+    write_file(scratch_path("kf_sc8_check_dep/kf.toml"), """[project]
+name = "check_dep"
+version = "0.1.0"
+kind = "lib"
+""")
+    write_file(scratch_path("kf_sc8_check_dep/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
+    write_file(scratch_path("kf_sc8_check_app/kf.toml"), """[project]
+name = "check_app"
+version = "0.1.0"
+kind = "bin"
+
+[dependencies]
+check_dep = { path = "../kf_sc8_check_dep" }
+""")
+    // A call into a dependency crate needs its import.
+    write_file(scratch_path("kf_sc8_check_app/src/main.kf"), """import check_dep.*
+
+fun main(): int32 { return answer() - 42 }
+""")
+    val built = build_project_separate(scratch_path("kf_sc8_check_app"), "")
+    val hidden = unsafe { system("mv ${scratch_path("kf_sc8_check_dep/src")} ${scratch_path("kf_sc8_check_dep/src.hidden")} && rm -f ${scratch_path("kf_sc8_check_app/target/kflat/check_dep.h")} ${scratch_path("kf_sc8_check_app/target/kflat/check_dep.c")} ${scratch_path("kf_sc8_check_app/target/kflat/check_dep.o")} ${scratch_path("kf_sc8_check_app/target/kflat/libcheck_dep.a")}") }
+    val checked = check_project_with_kflatc(scratch_path("kf_sc8_check_app"), false)
+    val restored = unsafe { system("mv ${scratch_path("kf_sc8_check_dep/src.hidden")} ${scratch_path("kf_sc8_check_dep/src")}") }
+    assert_eq(prepared == 0 && built == 0 && hidden == 0 && checked == 0 && restored == 0, true, "check consumes cached semantic interfaces without C artifacts")
+}
+
+@test
+fun test_dispatch_links_a_separate_test_binary(): void {
+    val prepared = unsafe { system("rm -rf ${scratch_path("kf_sc8_test_lib")} && mkdir -p ${scratch_path("kf_sc8_test_lib/src")}") }
+    val test_lib_manifest = "[project]\nname = \"test_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n"
+    write_file(scratch_path("kf_sc8_test_lib/kf.toml"), "${test_lib_manifest}${testing_dev_dependency()}".as_str())
+    write_file(scratch_path("kf_sc8_test_lib/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
+    write_file(scratch_path("kf_sc8_test_lib/src/lib_test.kf"), "import testing.test\n\n@test\nfun answer_runs(): void { val value = answer() }\n")
+    assert_eq(fetch_test_dependencies(scratch_path("kf_sc8_test_lib")).as_str(), "", "komp_test is fetched")
+    val tested = test_project_separate(scratch_path("kf_sc8_test_lib"), "", "")
+    val have_binary = unsafe { access(scratch_path("kf_sc8_test_lib/target/kflat/test/test_lib_tests"), 0) } == 0
+    assert_eq(prepared == 0 && tested == 0 && have_binary, true, "test dispatch links a separate test binary against crate artifacts")
+}
+
+fun write_check_tests_fixture(broken: bool): void {
+    unsafe { system("rm -rf ${scratch_path("kf_check_tests")} && mkdir -p ${scratch_path("kf_check_tests/src")}") }
+    val manifest = "[project]\nname = \"check_tests\"\nkind = \"lib\"\n${testing_dev_dependency()}"
+    write_file(scratch_path("kf_check_tests/kf.toml"), manifest.as_str())
+    val _fetched = fetch_test_dependencies(scratch_path("kf_check_tests"))
+    write_file(scratch_path("kf_check_tests/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
+    if broken {
+        write_file(scratch_path("kf_check_tests/src/lib_test.kf"), """import testing.test
+
+@test
+fun deliberately_broken(): void {
+    val n: int32 = this_function_does_not_exist()
+}
+""")
+        return
+    }
+    write_file(scratch_path("kf_check_tests/src/lib_test.kf"), "import testing.test\n\n@test\nfun sound(): void {\n    val n: int32 = answer()\n}\n")
+}
+
+@test
+fun check_reports_an_error_a_test_file_alone_contains(): void {
+    write_check_tests_fixture(true)
+    assert_eq(check_project_with_kflatc(scratch_path("kf_check_tests"), false) > 0, true, "a crate whose tests do not compile does not check clean")
+}
+
+@test
+fun check_stays_clean_when_the_tests_compile(): void {
+    write_check_tests_fixture(false)
+    assert_eq(check_project_with_kflatc(scratch_path("kf_check_tests"), false), 0, "a sound test file does not invent errors")
+}
+
+@test
+fun the_unity_default_output_lands_under_the_project(): void {
+    // Not the current directory.
+    val root = scratch_path("kf_sc8_unity_default")
+    val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    assert_eq(prepared, 0, "the fixture is prepared")
+    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"unity_default\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
+    write_file("${root}/src/main.kf".as_str(), "fun main(): int32 { return 0 }\n")
+    val out = default_unity_output(root)
+    assert_eq(out.as_str() == "${root}/target/kflat/komp_out.c".as_str(), true, "the default sits beside the crate's other output")
+    // Asking for the path creates the directory.
+    assert_eq(unsafe { system("test -d ${root}/target/kflat") }, 0, "the artifact directory exists")
+    assert_eq(build_project_mode(root, BuildMode.Unity, out.as_str()), 0, "the whole-program build succeeds")
+    assert_eq(unsafe { access(out.as_str(), 0) }, 0, "and the C is there")
+}

@@ -1,0 +1,78 @@
+// A version requirement, resolved through its index to a fetched crate.
+
+import alloc.list.*
+import komp.project.Dependency
+import komp.project.Version
+import komp.project.any_version
+import komp.project.parse_requirement
+import komp.project.parse_version
+import std.fs.exists
+
+/// The highest version `dep` allows that is not yanked, fetched. The row
+/// records the index it came from.
+pub fun resolve_from_index(dep: &Dependency, cache: str, refreshed: &var List<String>): Fetched {
+    val checkout = index_checkout(dep.index_url.as_str(), cache, refreshed)
+    if checkout.error.byte_len() > 0 { return fetch_failed(checkout.error.clone()) }
+    val file = "${checkout.dir}/${index_file_path(dep.name.as_str())}"
+    if !exists(file.as_str()) { return fetch_failed("the index ${dep.index_url} has no package `${dep.name}`") }
+    val text = read_file(file.as_str())
+    if index_file_is_toolchain(text.as_str()) {
+        return fetch_failed("`${dep.name}` in ${dep.index_url} is a kflat toolchain, not a crate; " +
+                "a project picks one with kf.toml's `kflat` pin")
+    }
+    val versions = parse_index_file(text.as_str())
+    val chosen = versions.highest_allowed(dep.version.as_str()) ?: return fetch_failed(
+        "no version of `${dep.name}` in ${dep.index_url} matches \"${dep.version}\"${versions.listed()}")
+    val fetched = fetch_exact_source(dep.name.as_str(), &chosen.git, &chosen.rev, &chosen.tarball, &chosen.checksum,
+        cache)
+    if fetched.error.byte_len() > 0 { return fetched }
+    if fetched.entry.name.as_str() != dep.name.as_str() || fetched.entry.version.as_str() != chosen.version.as_str() {
+        val found = "`${fetched.entry.name}` ${fetched.entry.version}"
+        return fetch_failed("the index lists `${dep.name}` ${chosen.version}, but its source is ${found}")
+    }
+    return Fetched { entry: fetched.entry.in_index(&dep.index_url), error: "" }
+}
+
+/// A commit of a git repository, or a tarball with its checksum, fetched as
+/// if a manifest had named it.
+pub fun fetch_exact_source(name: str, git: &String, rev: &String, tarball: &String, checksum: &String,
+    cache: str): Fetched {
+    val source = Dependency {
+        name: String.from(name), version: "", index: "", index_url: "", path: "", git: git.clone(), rev: rev.clone(),
+        tag: "", branch: "", tarball: tarball.clone(), checksum: checksum.clone()
+    }
+    if git.byte_len() > 0 { return fetch_git(&source, rev.as_str(), cache) }
+    return fetch_tarball(&source, checksum.as_str(), cache)
+}
+
+/// An empty `requirement` allows every version.
+internal fun List<IndexVersion>.highest_allowed(requirement: str): IndexVersion? {
+    val parsed = if requirement.byte_len() == 0 { Option.Some(any_version()) } else { parse_requirement(requirement) }
+    val wanted = parsed ?: return null
+    var best: IndexVersion? = null
+    var best_version = Version { major: 0, minor: 0, patch: 0 }
+    while candidate in &self {
+        if candidate.yanked { continue }
+        when (parse_version(candidate.version.as_str())) {
+            Some(version) => {
+                if wanted.allows(&version) && (best.is_none() || version.compare(&best_version) > 0) {
+                    best = Option.Some(candidate.clone())
+                    best_version = version.clone()
+                }
+            }
+            None => {}
+        }
+    }
+    return best
+}
+
+/// "; it has 0.1.0, 0.2.0", or "" when nothing is published.
+fun List<IndexVersion>.listed(): String {
+    var out = ""
+    while candidate in &self {
+        if candidate.yanked { continue }
+        out.append(if out.byte_len() == 0 { String.from("; it has ") } else { String.from(", ") })
+        out.append(candidate.version.as_str())
+    }
+    return out
+}

@@ -3,130 +3,24 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
-  # The full run on main is the safety net for two PRs that pass separately
-  # and break together.
-  schedule:
-    - cron: '0 2 * * *'
+    branches: [main, development]
   workflow_dispatch:
 
-# `classify` decides what runs. A job skipped by its `if` still reports a
-# status, so the required checks resolve either way:
-#
-#   docs       nothing
-#   comments   fixpoint (which also runs the size ratchets)
-#   code       everything
-#
-# `fixpoint` builds komp from the seed once and uploads it; the other jobs
-# download that build instead of repeating it. ccache persists across runs
-# through actions/cache.
+# komp is built with a released kflat toolchain, the one kf.toml's
+# `kflat` pin names; the compiler itself is komp-co/kf-lang's.
 jobs:
-  classify:
-    runs-on: ubuntu-latest
-    outputs:
-      kind: ${{ steps.kind.outputs.kind }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 200
-      - name: Classify the change
-        id: kind
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-        run: |
-          kind=code
-          if [ "$EVENT" = "pull_request" ]; then
-            git fetch -q --no-tags --depth=200 origin "$BASE_REF:refs/remotes/origin/base"
-            base=$(git merge-base origin/base HEAD 2>/dev/null || true)
-            if [ -n "$base" ]; then kind=$(sh scripts/ci-classify.sh "$base" HEAD); fi
-          fi
-          echo "change kind: $kind"
-          echo "kind=$kind" >> "$GITHUB_OUTPUT"
-
-  fixpoint:
-    needs: classify
-    if: needs.classify.outputs.kind != 'docs'
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-      - name: Verify the self-hosting fixpoint
-        run: KOMP_PUBLISH="$RUNNER_TEMP/komp-bin/komp" sh scripts/check.sh --fixpoint
-      - uses: actions/upload-artifact@v4
-        with:
-          name: komp-bin
-          path: ${{ runner.temp }}/komp-bin
-          retention-days: 1
-      - name: ccache statistics
-        if: always()
-        run: ccache --show-stats || true
+      - uses: ./.github/actions/toolchain
+      - name: Build komp and run its tests
+        run: CHECK_CLI=0 sh scripts/check.sh
 
   cli:
-    needs: [classify, fixpoint]
-    if: needs.classify.outputs.kind == 'code'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          prebuilt: true
-      # An empty CRATES is the CLI gates alone.
-      - name: Run the CLI regression checks
-        run: CRATES=" " sh scripts/check.sh --sweep
-
-  sweep-driver:
-    needs: [classify, fixpoint]
-    if: needs.classify.outputs.kind == 'code'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          prebuilt: true
-      # The slowest crate, alone. `sweep-driver` is a required check.
-      - name: Test kf-integration
-        run: CHECK_CLI=0 CRATES="compiler/kf-integration" sh scripts/check.sh --sweep
-
-  sweep-rest:
-    needs: [classify, fixpoint]
-    if: needs.classify.outputs.kind == 'code'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          prebuilt: true
-      - name: Test every other crate
-        run: |
-          CHECK_CLI=0 \
-          CRATES="compiler/kf-core compiler/kf-parse compiler/kf-assemble
-                  compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
-                  compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-                  compiler/kf-lint compiler/kf-driver compiler/kf-tool
-                  libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce" sh scripts/check.sh --sweep
-
-  # Its own job, beside the sweep, so it adds no time to the run or to
-  # scripts/check.sh. Fixed seeds on a pull request, so a finding names the
-  # seed that rebuilds it; fresh ones for fifteen minutes a mode at night,
-  # with what they find uploaded.
-  fuzz:
-    needs: [classify, fixpoint]
-    if: needs.classify.outputs.kind == 'code'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          prebuilt: true
-      - name: Fuzz the front end
-        env:
-          FUZZ_FRESH: ${{ github.event_name == 'schedule' && '1' || '0' }}
-          FUZZ_BUDGET: 900
-        run: sh scripts/check_fuzz.sh "$KOMP_PREBUILT" "$RUNNER_TEMP/fuzz"
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fuzz-findings
-          path: ${{ runner.temp }}/fuzz/fuzz-findings
-          retention-days: 14
+      - uses: ./.github/actions/toolchain
+      - name: Build komp and run the command-line checks
+        run: CHECK_TESTS=0 sh scripts/check.sh

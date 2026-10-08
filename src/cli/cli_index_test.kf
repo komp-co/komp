@@ -1,0 +1,26 @@
+import alloc.list.*
+import core.assert.assert_eq
+import komp.fetch.IndexPackage
+import komp.fetch.parse_index_file
+import testing.test
+
+fun sample_package(description: str): IndexPackage {
+    var file = String.from("schema = 1\nname = \"json\"\n")
+    file.append("\n[[version]]\nversion = \"0.1.0\"\nsource = { git = \"g\", rev = \"a\" }\nyanked = true\n")
+    file.append("\n[[version]]\nversion = \"0.2.0\"\nsource = { git = \"g\", rev = \"b\" }\n")
+    val versions = parse_index_file(file.as_str())
+    return IndexPackage { name: "json", description: String.from(description), versions: versions }
+}
+
+@test
+fun info_as_json_lists_every_version_and_the_newest(): void {
+    var expected = String.from("{\"index\":\"https://i\",\"name\":\"json\",\"description\":\"JSON\",")
+    expected.append("\"newest\":\"0.2.0\",\"versions\":[{\"version\":\"0.1.0\",\"yanked\":true},")
+    expected.append("{\"version\":\"0.2.0\",\"yanked\":false}]}")
+    assert_eq(sample_package("JSON").versions_json("https://i").as_str(), expected.as_str(), "one object")
+}
+
+@test
+fun a_missing_description_is_null(): void {
+    assert_eq(sample_package("").versions_json("https://i").contains("\"description\":null"), true, "not \"\"")
+}

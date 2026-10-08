@@ -1,0 +1,32 @@
+// `komp self update [<version>]`: komp's own release, put in place of
+// `~/.kflat/bin/komp`.
+
+import komp.fetch.cache_root
+import komp.install.install_home
+import komp.install.installed_bin_dir
+import komp.install.self_update
+import komp.komp_version
+import std.fs.exists
+
+pub fun self_command(nargs: int32): int32 {
+    val args = arguments_without_format(nargs)
+    if args.is_empty() || args[0].as_str() != "update" || args.size() > 2 { return usage_error("self") }
+    val version = if args.size() == 2 { args[1].clone() } else { String.from("") }
+    if starts_with_dash(version.as_str()) { return usage_error("self") }
+    val home = install_home()
+    val done = self_update(version.as_str(), komp_version(), home.as_str(), cache_root().as_str())
+    if done.error.byte_len() > 0 {
+        runtime_println("error: ${done.error}")
+        return 1
+    }
+    if !done.installed {
+        runtime_println("komp ${done.version} is the newest release")
+        return 0
+    }
+    val bin = installed_bin_dir(home.as_str())
+    runtime_println("installed komp ${done.version} as ${bin}/komp")
+    if !exists("${bin}/kflatc".as_str()) {
+        runtime_println("it runs the kflatc beside it, and there is none; `komp toolchain install` adds one")
+    }
+    return 0
+}

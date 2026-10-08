@@ -1,0 +1,162 @@
+// Version requirements resolved through a package index: a `file://` git
+// repository in scratch space, whose entries point at `greet` releases.
+
+import core.assert.assert_eq
+import komp.build.check_project_with_kflatc
+import komp.build.default_fetch_policy
+import komp.build.sync_sources
+import testing.test
+
+/// Commits `greet` at `version`, returning `answer`; the new commit's id.
+fun release(repo: &String, version: str, answer: str): String {
+    write_file("${repo}/kf.toml".as_str(), """[project]
+name = "greet"
+version = "${version}"
+kind = "lib"
+""".as_str())
+    write_file("${repo}/src/lib.kf".as_str(), "pub fun answer(): int32 { return ${answer} }\n".as_str())
+    sh("cd ${repo} && git add . && ${git_commit()} -qm ${version} && git rev-parse HEAD > ${repo}.head".as_str())
+    return read_file("${repo}.head".as_str()).as_str().substring(0, 40)
+}
+
+/// `[[version]]` for `version` at commit `rev` of `repo`.
+fun entry(repo: &String, version: str, rev: &String, yanked: bool): String {
+    val flag = if yanked { "yanked = true\n" } else { "" }
+    return "\n[[version]]\nversion = \"${version}\"\nsource = { git = \"file://${repo}\", rev = \"${rev}\" }\n${flag}"
+}
+
+/// An index holding `greet` with the given `[[version]]` blocks.
+fun make_index(name: str, versions: &String): String {
+    val index = dir_of(name)
+    sh("rm -rf ${index} && mkdir -p ${index}/gr/ee".as_str())
+    write_file("${index}/config.toml".as_str(), "schema = 1\n")
+    write_file("${index}/gr/ee/greet.toml".as_str(), "schema = 1\nname = \"greet\"\n${versions}".as_str())
+    sh("cd ${index} && git init -q && git add . && ${git_commit()} -qm index".as_str())
+    return index
+}
+
+/// `greet` released as 1.0.0 (answer 42), 1.1.0 (42) and 2.0.0 (7), listed in
+/// an index; `yank_latest_one` yanks 1.1.0.
+fun greet_index(name: str, yank_latest_one: bool): String {
+    val repo = make_greet_repo("${name}_repo".as_str(), "42")
+    val one = release(&repo, "1.0.0", "42")
+    val one_one = release(&repo, "1.1.0", "42")
+    val two = release(&repo, "2.0.0", "7")
+    var versions = entry(&repo, "1.0.0", &one, false)
+    versions.append(entry(&repo, "1.1.0", &one_one, yank_latest_one).as_str())
+    versions.append(entry(&repo, "2.0.0", &two, false).as_str())
+    return make_index("${name}_index".as_str(), &versions)
+}
+
+/// An app requiring `greet = <requirement>` from the index at `index`.
+fun index_app(name: str, index: &String, requirement: str): String {
+    val app = make_app(name, "greet = { version = \"${requirement}\", index = \"local\" }".as_str())
+    val manifest = read_file("${app}/kf.toml".as_str())
+    write_file("${app}/kf.toml".as_str(), "${manifest}\n[indexes]\nlocal = \"file://${index}\"\n".as_str())
+    return app
+}
+
+@test
+fun a_requirement_takes_the_highest_version_it_allows(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_a", false)
+    val app = index_app("kf_ix_app_a", &index, "1")
+    sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(lock_text(&app).as_str().contains("version = \"1.1.0\""), true, "1.1.0, not 1.0.0 or 2.0.0")
+}
+
+@test
+fun a_resolved_requirement_checks(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_b", false)
+    val app = index_app("kf_ix_app_b", &index, "1.0")
+    sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(check_project_with_kflatc(app.as_str(), false), 0, "the chosen version builds like any fetched crate")
+}
+
+@test
+fun a_yanked_version_is_not_chosen(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_c", true)
+    val app = index_app("kf_ix_app_c", &index, "1")
+    sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(lock_text(&app).as_str().contains("version = \"1.0.0\""), true, "1.1.0 is yanked")
+}
+
+@test
+fun the_lock_records_the_index(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_d", false)
+    val app = index_app("kf_ix_app_d", &index, "2")
+    sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(lock_text(&app).as_str().contains("index = \"file://${index}\"".as_str()), true, "where it was chosen")
+}
+
+@test
+fun a_locked_requirement_never_reads_the_index(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_e", false)
+    val app = index_app("kf_ix_app_e", &index, "1")
+    sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    sh("rm -rf ${index} ${cache}/index".as_str())
+    assert_eq(sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str()).as_str(), "",
+        "lock and cache suffice")
+}
+
+@test
+fun an_unmatched_requirement_lists_what_there_is(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_f", false)
+    val app = index_app("kf_ix_app_f", &index, "3")
+    val detail = "no version of `greet` in file://${index} matches \"3\"; it has 1.0.0, 1.1.0, 2.0.0"
+    assert_eq(sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str()).as_str(),
+        "error: dependency `greet` of ${app}: ${detail}".as_str(), "the versions to choose from")
+}
+
+@test
+fun a_package_missing_from_the_index_names_it(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_g", false)
+    val app = make_app("kf_ix_app_g", "other = { version = \"1\", index = \"local\" }")
+    val manifest = read_file("${app}/kf.toml".as_str())
+    write_file("${app}/kf.toml".as_str(), "${manifest}\n[indexes]\nlocal = \"file://${index}\"\n".as_str())
+    val error = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(error.as_str().ends_with("the index file://${index} has no package `other`".as_str()), true,
+        "a typo in a package name")
+}
+
+/// A crate named `name` in scratch space, depending on `rows`, which may
+/// name the index `local` at `index`.
+fun crate_with(name: str, kind: str, rows: str, index: &String): String {
+    val dir = dir_of(name)
+    sh("rm -rf ${dir} && mkdir -p ${dir}/src".as_str())
+    val project = "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n"
+    val indexes = "[indexes]\nlocal = \"file://${index}\"\n"
+    write_file("${dir}/kf.toml".as_str(), "${project}\n[dependencies]\n${rows}\n${indexes}".as_str())
+    return dir
+}
+
+@test
+fun two_incompatible_requirements_conflict(): void {
+    val cache = test_cache()
+    val index = greet_index("kf_ix_h", false)
+    crate_with("kf_ix_second", "lib", "greet = { version = \"2\", index = \"local\" }\n", &index)
+    val rows = "greet = { version = \"1\", index = \"local\" }\nsecond = { path = \"../kf_ix_second\" }\n"
+    val app = crate_with("kf_ix_app_h", "bin", rows, &index)
+    val error = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(error.as_str().starts_with("error: crate `greet` is required from two sources: "), true,
+        "one version of a crate per program")
+}
+
+@test
+fun an_index_whose_source_disagrees_is_refused(): void {
+    val cache = test_cache()
+    val repo = make_greet_repo("kf_ix_i_repo", "42")
+    val rev = release(&repo, "1.0.0", "42")
+    val versions = entry(&repo, "1.5.0", &rev, false)
+    val index = make_index("kf_ix_i_index", &versions)
+    val app = index_app("kf_ix_app_i", &index, "1")
+    val error = sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
+    assert_eq(error.as_str().ends_with("the index lists `greet` 1.5.0, but its source is `greet` 1.0.0"), true,
+        "the crate's own manifest is the truth")
+}

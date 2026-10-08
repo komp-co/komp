@@ -1,0 +1,217 @@
+// Help text, one block per command: `komp --help` lists commands, `komp build
+// --help` describes build alone.
+
+/// One-line synopsis, shared with the usage error for bad arguments, so the
+/// two never disagree.
+pub fun command_usage(command: str): str {
+    return when command {
+        "build" => "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]"
+        "check" => "komp check [--fix [--dry-run]] [--format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
+        "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
+        "lint" => "komp lint [--list] [--fix [--dry-run]] [--update-baseline] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
+        "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
+        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "tool" => "komp tool install <name>[@<req>] [--index <url>] | list | update [<name>...] | remove <name>[@<ver>]"
+        "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
+        "search" => "komp search [<query>] [--index <url>] [--offline]"
+        "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
+        "info" => "komp info <name> [--index <url>] [--offline]"
+        "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
+        "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
+        "self" => "komp self update [<version>]"
+        "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
+        "new" => "komp new [<name>]"
+        "help" => "komp help [<command>]"
+        _ => ""
+    }
+}
+
+fun command_detail(command: str): str {
+    return when command {
+        "build" => """Compile the project and write artifacts under target/kflat.
+
+  --verbose            name each crate as it is compiled
+  --unity              compile the whole program to one C file
+                       instead (defaults to target/kflat/komp_out.c)
+  -o, --output <file>  write one whole-program C file there; artifact
+                       mode writes a tree, which no one file names
+  --manifest-path <p>  the project's kf.toml, or its directory
+  -p, --package <c>    build this workspace member
+  --workspace          build every workspace member"""
+        "check" => """Type-check without producing a binary.
+
+  --fix                      write the repairs the checker is sure of, in place
+  --dry-run                  with --fix, print what would change and write
+                             nothing
+  --format=json              one JSON object per diagnostic
+  -A | -W | -D <lint>        allow, warn or deny one lint for this run
+  --deny-warnings            treat every warning as an error
+  --manifest-path <path>     the project's kf.toml, or its directory
+  -p, --package <crate>      check this workspace member
+  --workspace                check every workspace member"""
+        "run" => """Build the project and run the binary it produces.
+
+  --unity             build through one C file instead of per-crate artifacts
+  -p, --package <c>   run this workspace member"""
+        "test" => """Run the project's @test functions.
+
+  --unity              build through one C file
+  --case <substring>   run only cases whose name contains it
+  --filter <substring> run only suites whose name contains it
+  -p, --package <c>    test this workspace member
+  --workspace          test every workspace member"""
+        "lint" => """Check the project and report its lints, with a tally of each at the end.
+Levels come from lint.toml beside kf.toml (and the workspace's), then
+kf.toml's [lint] table, then these flags.
+
+  --list                      every lint: its group, level and what it reports;
+                              with --format=json, as one JSON object
+  --fix                       apply the repairs the lints suggest, as
+                              komp check --fix does
+  --dry-run                   with --fix, print what would change and write
+                              nothing
+  --update-baseline           rewrite lint-baseline.txt, beside lint.toml, with
+                              what the ratchet lints (long_file, long_line,
+                              unsafe_block) count in each crate linted
+  --format=json               one JSON object per diagnostic, no tally
+  -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
+  --deny-warnings             treat every warning as an error
+  --manifest-path <path>      the project's kf.toml, or its directory
+  -p, --package <crate>       lint this workspace member
+  --workspace                 lint every workspace member"""
+        "tool" => """The programs komp builds from a package index into ~/.kflat/tools
+($KFLAT_HOME when set). `komp <command>` runs komp-<command>, the version the
+project's [tools] pins or the default, so installing komp_fmt gives `komp fmt`.
+
+  install <name>[@<req>]   build the highest version the requirement allows,
+                           as in kf.toml, unless it is there already, and make
+                           it the default in ~/.kflat/bin; earlier versions
+                           stay, for projects that pin them
+    --index <url>          the index to look in, instead of the default
+  list                     each program: its default and every stored version
+  update [<name>...]       each program, or those named, to the highest
+                           version the requirement it was installed with
+                           allows; rebuilt only when that is newer
+  remove <name>[@<ver>]    every version, and the default in ~/.kflat/bin;
+                           with @<version>, that version only"""
+        "add" => """Add a library from a package index to the project's [dependencies],
+replacing an entry of that name, then fetch it and update kf.lock. Without a
+requirement, the newest version is written, which allows its compatible
+successors. A program is refused: `komp tool install` installs one.
+
+  <name>@<req>        write this requirement instead
+  --index <name>      an index kf.toml declares under [indexes]
+  -p, --package <c>   add it to this workspace member
+  --manifest-path <p> the project's kf.toml, or its directory"""
+        "cache" => """Look after the sources komp downloads, in $KFLAT_CACHE or ~/.cache/kflat.
+
+  list                       every fetched source and index checkout
+  remove <name>[@<version>]  those sources; the next build fetches them again
+  clean                      everything downloaded; the bootstrap seeds stay
+  verify                     each source against the digest taken when it was
+                             fetched; a damaged one is removed, to be fetched
+                             again, and the exit status is 1"""
+        "search" => """List the packages a package index offers whose names contain <query>,
+each with its newest version; with no query, every package.
+
+  --index <url>     the index to look in, instead of the default
+  --offline         read the index as the cache has it, not bringing it up
+                    to date first"""
+        "info" => """List every version of a package in a package index, marking the newest
+and any yanked.
+
+  --index <url>     the index to look in, instead of the default
+  --offline         read the index as the cache has it, not bringing it up
+                    to date first"""
+        "outdated" => """List the project's index dependencies and [tools] pins, each with its
+requirement, the version kf.lock holds, the newest version the requirement
+allows, and the newest version in its index.
+
+  --offline         read each index as the cache has it, not bringing it up
+                    to date first
+  --format=json     one JSON object"""
+        "toolchain" => """The kflat releases installed in ~/.kflat/toolchains ($KFLAT_HOME when set),
+from those the package index lists as `kflatc`.
+
+  install [<version>]  the newest release; the one named, such as 0.26.1; or
+                       the newest a requirement such as 0.26 allows. Its
+                       archive is checked against the index's checksum, and
+                       ~/.kflat/bin/kflatc then points at it; earlier
+                       toolchains stay. Needs curl, tar and a C compiler
+  list                 every installed toolchain, the default and the running
+                       one marked
+  remove <version>     that toolchain; not the default or the running one"""
+        "self" => """Replace ~/.kflat/bin/komp ($KFLAT_HOME/bin when set) with komp's newest
+release, or the one named, built for this machine and checked against the
+sha256 published beside it. The kflat toolchains are `komp toolchain`'s."""
+        "update" => """Resolve every version, git and tarball dependency again: a
+requirement moves to the highest version its index now has, a tag or branch
+to the commit it names now. Fetches, and rewrites kf.lock.
+
+  -p, --package <c>   update the workspace holding this member"""
+        "publish" => """Add this library's version to a package index by pull request.
+
+The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
+must be checked out, clean, and pushed. The crate must pass `komp check`.
+Opening the pull request uses `gh`; without it, or without a login, the
+entry is committed locally, komp says how to finish by hand, and exits 1.
+
+  --status          list this package's versions in the index, and its
+                    pull requests with their review state
+  --index <url>     another index than komp-co/index or $KFLAT_INDEX"""
+        "metadata" => """Print the project's resolved crates as one JSON object, for tools
+that run kflatc themselves. At a workspace or one of its members, every
+member and every crate they reach, dependencies first. Fetches first, as a
+build would; a failure is JSON too, with an `error` field, and exits 1."""
+        "new" => """Create a new project in a new directory of that name; with no name, or
+`.`, in the current directory, named after it."""
+        "help" => "Print the command list, or the help for one command."
+        _ => ""
+    }
+}
+
+/// A real command.
+pub fun has_help(command: str): bool {
+    return command_usage(command).byte_len() > 0
+}
+
+pub fun print_command_help(command: str): void {
+    runtime_println("usage: ${command_usage(command)}")
+    runtime_println("")
+    runtime_println(command_detail(command))
+}
+
+/// One line each; the detail is behind `komp <command> --help`.
+pub fun print_usage(): void {
+    runtime_println("usage: komp <command> [options] [<project-dir>]")
+    runtime_println("")
+    runtime_println("  build     compile the project to artifacts under target/kflat")
+    runtime_println("  check     type-check without producing a binary")
+    runtime_println("  run       build the project and run it")
+    runtime_println("  test      run the project's @test functions")
+    runtime_println("  lint      report the project's lints, as lint.toml sets them")
+    runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
+    runtime_println("  add       add a library from a package index to [dependencies]")
+    runtime_println("  tool      install, list, update or remove programs from a package index")
+    runtime_println("  search    list the packages an index offers")
+    runtime_println("  cache     list, remove, clean or verify downloaded sources")
+    runtime_println("  info      list a package's versions in an index")
+    runtime_println("  outdated  compare a project's packages with their newest versions")
+    runtime_println("  toolchain install, list or remove kflat releases")
+    runtime_println("  self      update komp itself")
+    runtime_println("  publish   add this library's version to a package index")
+    runtime_println("  metadata  print the resolved crate graph as JSON")
+    runtime_println("  new       create a new project, or one in the current directory")
+    runtime_println("")
+    runtime_println("The project directory defaults to the current directory, or is")
+    runtime_println("named by --manifest-path. At a workspace, a command runs on its")
+    runtime_println("default-member; --package <crate> and --workspace choose others.")
+    runtime_println("Dependencies from an index, git or a tarball are fetched before a")
+    runtime_println("build and pinned in kf.lock: --locked fails rather than change it,")
+    runtime_println("--offline rather than fetch.")
+    runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this;")
+    runtime_println("-V, --version print the version.")
+    runtime_println("")
+    runtime_println("`komp <command> --help` describes one command.")
+}

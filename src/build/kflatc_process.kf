@@ -1,0 +1,232 @@
+// Running the compiler as a process: komp's side of `kflatc compile`.
+
+import alloc.list.*
+import core.args.arg_at
+import core.args.arg_count
+import alloc.path.Path
+import std.process.*
+import std.env.env_var
+import komp.project.lint_toml_for
+import komp.project.lint_baseline_for
+import std.fs.is_file
+import std.fs.scratch_path
+import komp.fetch.remove_tree
+
+extern "C" fun kf_self_dir(): String
+extern "C" fun access(path: str, mode: int32): int32
+
+/// `KFLATC` when set, else `kflatc` beside this binary.
+pub fun kflatc_path(): String {
+    val chosen = env_var("KFLATC") ?: String.from("")
+    if chosen.byte_len() > 0 { return chosen }
+    return beside_self("kflatc")
+}
+
+/// `path` with every link in it resolved, or `path` itself when that fails.
+pub fun link_target(path: str): String {
+    val out = scratch_path("komp_link_target")
+    var resolve = Command.new("readlink")
+    resolve.arg("-f")
+    resolve.arg(path)
+    resolve.stdout_to(Path.new(out))
+    val ok = resolve.status().success()
+    val resolved = read_file(out).as_str().trim()
+    remove_tree(out)
+    return if ok && resolved.byte_len() > 0 { resolved } else { String.from(path) }
+}
+
+/// The program `name` in the directory this binary runs from, symlinks
+/// resolved.
+pub fun beside_self(name: str): String {
+    val dir = unsafe { kf_self_dir() }
+    return "${dir}/${name}"
+}
+
+/// Compiles the crate into `tdir` with kflatc and answers its exit status: 0
+/// when the `.kfi`, `.h` and `.c` were written.
+pub fun BuildCrate.invoke_kflatc(project: str, tdir: str, dep_hashes: &List<String>, is_bin_root: bool): int32 {
+    return self.run_kflatc("compile", project, tdir, dep_hashes, if is_bin_root { "--bin" } else { "" }, "", "")
+}
+
+/// Compiles the crate with its tests into `tdir/test`, `entry_file`
+/// supplying its main, and answers kflatc's exit status.
+pub fun BuildCrate.invoke_kflatc_tests(project: str, tdir: str, dep_hashes: &List<String>, entry_file: str): int32 {
+    return self.run_kflatc("compile", project, tdir, dep_hashes, "--tests", entry_file, "")
+}
+
+/// Type-checks the crate, its tests included, against the interfaces in
+/// `tdir`, and answers kflatc's exit status: 0 when it has no errors.
+pub fun BuildCrate.invoke_kflatc_check(project: str, tdir: str, as_json: bool): int32 {
+    val no_hashes = List.new<String>()
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "" }, "", "")
+}
+
+/// As `invoke_kflatc_check`, with kflatc's tally of the lints after the
+/// diagnostics unless they are JSON.
+pub fun BuildCrate.invoke_kflatc_lint(project: str, tdir: str, as_json: bool): int32 {
+    val no_hashes = List.new<String>()
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "--summary" }, "",
+        "")
+}
+
+/// Every lint, at the level `project`'s configuration and this command
+/// line give it: `kflatc lints`, as JSON for `as_json`.
+pub fun list_lints(project: str, as_json: bool): int32 {
+    val path = kflatc_path()
+    if kflatc_missing(&path) { return 1 }
+    var command = Command.new(path.as_str())
+    command.arg("lints")
+    if as_json { command.arg("--format=json") }
+    forward_compiler_flags(&var command, project)
+    return command.status().exit_code()
+}
+
+/// As `invoke_kflatc_check` with `--format=json`, the diagnostics written to
+/// `report` rather than printed.
+pub fun BuildCrate.invoke_kflatc_check_into(project: str, tdir: str, report: str): int32 {
+    val no_hashes = List.new<String>()
+    return self.run_kflatc("check", project, tdir, &no_hashes, "--format=json", "", report)
+}
+
+/// `mode` is one of kflatc's `--bin`, `--tests` or `--format=json`, or empty. A
+/// non-empty `stdout_path` receives kflatc's output.
+fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: &List<String>, mode: str,
+    entry_file: str, stdout_path: str): int32 {
+    val path = kflatc_path()
+    if kflatc_missing(&path) { return 1 }
+    var command = Command.new(path.as_str())
+    command.arg(subcommand)
+    command.arg("--name")
+    command.arg(self.name.as_str())
+    command.arg("--root")
+    command.arg(self.root.as_str())
+    if self.src.as_str() != "${self.root}/src".as_str() {
+        command.arg("--src")
+        command.arg(self.src.as_str())
+    }
+    command.arg("--out")
+    command.arg(tdir)
+    command.arg("--project")
+    command.arg(project)
+    if mode.byte_len() > 0 { command.arg(mode) }
+    if entry_file.byte_len() > 0 {
+        command.arg("--entry-file")
+        command.arg(entry_file)
+    }
+    forward_compiler_flags(&var command, project)
+    if subcommand == "check" { forward_lint_baseline(&var command, project) }
+    while i in 0..self.deps.size() {
+        val hash = if i < dep_hashes.size() { dep_hashes.at(i).clone() } else { String.from("") }
+        command.arg("--dep")
+        command.arg("${self.deps.at(i)}=${hash}".as_str())
+    }
+    while name in &self.loads {
+        command.arg("--load")
+        command.arg(name.as_str())
+    }
+    if stdout_path.byte_len() > 0 { command.stdout_to(Path.new(stdout_path)) }
+    return command.status().exit_code()
+}
+
+/// Compiles every crate of the graph into the one C file `out` with `kflatc
+/// unity`, their native C sources left out, `entry_file` supplying the main
+/// unless it is "", and answers its exit status.
+pub fun BuildGraph.invoke_kflatc_unity(project: str, out: str, is_bin: bool, with_tests: bool,
+    entry_file: str): int32 {
+    val path = kflatc_path()
+    if kflatc_missing(&path) { return 1 }
+    var command = Command.new(path.as_str())
+    command.arg("unity")
+    while item in &self.crates {
+        command.arg("--crate")
+        command.arg("${item.name}=${item.root}".as_str())
+        if item.src.as_str() != "${item.root}/src".as_str() {
+            command.arg("--crate-src")
+            command.arg("${item.name}=${item.src}".as_str())
+        }
+    }
+    command.arg("--out")
+    command.arg(out)
+    command.arg("--project")
+    command.arg(project)
+    if with_tests { command.arg("--tests") } else if is_bin { command.arg("--bin") }
+    if entry_file.byte_len() > 0 {
+        command.arg("--entry-file")
+        command.arg(entry_file)
+    }
+    forward_compiler_flags(&var command, project)
+    return command.status().exit_code()
+}
+
+/// Names a missing compiler, rather than leaving it to a silent exec failure.
+fun kflatc_missing(path: &String): bool {
+    // X_OK
+    if unsafe { access(path.as_str(), 1) } == 0 { return false }
+    println("komp: no compiler at ${path}; install kflatc beside komp, or set KFLATC")
+    return true
+}
+
+/// The ratchet lints' baseline as `--lint-baseline PATH` when the project
+/// has one, and `--update-lint-baseline` for `komp lint --update-baseline`,
+/// which writes it if it does not exist yet.
+fun forward_lint_baseline(command: &var Command, project: str): void {
+    val updating = has_own_arg("--update-baseline")
+    val baseline = lint_baseline_for(project)
+    if !updating && !is_file(baseline) { return }
+    command.arg("--lint-baseline")
+    command.arg(baseline)
+    if updating { command.arg("--update-lint-baseline") }
+}
+
+/// `arg` on komp's command line, before any `--`.
+fun has_own_arg(wanted: str): bool {
+    while i in 0..arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { return false }
+        if arg == wanted { return true }
+    }
+    return false
+}
+
+/// The project's lint.toml rows as `--lint-toml NAME=LEVEL` and
+/// `--lint-toml-option NAME.KEY=VALUE`, and what is wrong with the file as
+/// `--lint-toml-error`, then its `[lint]` table as
+/// `--lint NAME=LEVEL`, then komp's own quiet and lint flags, which the
+/// compiler reads off its command line: `-q`, `--deny-warnings`,
+/// `-A/-W/-D <lint>`. Only those before `--`.
+fun forward_compiler_flags(command: &var Command, project: str): void {
+    val file = lint_toml_for(project)
+    while problem in &file.problems {
+        command.arg("--lint-toml-error")
+        command.arg(problem.as_str())
+    }
+    while row in &file.groups {
+        command.arg("--lint-toml")
+        command.arg(row.as_str())
+    }
+    while row in &file.lints {
+        command.arg("--lint-toml")
+        command.arg(row.as_str())
+    }
+    while row in &file.options {
+        command.arg("--lint-toml-option")
+        command.arg(row.as_str())
+    }
+    val manifest = manifest_of(project)
+    while row in 0..manifest.lint_names.size() {
+        command.arg("--lint")
+        command.arg("${manifest.lint_names.at(row)}=${manifest.lint_levels.at(row)}".as_str())
+    }
+    var i = 0
+    while i < arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { return }
+        if arg == "-q" || arg == "--quiet" || arg == "--deny-warnings" { command.arg(arg) }
+        if (arg == "-A" || arg == "-W" || arg == "-D") && i + 1 < arg_count() {
+            command.arg(arg)
+            command.arg(arg_at(i + 1))
+            i = i + 1
+        }
+        i = i + 1
+    }
+}

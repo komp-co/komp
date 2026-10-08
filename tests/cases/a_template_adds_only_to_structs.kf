@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// Templates on enums come with the variant loop.
-
-annotation shown on enum
-
-template shown on enum T { }
-
-fun main(): int32 { return 0 }

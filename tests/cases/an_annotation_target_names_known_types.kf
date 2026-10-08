@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// A name with type arguments is no type parameter, so one naming no type is
-// reported rather than leaving the annotation to match nothing.
-
-annotation listed on (Mising<int32>) -> int32
-
-fun main(): int32 { return 0 }

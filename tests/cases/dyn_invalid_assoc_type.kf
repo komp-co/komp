@@ -1,9 +1,0 @@
-//! build: fail
-
-trait Producer {
-    type Item
-    fun produce(): int32
-}
-
-fun invalid(value: &dyn Producer): int32 { return value.produce() }
-fun main(): int32 { return 0 }

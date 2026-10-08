@@ -1,0 +1,111 @@
+// One package's file in an index: where it lives, and its versions.
+//
+//   schema = 1
+//   name = "json"
+//   description = "JSON reading and writing"   # optional
+//   kind = "toolchain"              # optional: a kflat toolchain, not a crate
+//
+//   [[version]]
+//   version = "0.1.0"
+//   source = { git = "https://host/json.git", rev = "<commit>" }
+//   yanked = true                   # optional
+//
+// A `tarball` source carries `checksum = "sha256:..."` beside it. Unknown
+// keys are ignored.
+
+import alloc.list.*
+import komp.project.inline_table_value
+import komp.project.read_bool_value
+import komp.project.read_key
+import komp.project.read_string_value
+import komp.project.split_lines
+import komp.project.trim_string
+
+@derive(Clone)
+pub struct IndexVersion {
+    pub val version: String
+    pub val git: String
+    pub val rev: String
+    pub val tarball: String
+    pub val checksum: String
+    pub val yanked: bool
+}
+
+/// `json` is `js/on/json.toml`, `yml` is `3/y/yml.toml`, `ab` is `2/ab.toml`.
+pub fun index_file_path(name: str): String {
+    val n = name.byte_len()
+    if n <= 2 { return "${n}/${name}.toml" }
+    if n == 3 { return "3/${name.substring(0, 1)}/${name}.toml" }
+    return "${name.substring(0, 2)}/${name.substring(2, 4)}/${name}.toml"
+}
+
+/// The `description` before the first `[[version]]`, or "".
+pub fun index_file_description(src: str): String {
+    return header_value(src, "description")
+}
+
+/// A toolchain's versions are kflat release archives, installed by
+/// `komp toolchain`, never fetched as a crate.
+pub fun index_file_is_toolchain(src: str): bool {
+    return header_value(src, "kind").as_str() == "toolchain"
+}
+
+/// The string `key` holds before the first `[[version]]`, or "".
+fun header_value(src: str, key: str): String {
+    val lines = split_lines(src)
+    while raw in &lines {
+        val line = trim_string(raw.clone())
+        if line.as_str() == "[[version]]" { return "" }
+        if read_key(line.clone()).as_str() == key { return read_string_value(line) }
+    }
+    return ""
+}
+
+/// The versions in file order. An entry of another schema reads as none.
+pub fun parse_index_file(src: str): List<IndexVersion> {
+    var out = List.new<IndexVersion>()
+    var in_version = false
+    var version = ""
+    var source = ""
+    var checksum = ""
+    var yanked = false
+    val lines = split_lines(src)
+    while raw in &lines {
+        val line = trim_string(raw.clone())
+        val key = read_key(line.clone())
+        if !in_version && key.as_str() == "schema" && read_bare_value(line.as_str()).as_str() != "1" {
+            return List.new<IndexVersion>()
+        }
+        if line.as_str() == "[[version]]" {
+            if in_version { out.push(index_version_from(version, source.as_str(), checksum, yanked)) }
+            in_version = true
+            version = ""
+            source = ""
+            checksum = ""
+            yanked = false
+        } else if in_version {
+            when key.as_str() {
+                "version" => version = read_string_value(line.clone())
+                "source" => source = line.clone()
+                "checksum" => checksum = read_string_value(line.clone())
+                "yanked" => yanked = read_bool_value(line.clone())
+                _ => { }
+            }
+        }
+    }
+    if in_version { out.push(index_version_from(version, source.as_str(), checksum, yanked)) }
+    return out
+}
+
+fun index_version_from(version: String, source: str, checksum: String, yanked: bool): IndexVersion {
+    return IndexVersion {
+        version: version, git: inline_table_value(source, "git"), rev: inline_table_value(source, "rev"),
+        tarball: inline_table_value(source, "tarball"), checksum: checksum, yanked: yanked
+    }
+}
+
+/// `key = 1` -> "1".
+fun read_bare_value(line: str): String {
+    val eq = line.index_of("=") ?: return ""
+    return trim_string(line.substring(eq + 1, line.byte_len()))
+}

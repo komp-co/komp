@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-// `@bench` names nothing: no built-in and no `annotation bench`.
-
-@bench
-fun measured(): void {}
-
-fun main(): int32 { return 0 }

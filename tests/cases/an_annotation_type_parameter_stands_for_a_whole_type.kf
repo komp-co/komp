@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-// A type parameter, like `_`, stands for a whole parameter or result, or one
-// behind `&`; not for a type argument.
-
-annotation listed on (List<T>) -> bool
-
-fun main(): int32 { return 0 }

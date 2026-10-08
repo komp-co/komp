@@ -1,7 +1,0 @@
-// Total ordering: negative before `other`, zero when equal, positive after.
-// NaN sorts after every number, all NaNs together.
-/// The language finds the ordering trait by key, not name.
-@lang("compare")
-pub trait Compare {
-    fun compare(other: &Self): int32
-}

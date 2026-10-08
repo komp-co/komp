@@ -1,8 +1,0 @@
-//! run: exit 0
-//! deps: core
-
-fun main(): int32 {
-    val p: Ptr<int32> = unsafe { alloc_array<int32>(2) }
-    unsafe { *(p + 1) = 42 }
-    return unsafe { *(p + 1) } - 42
-}

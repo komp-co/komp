@@ -1,0 +1,149 @@
+// A project pinned to a toolchain komp is not: `kflat = "9.9"` against an
+// install home in scratch space whose `toolchains/9.9.1` holds a copy of the
+// compiler under test and the repository's libraries.
+
+import alloc.list.*
+import core.assert.assert_eq
+import komp.build.bundled_libs_root
+import komp.cli.run_project_mode
+import komp.build.BuildMode
+import komp.cli.toolchain_error_for
+import komp.fetch.resolve_from_index
+import komp.install.default_toolchain
+import komp.install.make_default_toolchain
+import komp.project.Dependency
+import std.env.env_var
+import std.fs.exists
+import std.fs.scratch_root
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun setenv(name: str, value: str, overwrite: int32): int32
+extern "C" fun unsetenv(name: str): int32
+
+/// A bin crate pinned to 9.9.1 in `<scratch>/<name>`, and an install home
+/// beside it holding that toolchain, set as `KFLAT_HOME` with `KFLATC` unset.
+fun pinned_project(name: str): String {
+    val root = "${scratch_root()}/${name}"
+    val toolchain = "${root}_home/toolchains/9.9.1"
+    val compiler = env_var("KFLATC") ?: String.from("")
+    val setup = "rm -rf ${root} ${root}_home && mkdir -p ${root}/src ${toolchain}/bin && " +
+        "cp ${compiler} ${toolchain}/bin/kflatc && cp -R ${bundled_libs_root(".")} ${toolchain}/libs"
+    val _made = unsafe { system(setup.as_str()) }
+    write_file("${root}/kf.toml".as_str(),
+        "[project]\nname = \"pinned\"\nversion = \"0.1.0\"\nkind = \"bin\"\nkflat = \"9.9\"\n")
+    write_file("${root}/src/main.kf".as_str(), "fun main(): int32 { return 0 }\n")
+    val _home = unsafe { setenv("KFLAT_HOME", "${root}_home".as_str(), 1) }
+    val _unset = unsafe { unsetenv("KFLATC") }
+    return root
+}
+
+@test
+fun a_pin_points_kflatc_at_its_toolchain(): void {
+    val root = pinned_project("kf_pin_choice")
+    val _chosen = toolchain_error_for(root.as_str(), true)
+    val kflatc = env_var("KFLATC") ?: String.from("")
+    assert_eq(kflatc.as_str(), "${root}_home/toolchains/9.9.1/bin/kflatc".as_str(), "the pinned compiler")
+}
+
+@test
+fun the_libraries_come_from_the_pinned_toolchain(): void {
+    val root = pinned_project("kf_pin_libs")
+    val _chosen = toolchain_error_for(root.as_str(), true)
+    assert_eq(bundled_libs_root(root.as_str()).as_str().ends_with("_home/toolchains/9.9.1/libs"), true,
+        "what the compiler ships with")
+}
+
+@test
+fun a_pinned_project_runs(): void {
+    val root = pinned_project("kf_pin_run")
+    val chosen = toolchain_error_for(root.as_str(), true)
+    assert_eq(chosen.is_empty() && run_project_mode(root.as_str(), BuildMode.Separate) == 0, true,
+        "built and run with the toolchain")
+}
+
+/// An index in scratch space, set as `KFLAT_INDEX`, listing `kflatc`
+/// `version`: an archive whose install.sh puts a copy of the compiler under
+/// test in `$KFLAT_HOME/toolchains/<version>` and marks `$KFLAT_HOME/bin`, as
+/// a real one links there.
+fun toolchain_index(name: str, version: str): String {
+    val root = "${scratch_root()}/${name}"
+    val work = "${root}/work/kflat-${version}"
+    val compiler = env_var("KFLATC") ?: String.from("")
+    val _made = unsafe { system("rm -rf ${root} && mkdir -p ${work} ${root}/index/kf/la".as_str()) }
+    val toolchain = "$KFLAT_HOME/toolchains/${version}"
+    write_file("${work}/install.sh".as_str(), ("mkdir -p \"${toolchain}/bin\" \"$KFLAT_HOME/bin\" && " +
+            "cp ${compiler} \"${toolchain}/bin/kflatc\" && touch \"$KFLAT_HOME/bin/kflatc\"\n").as_str())
+    val archive = "${root}/kflat-${version}.tar.gz"
+    val pack = "cd ${root}/work && tar -czf ${archive} kflat-${version} && " +
+        "sha256sum ${archive} | cut -d' ' -f1 > ${archive}.sum"
+    val _packed = unsafe { system(pack.as_str()) }
+    val sum = read_file("${archive}.sum".as_str()).as_str().trim()
+    write_file("${root}/index/config.toml".as_str(), "schema = 1\n")
+    write_file("${root}/index/kf/la/kflatc.toml".as_str(), """schema = 1
+name = "kflatc"
+kind = "toolchain"
+
+[[version]]
+version = "${version}"
+source = { tarball = "file://${archive}" }
+checksum = "sha256:${sum}"
+""".as_str())
+    val commit = "cd ${root}/index && git init -q && git add . && git -c user.name=t -c user.email=t@t commit -qm index"
+    val _committed = unsafe { system(commit.as_str()) }
+    val _set = unsafe { setenv("KFLAT_INDEX", "file://${root}/index".as_str(), 1) }
+    return "${root}/index"
+}
+
+/// A bin crate pinned to `9.9.3`, which its install home does not hold.
+fun unmet_pin(name: str): String {
+    val _index = toolchain_index("${name}_index".as_str(), "9.9.3")
+    val root = pinned_project(name)
+    write_file("${root}/kf.toml".as_str(),
+        "[project]\nname = \"pinned\"\nversion = \"0.1.0\"\nkind = \"bin\"\nkflat = \"9.9.3\"\n")
+    val _cache = unsafe { setenv("KFLAT_CACHE", "${root}_cache".as_str(), 1) }
+    return root
+}
+
+@test
+fun a_missing_toolchain_is_installed_from_the_index(): void {
+    val root = unmet_pin("kf_pin_install")
+    val error = toolchain_error_for(root.as_str(), false)
+    val kflatc = env_var("KFLATC") ?: String.from("")
+    assert_eq(error.is_empty() && kflatc.ends_with("_home/toolchains/9.9.3/bin/kflatc"), true, "installed and chosen")
+}
+
+@test
+fun installing_a_toolchain_leaves_bin_alone(): void {
+    val root = unmet_pin("kf_pin_bin")
+    val _chosen = toolchain_error_for(root.as_str(), false)
+    val installed = exists("${root}_home/toolchains/9.9.3/bin/kflatc".as_str())
+    assert_eq(installed && !exists("${root}_home/bin/kflatc".as_str()), true, "the default is not relinked")
+}
+
+@test
+fun offline_a_missing_toolchain_is_not_installed(): void {
+    val root = unmet_pin("kf_pin_offline")
+    val error = toolchain_error_for(root.as_str(), true)
+    assert_eq(error.contains("--offline") && !exists("${root}_home/toolchains/9.9.3".as_str()), true, "refused")
+}
+
+@test
+fun an_installed_toolchain_made_the_default_is_bin_kflatc(): void {
+    val root = unmet_pin("kf_pin_default")
+    val _chosen = toolchain_error_for(root.as_str(), false)
+    val _linked = make_default_toolchain("${root}_home".as_str(), "9.9.3")
+    assert_eq(default_toolchain("${root}_home".as_str()).as_str(), "9.9.3", "bin/kflatc links to it")
+}
+
+@test
+fun a_project_cannot_depend_on_a_toolchain(): void {
+    val index = toolchain_index("kf_pin_not_a_crate", "9.9.4")
+    val dep = Dependency {
+        name: "kflatc", version: "9.9", index: "", index_url: "file://${index}", path: "", git: "", rev: "", tag: "",
+        branch: "", tarball: "", checksum: ""
+    }
+    var refreshed = List.new<String>()
+    val fetched = resolve_from_index(&dep, test_cache().as_str(), &var refreshed)
+    assert_eq(fetched.error.contains("is a kflat toolchain"), true, "refused by name")
+}

@@ -1,0 +1,33 @@
+import core.assert.assert_eq
+import testing.test
+
+@test
+fun a_release_page_names_its_version(): void {
+    assert_eq(version_in_release_url("https://github.com/komp-co/komp/releases/tag/v0.5.1").as_str(), "0.5.1",
+        "after /tag/v")
+}
+
+@test
+fun the_releases_list_names_no_version(): void {
+    assert_eq(version_in_release_url("https://github.com/komp-co/komp/releases").as_str(), "", "no tag")
+}
+
+@test
+fun an_x86_64_linux_is_linux_x86_64(): void {
+    assert_eq(release_target("Linux", "x86_64").as_str(), "linux-x86_64", "the static musl build")
+}
+
+@test
+fun an_arm_linux_is_linux_aarch64(): void {
+    assert_eq(release_target("Linux", "aarch64").as_str(), "linux-aarch64", "as uname -m says it")
+}
+
+@test
+fun an_arm_mac_is_macos_arm64(): void {
+    assert_eq(release_target("Darwin", "arm64").as_str(), "macos-arm64", "as Apple says it")
+}
+
+@test
+fun a_machine_without_a_build_has_no_target(): void {
+    assert_eq(release_target("FreeBSD", "x86_64").as_str(), "", "nothing to download")
+}

@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core, alloc
-
-trait Display {
-    fun render(): String
-}
-
-fun main(): int32 { return 0 }

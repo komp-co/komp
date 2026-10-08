@@ -1,8 +1,0 @@
-//! build: fail
-//! deps: core
-// The list before the name belongs to an extension's receiver. A plain
-// function has only its own parameters, declared after its name.
-
-fun <T> identity(x: T): T { return x }
-
-fun main(): int32 { return 0 }

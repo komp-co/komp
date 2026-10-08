@@ -1,9 +1,0 @@
-//! build: fail
-//! deps: core
-// A slice is a view: like `&T`, it is not stored in a struct.
-
-struct Holder {
-    val items: &int32[]
-}
-
-fun main(): int32 { return 0 }

@@ -1,0 +1,91 @@
+// `komp outdated`: for each dependency and tool a project takes from an
+// index, what its requirement allows, what kf.lock holds, and what is newest.
+
+import alloc.list.*
+import komp.fetch.LockEntry
+import komp.fetch.index_package_in
+import komp.project.Dependency
+import komp.project.declared_index_url
+import komp.project.enclosing_workspace
+import komp.project.parse_manifest
+import komp.project.tools_rows
+
+pub struct OutdatedRow {
+    pub val name: String
+    pub val requirement: String
+    /// The index URL, or "" when [indexes] does not declare the one named.
+    pub val index: String
+    /// kf.lock's version, or "": a tool is never locked.
+    pub val locked: String
+    /// The newest version the requirement allows, or "".
+    pub val allowed: String
+    /// The newest version, or "".
+    pub val newest: String
+    /// Why the index could not say, or "".
+    pub val error: String
+}
+
+pub struct Outdated {
+    pub val dependencies: List<OutdatedRow>
+    /// The `[tools]` of the project's workspace, or of the project.
+    pub val tools: List<OutdatedRow>
+}
+
+/// The project at `root`'s index dependencies and tools. Each index is
+/// brought up to date once, or with `offline` read as the cache has it.
+pub fun outdated(root: str, cache: str, offline: bool): Outdated {
+    val src = read_file("${root}/kf.toml".as_str())
+    val lock = read_lock(root)
+    var refreshed = List.new<String>()
+    var dependencies = List.new<OutdatedRow>()
+    val deps = parse_manifest(src.as_str()).deps
+    while dep in &deps {
+        if dep.version.is_empty() || !dep.git.is_empty() || !dep.path.is_empty() || !dep.tarball.is_empty() { continue }
+        val locked = locked_version(&lock, dep.name.as_str())
+        dependencies.push(outdated_row(dep, src.as_str(), locked.as_str(), cache, offline, &var refreshed))
+    }
+    var tools_src = src.clone()
+    val workspace = enclosing_workspace(root)
+    if !workspace.is_empty() { tools_src = read_file("${workspace}/kf.toml".as_str()) }
+    var tools = List.new<OutdatedRow>()
+    val pins = tools_rows(tools_src.as_str())
+    while pin in &pins { tools.push(outdated_row(pin, tools_src.as_str(), "", cache, offline, &var refreshed)) }
+    return Outdated { dependencies: dependencies, tools: tools }
+}
+
+fun outdated_row(dep: &Dependency, src: str, locked: str, cache: str, offline: bool,
+    refreshed: &var List<String>): OutdatedRow {
+    val url = declared_index_url(src, dep.index.as_str())
+    if url.is_empty() {
+        return OutdatedRow {
+            name: dep.name.clone(), requirement: dep.version.clone(), index: "", locked: String.from(locked),
+            allowed: "", newest: "", error: "[indexes] does not declare the index `${dep.index}`"
+        }
+    }
+    if offline && !lists(refreshed, url.as_str()) { refreshed.push(url.clone()) }
+    val found = index_package_in(url.as_str(), dep.name.as_str(), cache, refreshed)
+    var allowed = String.from("")
+    var newest = String.from("")
+    if found.error.is_empty() {
+        allowed = found.packages[0].newest_allowed(dep.version.as_str())
+        newest = found.packages[0].newest()
+    }
+    return OutdatedRow {
+        name: dep.name.clone(), requirement: dep.version.clone(), index: url, locked: String.from(locked),
+        allowed: allowed, newest: newest, error: found.error.clone()
+    }
+}
+
+fun locked_version(lock: &List<LockEntry>, name: str): String {
+    while entry in lock {
+        if entry.name.as_str() == name { return entry.version.clone() }
+    }
+    return String.from("")
+}
+
+fun lists(urls: &List<String>, url: str): bool {
+    while listed in urls {
+        if listed.as_str() == url { return true }
+    }
+    return false
+}

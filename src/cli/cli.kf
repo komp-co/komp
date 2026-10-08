@@ -1,0 +1,382 @@
+// Parses arguments and dispatches each command; cli_help.kf lists them.
+//
+// CONSTRAINT: an arg0 that is not a subcommand is the project directory, so
+// the bootstrap script and older seeds keep building komp.
+
+import std.process.*
+import komp.build.*
+import komp.project.command_dir
+import komp.project.parent_path
+import std.fs.*
+import komp.build.binary_path
+import komp.komp_version
+
+// Bodies in the runtime prelude, which captures argv in main().
+
+// Returns a wait status, not an exit code: only compare it with 0. As an exit
+// code, 256 truncates to 0 and a failure reads as success. To report a
+// program's code, use Command.status().exit_code().
+extern "C" fun system(cmd: str): int32
+
+/// Artifact mode writes under target/kflat; unity mode writes one C file.
+pub fun build_project_mode(root: str, mode: BuildMode, unity_out: str): int32 {
+    return when (mode) {
+        Separate => build_project_separate(root, user_cflags().as_str())
+        Unity => build_project(root, unity_out)
+    }
+}
+
+pub fun run_project_mode(root: str, mode: BuildMode): int32 {
+    val graph = build_crate_graph(root, false)
+    if graph.error.as_str() != "" {
+        runtime_println(graph.error.as_str())
+        return 1
+    }
+    if !project_has_program(root) {
+        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml, or add a [bin] section)")
+        return 1
+    }
+    when (mode) {
+        Unity => return run_project(root)
+        Separate => {
+            val built = build_project_separate(root, user_cflags().as_str())
+            if built != 0 { return built }
+            val graph = build_crate_graph(root, false)
+            val root_crate = *graph.crates.at(graph.crates.size() - 1)
+            val binary = binary_path(target_dir(root).as_str(), root_crate.package.as_str())
+            return Command.new(binary.as_str()).status().exit_code()
+        }
+    }
+}
+
+/// The first argument from `index` on that is neither a flag nor a flag's
+/// value, or "." when there is none: every command's directory is optional
+/// and may come before or after its flags.
+fun project_at(nargs: int32, index: int32): str {
+    var i: int32 = index
+    while i < nargs {
+        val a: str = cli_arg_get(i)
+        if flag_takes_value(a) {
+            i = i + 1
+        } else if !starts_with_dash(a) {
+            return a
+        }
+        i = i + 1
+    }
+    return "."
+}
+
+/// The flags whose value is the next argument.
+val VALUE_FLAGS: str[] = ["--manifest-path", "-o", "--output", "--case", "--filter", "--index", "-A", "-W", "-D"]
+
+fun flag_takes_value(a: str): bool {
+    return VALUE_FLAGS.contains(a) || is_selection_value_flag(a)
+}
+
+/// The project root `--manifest-path` names, or "". A value ending in
+/// `kf.toml` is reduced to its directory; the directory itself works too.
+fun manifest_root(nargs: int32): String {
+    val v: str = flag_value(nargs, "--manifest-path")
+    if v == "" { return "" }
+    if basename_of(v).as_str() == "kf.toml" { return parent_path(v) }
+    return String.from(v)
+}
+
+/// `--manifest-path` wins over a positional directory.
+fun project_for(nargs: int32, index: int32): String {
+    val from_manifest = manifest_root(nargs)
+    if from_manifest.as_str() != "" { return from_manifest }
+    return String.from(project_at(nargs, index))
+}
+
+/// Neither a flag nor a flag's value (so `--case foo` does not make `foo` a
+/// directory).
+fun positionals_from(nargs: int32, from: int32): int32 {
+    var n = 0
+    var i: int32 = from
+    while i < nargs {
+        val a: str = cli_arg_get(i)
+        if flag_takes_value(a) {
+            i = i + 1
+        } else if !starts_with_dash(a) {
+            n = n + 1
+        }
+        i = i + 1
+    }
+    return n
+}
+
+fun usage_error(command: str): int32 {
+    runtime_println("usage: ${command_usage(command)}")
+    return 1
+}
+
+pub fun run_cli(): int32 {
+    // argv[0] is hidden: index 0 is the first real argument.
+    val nargs: int32 = cli_arg_count()
+
+    // An installed tool reads its own flags, `--help` among them. A
+    // built-in command of the same name wins.
+    if nargs >= 1 && !has_help(cli_arg_get(0)) {
+        val ran = run_tool_command(cli_arg_get(0), nargs)
+        if ran != null { return ran ?: 1 }
+    }
+    // A help flag before `--` wins, so a half-written command explains itself.
+    if wants_help() {
+        if nargs >= 1 && has_help(cli_arg_get(0)) {
+            print_command_help(cli_arg_get(0))
+            return 0
+        }
+        print_usage()
+        return 0
+    }
+    // Before the positional form, which would read `--version` as a directory.
+    if wants_version() {
+        println("komp ${komp_version()}")
+        return 0
+    }
+    if nargs < 1 {
+        print_usage()
+        return 1
+    }
+    val a0: str = cli_arg_get(0)
+
+    when a0 {
+        "help" => {
+            // `komp help build` means `komp build --help`.
+            if nargs >= 2 && has_help(cli_arg_get(1)) {
+                print_command_help(cli_arg_get(1))
+                return 0
+            }
+            print_usage()
+            return 0
+        }
+        "check" => {
+            // Lint flags are read by the lint config itself and skipped here. The
+            // project directory is the last argument that is not a flag or value.
+            var as_json = false
+            var fix = false
+            var dry_run = false
+            var project = ""
+            var ci = 1
+            while ci < nargs {
+                val arg = cli_arg_get(ci)
+                if is_format_flag(arg) {
+                    as_json = true
+                } else if arg == "--fix" {
+                    fix = true
+                } else if arg == "--dry-run" {
+                    dry_run = true
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    ci = ci + 1 // skip the lint name
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    ci = ci + 1 // read by manifest_root / package_flag
+                } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else {
+                    project = String.from(arg)
+                }
+                ci = ci + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            if dry_run && !fix { return usage_error("check") }
+            if fix { return run_on_selected("fix", project.as_str(), nargs, dry_run) }
+            return run_on_selected("check", project.as_str(), nargs, as_json)
+        }
+        "lint" => {
+            // As `check`, with `--list` and `--fix` of its own.
+            var list = false
+            var fix = false
+            var dry_run = false
+            var as_json = false
+            var project = ""
+            var li = 1
+            while li < nargs {
+                val arg = cli_arg_get(li)
+                if arg == "--list" {
+                    list = true
+                } else if arg == "--fix" {
+                    fix = true
+                } else if arg == "--dry-run" {
+                    dry_run = true
+                } else if is_format_flag(arg) {
+                    as_json = true
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    li = li + 1 // read by the lint config
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    li = li + 1 // read by manifest_root / package_flag
+                } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else if arg == "--update-baseline" {
+                    // read by forward_lint_baseline
+                } else if starts_with_dash(arg) || project.as_str() != "" {
+                    return usage_error("lint")
+                } else {
+                    project = String.from(arg)
+                }
+                li = li + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            if list {
+                val dir = command_dir(project.as_str())
+                val no_toolchain = toolchain_error_for(dir.as_str(), has_own_flag(nargs, "--offline"))
+                if no_toolchain.byte_len() > 0 {
+                    runtime_println(no_toolchain.as_str())
+                    return 1
+                }
+                return list_lints(dir.as_str(), as_json)
+            }
+            if dry_run && !fix { return usage_error("lint") }
+            if fix { return run_on_selected("fix", project.as_str(), nargs, dry_run) }
+            return run_on_selected("lint", project.as_str(), nargs, as_json)
+        }
+        "run" => {
+            val mode = build_mode_from_flag(cli_arg_get(1))
+            val base = when (mode) {
+                Unity => 2
+                Separate => 1
+            }
+            if positionals_from(nargs, base) > 1 { return usage_error("run") }
+            val root = single_selected_crate("run", project_for(nargs, base).as_str(), nargs)
+            if root.as_str() == "" { return 1 }
+            if !fetched_for(root.as_str(), nargs) { return 1 }
+            return run_project_mode(root.as_str(), mode)
+        }
+        "build" => {
+            // The whole line is read so flags compose: `-o`, `--unity`,
+            // `--verbose`, and the one positional directory anywhere. Lint flags
+            // are skipped, as in `check`; lowering's lints are only reachable from
+            // a build.
+            var verbose = false
+            var unity = false
+            var output = ""
+            var project = ""
+            var bi = 1
+            while bi < nargs {
+                val arg: str = cli_arg_get(bi)
+                if arg == "--verbose" {
+                    verbose = true
+                } else if arg == "--unity" {
+                    unity = true
+                } else if arg == "-o" || arg == "--output" {
+                    bi = bi + 1
+                    if bi >= nargs { return usage_error("build") }
+                    output = String.from(cli_arg_get(bi))
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    bi = bi + 1 // read by manifest_root / package_flag
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    bi = bi + 1 // skip the lint name
+                } else if arg == "--workspace" || arg == "--deny-warnings" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else if starts_with_dash(arg) {
+                    return usage_error("build")
+                } else if project.as_str() == "" {
+                    project = String.from(arg)
+                } else if output.as_str() == "" {
+                    // `komp build --unity <dir> out.c`
+                    output = String.from(arg)
+                } else {
+                    return usage_error("build")
+                }
+                bi = bi + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            if output.as_str() == "" && !unity {
+                return run_on_selected("build", project.as_str(), nargs, verbose)
+            }
+            // A whole program is one crate's.
+            project = single_selected_crate("build", project.as_str(), nargs)
+            if project.as_str() == "" { return 1 }
+            if !fetched_for(project.as_str(), nargs) { return 1 }
+
+            // A single output file is the whole-program form: `komp build -o
+            // out.c` means `komp <dir> out.c`.
+            if output.as_str() != "" {
+                return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), output.as_str())
+            }
+            val out = default_unity_output(project.as_str())
+            return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), out.as_str())
+        }
+        "test" => {
+            val mode = build_mode_from_flag(cli_arg_get(1))
+            when (mode) {
+                Unity => {
+                    return run_on_selected("test", project_for(nargs, 2).as_str(), nargs, true)
+                }
+                Separate => {
+                    if !test_flags_well_formed(nargs, 1) {
+                        return usage_error("test")
+                    }
+                    return run_on_selected("test", project_for(nargs, 1).as_str(), nargs, false)
+                }
+            }
+        }
+        "publish" => return publish_command(nargs)
+        "metadata" => {
+            if positionals_from(nargs, 1) > 1 { return usage_error("metadata") }
+            return metadata_command(project_for(nargs, 1).as_str(), nargs)
+        }
+        "update" => {
+            if positionals_from(nargs, 1) > 1 { return usage_error("update") }
+            return update_project(project_for(nargs, 1).as_str(), nargs)
+        }
+        "new" => {
+            if nargs > 2 { return usage_error("new") }
+            return new_project(if nargs == 2 { cli_arg_get(1) } else { "" })
+        }
+        "tool" => return tool_command(nargs)
+        "add" => return add_command(nargs)
+        "search" => return search_command(nargs)
+        "cache" => return cache_command(nargs)
+        "info" => return info_command(nargs)
+        "outdated" => return outdated_command(nargs)
+        "toolchain" => return toolchain_command(nargs)
+        "self" => return self_command(nargs)
+        _ => { }
+    }
+
+    if !is_directory(a0) {
+        runtime_println("error: no command `${a0}`, no installed komp-${a0}, and no project directory by that name")
+        runtime_println("`komp help` lists the commands; `komp tool install ${tool_package(a0)}` adds the program")
+        return 1
+    }
+    // CONSTRAINT: the legacy positional form the bootstrap script uses; no
+    // subcommand may be required here.
+    if nargs >= 2 {
+        return build_project(a0, cli_arg_get(1))
+    }
+    return build_project(a0, default_unity_output(a0).as_str())
+}
+
+fun build_project(root: str, out: str): int32 {
+    val c = compile_project(root) ?: return build_failed("komp build: errors found; no output written")
+    write_file(out, c.as_str())
+    return 0
+}
+
+fun build_failed(message: str): int32 {
+    runtime_println(message)
+    return 1
+}
+
+/// cc's status on a build failure, else the program's (a raw wait status).
+fun run_project(root: str): int32 {
+    if !project_has_program(root) {
+        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml, or add a [bin] section)")
+        return 1
+    }
+    val c = compile_project(root) ?: return build_failed("komp run: errors found; not building")
+    write_file(scratch_path("komp_run.c"), c.as_str())
+    val cc_rc: int32 = system("cc ${scratch_path("komp_run.c")} -lm -o ${scratch_path("komp_run_bin")}")
+    if cc_rc != 0 {
+        runtime_println("komp run: cc failed")
+        return 1
+    }
+    return Command.new(scratch_path("komp_run_bin")).status().exit_code()
+}

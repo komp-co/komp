@@ -1,8 +1,0 @@
-//! build: fail
-
-trait Duplicate {
-    fun duplicate(): Self
-}
-
-fun invalid(value: &dyn Duplicate): &dyn Duplicate { return value }
-fun main(): int32 { return 0 }

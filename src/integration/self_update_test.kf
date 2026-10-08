@@ -1,0 +1,77 @@
+// `komp self update` against releases laid out as GitHub lays them out, in
+// scratch space: `download/v<version>/komp-<version>-<target>.tar.gz` and its
+// `.sha256`. The archive's komp is a script that prints its version.
+
+import core.assert.assert_eq
+import komp.install.self_update
+import komp.install.this_release_target
+import std.fs.exists
+import testing.test
+
+/// A release of `version` for this machine under `releases`; `honest` false
+/// publishes a wrong sha256.
+fun fake_komp_release(releases: &String, version: str, honest: bool): void {
+    val name = "komp-${version}-${this_release_target()}"
+    val dir = "${releases}/download/v${version}"
+    val work = "${releases}_work"
+    sh("rm -rf ${work} && mkdir -p ${work}/${name}/bin ${dir}".as_str())
+    write_file("${work}/${name}/bin/komp".as_str(), "echo ${version}\n".as_str())
+    sh("cd ${work} && tar -czf ${dir}/${name}.tar.gz ${name}".as_str())
+    val sum = if honest { "cd ${dir} && sha256sum ${name}.tar.gz > ${name}.tar.gz.sha256" } else {
+        "echo 0000 > ${dir}/${name}.tar.gz.sha256"
+    }
+    sh(sum.as_str())
+}
+
+fun release_dir(name: str): String {
+    val releases = dir_of(name)
+    sh("rm -rf ${releases}".as_str())
+    val _set = unsafe { setenv("KOMP_RELEASES", "file://${releases}".as_str(), 1) }
+    return releases
+}
+
+/// An install home whose `bin/komp` is a link, as earlier installs left it.
+fun linked_home(name: str): String {
+    val home = dir_of(name)
+    sh("rm -rf ${home} && mkdir -p ${home}/bin ${home}/toolchains/0.24.0/bin".as_str())
+    sh("touch ${home}/toolchains/0.24.0/bin/komp && ln -s ${home}/toolchains/0.24.0/bin/komp ${home}/bin/komp".as_str())
+    return home
+}
+
+@test
+fun a_named_release_replaces_bin_komp(): void {
+    val releases = release_dir("kf_self_releases_a")
+    fake_komp_release(&releases, "9.9.9", true)
+    val home = linked_home("kf_self_home_a")
+    val done = self_update("9.9.9", "1.0.0", home.as_str(), test_cache().as_str())
+    val now = read_file("${home}/bin/komp".as_str())
+    assert_eq(done.installed && now.as_str() == "echo 9.9.9\n", true, "the release's komp")
+}
+
+@test
+fun replacing_a_linked_komp_leaves_its_toolchain_alone(): void {
+    val releases = release_dir("kf_self_releases_d")
+    fake_komp_release(&releases, "9.9.6", true)
+    val home = linked_home("kf_self_home_d")
+    val _done = self_update("9.9.6", "1.0.0", home.as_str(), test_cache().as_str())
+    val old = read_file("${home}/toolchains/0.24.0/bin/komp".as_str())
+    assert_eq(old.as_str(), "", "the link was replaced, not written through")
+}
+
+@test
+fun an_archive_that_does_not_match_its_sha256_is_refused(): void {
+    val releases = release_dir("kf_self_releases_b")
+    fake_komp_release(&releases, "9.9.8", false)
+    val home = dir_of("kf_self_home_b")
+    sh("rm -rf ${home}".as_str())
+    val done = self_update("9.9.8", "1.0.0", home.as_str(), test_cache().as_str())
+    assert_eq(done.error.contains("sha256") && !exists("${home}/bin/komp".as_str()), true, "nothing installed")
+}
+
+@test
+fun a_release_that_does_not_exist_says_so(): void {
+    val _releases = release_dir("kf_self_releases_c")
+    val home = dir_of("kf_self_home_c")
+    val done = self_update("9.9.7", "1.0.0", home.as_str(), test_cache().as_str())
+    assert_eq(done.error.contains("9.9.7"), true, "names the version")
+}

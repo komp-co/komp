@@ -1,6 +1,0 @@
-//! build: fail
-// A type-argument list left open at the end of the file is an error, and the
-// parse ends.
-
-fun main(): int32 {
-    val p: Ptr<int32> = unsafe { alloc<int32

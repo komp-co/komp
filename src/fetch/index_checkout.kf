@@ -1,0 +1,80 @@
+// A package index, cloned into the cache and brought up to date at most
+// once per command.
+
+import alloc.list.*
+import std.process.Command
+import std.fs.exists
+import std.io.eprintln
+
+/// `dir` is the checkout, or `error` says why there is none.
+pub struct IndexCheckout {
+    pub val dir: String
+    pub val error: String
+}
+
+/// `refreshed` holds the URLs already brought up to date by this command.
+pub fun index_checkout(url: str, cache: str, refreshed: &var List<String>): IndexCheckout {
+    val dir = "${cache}/index/${url_as_directory(url)}"
+    val known = refreshed.any_is(url)
+    if known { return IndexCheckout { dir: dir, error: "" } }
+    refreshed.push(String.from(url))
+    if is_index_checkout(dir.as_str()) {
+        // Another komp updating the same checkout makes a pull fail, having
+        // just brought it up to date: try again, then read it as it is.
+        if pull_index(dir.as_str()) || pull_index(dir.as_str()) { return IndexCheckout { dir: dir, error: "" } }
+        eprintln(&"komp: cannot update the index ${url}; reading it as last fetched")
+        return IndexCheckout { dir: dir, error: "" }
+    }
+    val staged = fresh_staging(cache, "index")
+    if staged.byte_len() == 0 { return IndexCheckout { dir: "", error: "cannot create the cache under ${cache}" } }
+    var clone = Command.new("git")
+    clone.arg("clone")
+    clone.arg("--quiet")
+    clone.arg(url)
+    clone.arg(staged.as_str())
+    if !clone.status().success() { return IndexCheckout { dir: "", error: "`git clone ${url}` failed" } }
+    if !publish_fetched(staged.as_str(), dir.as_str()) {
+        return IndexCheckout { dir: "", error: "cannot write ${dir}" }
+    }
+    return IndexCheckout { dir: dir, error: "" }
+}
+
+fun pull_index(dir: str): bool {
+    var pull = Command.new("git")
+    pull.arg("-C")
+    pull.arg(dir)
+    pull.arg("pull")
+    pull.arg("--quiet")
+    pull.arg("--ff-only")
+    return pull.status().success()
+}
+
+fun is_index_checkout(dir: str): bool {
+    return exists("${dir}/config.toml".as_str())
+}
+
+/// `https://github.com/komp-co/index` -> `github.com_komp-co_index`: one
+/// directory per URL, readable in the cache.
+pub fun url_as_directory(url: str): String {
+    val scheme_end = url.index_of("://")
+    val start: uint64 = when (scheme_end) {
+        Some(at) => at + 3
+        None => 0
+    }
+    var out = ""
+    var i = start
+    while i < url.byte_len() {
+        val b = url.byte_at(i)
+        val keep = (b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 45 || b == 46
+        out.append(if keep { url.substring(i, i + 1) } else { String.from("_") })
+        i = i + 1
+    }
+    return out
+}
+
+fun List<String>.any_is(wanted: str): bool {
+    while item in &self {
+        if item.as_str() == wanted { return true }
+    }
+    return false
+}

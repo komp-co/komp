@@ -1,8 +1,0 @@
-[project]
-name = "core"
-version = "0.1.0"
-kind = "lib"
-
-[native]
-c_sources = ["native/core.c"]
-hosted_c_sources = ["native/core_hosted.c"]

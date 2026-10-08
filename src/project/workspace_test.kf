@@ -1,0 +1,106 @@
+import core.assert.assert_eq
+import std.fs.scratch_path
+import std.fs.absolute
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+fun write_member(ws: str, dir: str, name: str): void {
+    unsafe { system("mkdir -p ${ws}/${dir}/src") }
+    write_file("${ws}/${dir}/kf.toml".as_str(), "[project]\nname = \"${name}\"\nkind = \"lib\"\n".as_str())
+}
+
+/// `app` and `util-lib`, plus `stray`, an unlisted crate inside.
+fun workspace_fixture(name: str, extra: str): String {
+    val ws = scratch_path(name)
+    unsafe { system("rm -rf ${ws} && mkdir -p ${ws}") }
+    val manifest = "[workspace]\nmembers = [\"app\", \"util-lib\"]\n${extra}"
+    write_file("${ws}/kf.toml".as_str(), manifest.as_str())
+    write_member(ws, "app", "app")
+    write_member(ws, "util-lib", "util_lib")
+    write_member(ws, "stray", "stray")
+    return String.from(ws)
+}
+
+fun only_root(roots: &List<String>): String {
+    if roots.size() != 1 { return "" }
+    return *roots.at(0)
+}
+
+@test
+fun a_workspace_means_its_default_member(): void {
+    val ws = workspace_fixture("kf_ws_default", "default-member = \"app\"\n")
+    val roots = select_crate_roots(ws.as_str(), "", false)
+    assert_eq(only_root(&roots).as_str() == "${ws.as_str()}/app".as_str(), true, "the default member is selected")
+}
+
+@test
+fun a_workspace_without_a_default_member_selects_nothing(): void {
+    val ws = workspace_fixture("kf_ws_no_default", "")
+    assert_eq(select_crate_roots(ws.as_str(), "", false).size(), 0, "no default member is an error, not a guess")
+}
+
+@test
+fun a_crate_directory_is_taken_as_it_is(): void {
+    val ws = workspace_fixture("kf_ws_crate_dir", "default-member = \"app\"\n")
+    val member = "${ws.as_str()}/util-lib"
+    val roots = select_crate_roots(member.as_str(), "", false)
+    assert_eq(only_root(&roots).as_str() == member.as_str(), true, "a member directory is not redirected")
+}
+
+@test
+fun a_package_is_found_by_crate_or_directory_name(): void {
+    val ws = workspace_fixture("kf_ws_package", "default-member = \"app\"\n")
+    val by_crate = select_crate_roots(ws.as_str(), "util_lib", false)
+    val by_dir = select_crate_roots(ws.as_str(), "util-lib", false)
+    val wanted = "${ws.as_str()}/util-lib"
+    val found = only_root(&by_crate).as_str() == wanted.as_str() && only_root(&by_dir).as_str() == wanted.as_str()
+    assert_eq(found, true, "both spellings name the member")
+    assert_eq(select_crate_roots(ws.as_str(), "stray", false).size(), 0, "an unlisted crate is not a member")
+}
+
+@test
+fun a_member_reaches_its_siblings(): void {
+    val ws = workspace_fixture("kf_ws_sibling", "default-member = \"app\"\n")
+    val from = "${ws.as_str()}/app"
+    val roots = select_crate_roots(from.as_str(), "util-lib", false)
+    assert_eq(only_root(&roots).as_str() == "${ws.as_str()}/util-lib".as_str(), true, "--package from a member")
+    assert_eq(select_crate_roots(from.as_str(), "", true).size(), 2, "--workspace from a member")
+}
+
+@test
+fun the_workspace_flag_selects_every_member(): void {
+    val ws = workspace_fixture("kf_ws_all", "")
+    val roots = select_crate_roots(ws.as_str(), "", true)
+    assert_eq(roots.size(), 2, "both members")
+    assert_eq(select_crate_roots(ws.as_str(), "app", true).size(), 0, "--package and --workspace conflict")
+}
+
+@test
+fun members_share_the_workspace_target(): void {
+    val ws = workspace_fixture("kf_ws_target", "")
+    val app = build_output_root("${ws.as_str()}/app".as_str())
+    val lib = build_output_root("${ws.as_str()}/util-lib".as_str())
+    val shared = "${absolute(ws.as_str()).normalized().raw.as_str()}/target"
+    assert_eq(app.as_str() == shared.as_str() && lib.as_str() == shared.as_str(), true, "one target for every member")
+    val stray = build_output_root("${ws.as_str()}/stray".as_str())
+    assert_eq(stray.as_str() == "${ws.as_str()}/stray/target".as_str(), true, "an unlisted crate keeps its own")
+}
+
+@test
+fun the_workspace_can_move_its_target(): void {
+    val ws = workspace_fixture("kf_ws_target_dir", "target-dir = \"../out\"\n")
+    val app = build_output_root("${ws.as_str()}/app".as_str())
+    val wanted = "${absolute(ws.as_str()).normalized().raw.as_str()}/../out"
+    assert_eq(app.as_str() == wanted.as_str(), true, "target-dir is relative to the workspace")
+}
+
+@test
+fun a_members_lint_baseline_is_the_workspaces(): void {
+    val ws = workspace_fixture("kf_ws_baseline", "")
+    val shown = absolute(ws.as_str()).normalized().raw
+    assert_eq(lint_baseline_for("${ws}/app".as_str()).as_str(), "${shown}/lint-baseline.txt".as_str(),
+        "beside the workspace's lint.toml")
+    assert_eq(lint_baseline_for("${ws}/stray".as_str()).as_str(), "${shown}/stray/lint-baseline.txt".as_str(),
+        "a crate the workspace does not list keeps its own")
+}

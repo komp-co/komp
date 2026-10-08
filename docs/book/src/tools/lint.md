@@ -182,7 +182,7 @@ Later settings win:
 2. `lint.toml`: the workspace's, then the crate's own
 3. the `[lint]` table in `kf.toml`, which sets single lints as `[lints]` does
 4. `-A`, `-W` and `-D` on the command line, by lint or group name, in order
-5. [`@allow(...)`](../lang/annotations.md#allow) on the declaration a
+5. [`@allow(...)`](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/lang/annotations.md#allow) on the declaration a
    diagnostic is in
 
 `--deny-warnings` then turns every warning left into an error.
