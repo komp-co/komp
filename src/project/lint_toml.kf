@@ -12,6 +12,7 @@
 // lints, so it checks the names, levels and options.
 
 import alloc.list.*
+import std.fs.absolute
 import std.fs.is_file
 import std.fs.read_to_string
 
@@ -120,4 +121,12 @@ pub fun lint_toml_for(crate_dir: str): LintToml {
 
 mutating fun List<String>.append_all(more: &List<String>): void {
     while item in &more { self.push(item.clone()) }
+}
+
+/// The ratchet lints' baseline for the crate at `crate_dir`: `lint-baseline.txt`
+/// beside the lint.toml that governs it, the workspace's when it is a member.
+pub fun lint_baseline_for(crate_dir: str): String {
+    val ws = enclosing_workspace(crate_dir)
+    val dir = if ws.is_empty() { absolute(crate_dir).normalized().raw } else { ws }
+    return "${dir}/lint-baseline.txt"
 }

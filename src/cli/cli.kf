@@ -209,6 +209,8 @@ pub fun run_cli(): int32 {
                     li = li + 1 // read by manifest_root / package_flag
                 } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
                     // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else if arg == "--update-baseline" {
+                    // read by forward_lint_baseline
                 } else if starts_with_dash(arg) || project.as_str() != "" {
                     return usage_error("lint")
                 } else {

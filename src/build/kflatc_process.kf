@@ -7,6 +7,8 @@ import alloc.path.Path
 import std.process.*
 import std.env.env_var
 import komp.project.lint_toml_for
+import komp.project.lint_baseline_for
+import std.fs.is_file
 
 extern "C" fun kf_self_dir(): String
 extern "C" fun access(path: str, mode: int32): int32
@@ -97,6 +99,7 @@ fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: 
         command.arg(entry_file)
     }
     forward_compiler_flags(&var command, project)
+    if subcommand == "check" { forward_lint_baseline(&var command, project) }
     while i in 0..self.deps.size() {
         val hash = if i < dep_hashes.size() { dep_hashes.at(i).clone() } else { String.from("") }
         command.arg("--dep")
@@ -146,6 +149,28 @@ fun kflatc_missing(path: &String): bool {
     if unsafe { access(path.as_str(), 1) } == 0 { return false }
     println("komp: no compiler at ${path}; install kflatc beside komp, or set KFLATC")
     return true
+}
+
+/// The ratchet lints' baseline as `--lint-baseline PATH` when the project
+/// has one, and `--update-lint-baseline` for `komp lint --update-baseline`,
+/// which writes it if it does not exist yet.
+fun forward_lint_baseline(command: &var Command, project: str): void {
+    val updating = has_own_arg("--update-baseline")
+    val baseline = lint_baseline_for(project)
+    if !updating && !is_file(baseline) { return }
+    command.arg("--lint-baseline")
+    command.arg(baseline)
+    if updating { command.arg("--update-lint-baseline") }
+}
+
+/// `arg` on komp's command line, before any `--`.
+fun has_own_arg(wanted: str): bool {
+    while i in 0..arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { return false }
+        if arg == wanted { return true }
+    }
+    return false
 }
 
 /// The project's lint.toml rows as `--lint-toml NAME=LEVEL` and

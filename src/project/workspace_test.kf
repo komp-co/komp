@@ -94,3 +94,13 @@ fun the_workspace_can_move_its_target(): void {
     val wanted = "${absolute(ws.as_str()).normalized().raw.as_str()}/../out"
     assert_eq(app.as_str() == wanted.as_str(), true, "target-dir is relative to the workspace")
 }
+
+@test
+fun a_members_lint_baseline_is_the_workspaces(): void {
+    val ws = workspace_fixture("kf_ws_baseline", "")
+    val shown = absolute(ws.as_str()).normalized().raw
+    assert_eq(lint_baseline_for("${ws}/app".as_str()).as_str(), "${shown}/lint-baseline.txt".as_str(),
+        "beside the workspace's lint.toml")
+    assert_eq(lint_baseline_for("${ws}/stray".as_str()).as_str(), "${shown}/stray/lint-baseline.txt".as_str(),
+        "a crate the workspace does not list keeps its own")
+}
