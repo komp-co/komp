@@ -9,7 +9,7 @@ pub fun command_usage(command: str): str {
         "check" => "komp check [--fix [--dry-run]] [--format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
         "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
-        "lint" => "komp lint [--list] [--fix [--dry-run]] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
+        "lint" => "komp lint [--list] [--fix [--dry-run]] [--update-baseline] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "tool" => "komp tool install <name>[@<req>] [--index <url>] | list | update [<name>...] | remove <name>[@<ver>]"
@@ -70,6 +70,9 @@ kf.toml's [lint] table, then these flags.
                               komp check --fix does
   --dry-run                   with --fix, print what would change and write
                               nothing
+  --update-baseline           rewrite lint-baseline.txt, beside lint.toml, with
+                              what the ratchet lints (long_file, long_line,
+                              unsafe_block) count in each crate linted
   --format=json               one JSON object per diagnostic, no tally
   -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
   --deny-warnings             treat every warning as an error
