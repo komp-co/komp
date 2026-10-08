@@ -44,12 +44,15 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build komp as one C file
-        run: komp build --unity -o dist/komp.c .
+        run: |
+          mkdir -p dist
+          komp build --unity -o dist/komp.c .
 
       - uses: actions/upload-artifact@v4
         with:
           name: komp-c
           path: dist/komp.c
+          if-no-files-found: error
 
   build:
     needs: source
@@ -95,6 +98,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: ${{ env.NAME }}.tar.gz*
+          if-no-files-found: error
 
   publish:
     needs: [source, build]
