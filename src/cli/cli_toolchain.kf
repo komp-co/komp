@@ -1,17 +1,22 @@
 // `komp toolchain install [<version>]`, `komp toolchain list` and
-// `komp toolchain remove <version>`: the kflat releases installed under
-// `~/.kflat/toolchains`.
+// `komp toolchain remove <version>`: the kflat releases the index lists as
+// `kflatc`, installed under `~/.kflat/toolchains`.
 
 import json.writer.JsonWriter
 import komp.build.default_kflatc_version
 import komp.fetch.cache_root
 import komp.install.default_toolchain
 import komp.install.install_home
+import komp.install.install_toolchain
 import komp.install.installed_bin_dir
 import komp.install.installed_toolchains
+import komp.install.make_default_toolchain
 import komp.install.remove_toolchain
-import komp.install.self_update
+import komp.install.toolchain_kflatc
+import komp.install.toolchain_release
+import komp.project.parse_version
 import komp.project.render
+import std.fs.is_file
 
 pub fun toolchain_command(nargs: int32): int32 {
     val args = arguments_without_format(nargs)
@@ -65,19 +70,30 @@ fun list_toolchains_json(home: str): int32 {
     return 0
 }
 
-fun toolchain_install(home: str, version: str): int32 {
-    // Until komp ships on its own, a release holds komp and kflatc together,
-    // so the release installed is the default kflatc's.
-    val done = self_update(version, default_kflatc_version().as_str(), home, cache_root().as_str())
-    if done.error.byte_len() > 0 {
-        runtime_println("error: ${done.error}")
+/// `wanted` is a version, a requirement such as `0.26`, or "" for the newest.
+/// The release is installed unless it already is, then made the default.
+fun toolchain_install(home: str, wanted: str): int32 {
+    val release = toolchain_release(wanted, parse_version(wanted) != null, cache_root().as_str(), false)
+    if release.error.byte_len() > 0 {
+        runtime_println("error: ${release.error}")
         return 1
     }
-    if !done.installed {
-        runtime_println("kflat ${done.version} is the newest release")
-        return 0
+    val version = release.version.as_str()
+    val present = is_file(toolchain_kflatc(home, version).as_str())
+    if !present {
+        val failed = install_toolchain(&release, home, cache_root().as_str())
+        if failed.byte_len() > 0 {
+            runtime_println("error: ${failed}")
+            return 1
+        }
     }
-    runtime_println("installed kflat ${done.version}; ${installed_bin_dir(home)}/komp now runs it")
+    val unlinked = make_default_toolchain(home, version)
+    if unlinked.byte_len() > 0 {
+        runtime_println("error: ${unlinked}")
+        return 1
+    }
+    val done = if present { "kflat ${version} is installed" } else { "installed kflat ${version}" }
+    runtime_println("${done}; ${installed_bin_dir(home)}/kflatc now runs it")
     return 0
 }
 

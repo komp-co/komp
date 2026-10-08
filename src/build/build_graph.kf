@@ -232,13 +232,16 @@ fun Manifest.effective_deps(crate_root: str, freestanding: bool): List<Dependenc
     return out
 }
 
-// Beside the compiler komp runs, which ships them; beside komp when that
-// has none; the repository's `libs` for a compiler running from elsewhere
-// during development.
+// Beside the compiler komp runs, which ships them, or beside the one a
+// link such as `~/.kflat/bin/kflatc` reaches; beside komp when that has none;
+// the repository's `libs` for a compiler running from elsewhere during
+// development.
 pub fun bundled_libs_root(crate_root: str): String {
     val compiler = kflatc_path()
     val compiler_libs = "${parent_path(compiler.as_str())}/../libs"
     if exists("${compiler_libs}/core/kf.toml".as_str()) { return Path.new(compiler_libs.as_str()).normalized().raw }
+    val linked_libs = "${parent_path(link_target(compiler.as_str()).as_str())}/../libs"
+    if exists("${linked_libs}/core/kf.toml".as_str()) { return Path.new(linked_libs.as_str()).normalized().raw }
     val base = kf_self_dir()
     if base.as_str().byte_len() > 0 {
         val beside = base + String.from("/../libs")

@@ -1,0 +1,56 @@
+// A toolchain release archive, downloaded, checked against the checksum its
+// index entry records and installed by its own install.sh.
+
+import alloc.path.Path
+import komp.fetch.extract
+import komp.fetch.fresh_staging
+import komp.fetch.remove_tree
+import komp.fetch.sha256_of
+import std.fs.exists
+import std.process.Command
+
+/// Installs `release` by running its install.sh with `home` as `KFLAT_HOME`.
+/// "" once installed, else why not.
+pub fun install_archive(release: &ToolchainRelease, home: str, cache: str): String {
+    val staging = fresh_staging(cache, "release")
+    if staging.byte_len() == 0 { return "cannot create a directory under ${cache}" }
+    val archive = "${staging}.tar.gz"
+    if !download(release.tarball.as_str(), archive.as_str()) {
+        clean_up(staging.as_str(), archive.as_str())
+        return "cannot download ${release.tarball}"
+    }
+    val got = "sha256:${sha256_of(archive.as_str())}"
+    if got.as_str() != release.checksum.as_str() {
+        clean_up(staging.as_str(), archive.as_str())
+        return "${release.tarball} does not match the checksum its index entry records"
+    }
+    val script = "${staging}/kflat-${release.version}/install.sh"
+    if !extract(archive.as_str(), staging.as_str(), false) || !exists(script.as_str()) {
+        clean_up(staging.as_str(), archive.as_str())
+        return "${release.tarball} holds no kflat-${release.version}/install.sh"
+    }
+    // Its stdout names the staging home and what to put on PATH; komp says
+    // where the toolchain went instead. Its stderr is the build's progress.
+    var install = Command.new("sh")
+    install.arg(script.as_str())
+    install.env("KFLAT_HOME", home)
+    install.stdout_to(Path.new("/dev/null"))
+    val ok = install.status().success()
+    clean_up(staging.as_str(), archive.as_str())
+    if !ok { return "installing kflat ${release.version} failed; its install.sh said why above" }
+    return ""
+}
+
+fun download(url: str, to: str): bool {
+    var fetch = Command.new("curl")
+    fetch.arg("-fsSL")
+    fetch.arg("-o")
+    fetch.arg(to)
+    fetch.arg(url)
+    return fetch.status().success()
+}
+
+fun clean_up(staging: str, archive: str): void {
+    remove_tree(staging)
+    remove_tree(archive)
+}

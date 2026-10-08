@@ -66,15 +66,6 @@ pub fun choose_toolchain(pin: str, default_version: str, home: str): ToolchainCh
     return ToolchainChoice { kflatc: toolchain_kflatc(home, chosen.as_str()), error: "", installable: false }
 }
 
-/// The release to install for `wanted`: `newest` when it allows that, else
-/// the lowest version it allows that this komp drives.
-pub fun release_for(wanted: &Requirement, newest: str): String {
-    val latest = parse_version(newest) ?: Version { major: 0, minor: 0, patch: 0 }
-    if newest.byte_len() > 0 && wanted.allows(&latest) { return String.from(newest) }
-    val oldest = oldest_kflatc_driven()
-    return if wanted.low.compare(&oldest) < 0 { oldest.render() } else { wanted.low.render() }
-}
-
 pub fun toolchain_kflatc(home: str, version: str): String {
     return "${home}/toolchains/${version}/bin/kflatc"
 }
@@ -106,12 +97,12 @@ fun missing_toolchain(pin: str, default_version: str, installed: &List<Version>)
     return "error: kf.toml pins kflat ${pin}: ${beside} and no installed toolchain fits${found}"
 }
 
-/// The toolchain `<home>/bin/komp` runs, by version; "" when it points at
-/// none of them.
+/// The toolchain `<home>/bin/kflatc` links to, by version; "" when it links
+/// to none of them.
 pub fun default_toolchain(home: str): String {
-    val out = "${home}/bin/komp.target"
+    val out = "${home}/bin/kflatc.target"
     var read = Command.new("readlink")
-    read.arg("${home}/bin/komp".as_str())
+    read.arg("${home}/bin/kflatc".as_str())
     read.stdout_to(Path.new(out.as_str()))
     val ok = read.status().success()
     val target = if ok { read_file(out.as_str()).as_str().trim() } else { String.from("") }

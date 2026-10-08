@@ -32,6 +32,7 @@ A command's directory may come before or after its flags:
 | `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp toolchain install \| list \| remove` | Install the newest kflat release or the one named, list the installed ones, or remove one |
+| `komp self update` | Replace komp with its newest release |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new [<name>]` | Scaffold a new project directory, or with no name the current one |
@@ -400,54 +401,66 @@ diagnostic instead (see [Structured fixes](#structured-fixes)), and
 
 ### komp toolchain
 
-`komp toolchain install` installs the newest komp release, the way a release's
-[install script](../start/installing.md) installs it: it downloads
-`kflat-<version>.tar.gz`, checks it against the sha256 published beside it,
-builds komp and kflatc with `cc`, and puts them in
-`~/.kflat/toolchains/<version>/`, where `~/.kflat/bin/komp` then points.
-Toolchains already installed stay where they are, for the projects that
-[pin](../start/projects.md#pinning-the-toolchain) them. `komp toolchain install
-0.5.1` installs that release instead of the newest, which also goes back to an
-earlier one.
+The kflat toolchains are the versions the package index lists as `kflatc`,
+each one a release archive of
+[kf-lang](https://github.com/komp-co/kf-lang) with its checksum.
+`komp toolchain install` installs the newest: it downloads the archive, checks
+it against the checksum, builds `kflatc` with `cc` into
+`~/.kflat/toolchains/<version>/`, and makes it the default by linking
+`~/.kflat/bin/kflatc` to it. `komp toolchain install 0.26.1` installs that
+release instead, and `komp toolchain install 0.26` the newest that requirement
+allows; either also goes back to an earlier one. A toolchain already installed
+is only made the default again.
 
 ```console
 $ komp toolchain install
-building komp 0.5.1 with cc
-building kflatc 0.5.1 with cc
-installed kflat 0.5.1 in /home/me/.kflat/toolchains/0.5.1
-installed kflat 0.5.1; /home/me/.kflat/bin/komp now runs it
-$ komp toolchain install
-kflat 0.5.1 is the newest release
+building kflatc 0.28.0 with cc
+installed kflat 0.28.0; /home/me/.kflat/bin/kflatc now runs it
+$ komp toolchain install 0.28
+kflat 0.28.0 is installed; /home/me/.kflat/bin/kflatc now runs it
+$ komp toolchain install 9.9.9
+error: the index https://github.com/komp-co/index lists no kflatc 9.9.9; it has 0.25.0, 0.26.0, 0.27.0, 0.28.0
 ```
 
-`komp toolchain list` shows every installed toolchain, marking the default,
-the one `~/.kflat/bin/komp` runs, and the kflatc the running komp would use;
-`komp toolchain remove <version>` removes one, but neither of those two:
+Toolchains already installed stay where they are, for the projects that
+[pin](../start/projects.md#pinning-the-toolchain) them.
+`komp toolchain list` shows every installed toolchain, marking the default
+and the kflatc the running komp uses; `komp toolchain remove <version>`
+removes one, but neither of those two:
 
 ```console
 $ komp toolchain list
-0.5.4  /home/me/.kflat/toolchains/0.5.4
-0.6.0  running  /home/me/.kflat/toolchains/0.6.0
-0.6.1  default  /home/me/.kflat/toolchains/0.6.1
-$ komp toolchain remove 0.6.1
-error: kflat 0.6.1 is the default; `komp toolchain install` another one first
-$ komp toolchain remove 0.5.4
-removed kflat 0.5.4
+0.26.0  /home/me/.kflat/toolchains/0.26.0
+0.28.0  default  running  /home/me/.kflat/toolchains/0.28.0
+$ komp toolchain remove 0.28.0
+error: kflat 0.28.0 is the kflatc komp runs now
+$ komp toolchain remove 0.26.0
+removed kflat 0.26.0
 ```
 
 A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
-needs a removed toolchain installs it again the next time it builds.
+needs a removed toolchain installs it again the next time it builds. It needs
+`curl`, `tar` and a C compiler. `KFLAT_INDEX` names another index to take
+toolchains from, as it does for packages.
 
-It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
-place to take releases from, laid out as GitHub lays them out: `latest`
-redirecting to the newest tag, and `kflat-<version>.tar.gz` with its
-`.sha256` under `download/v<version>/`.
+### komp self update
 
-The toolchain a [`kflat` pin](../start/projects.md#pinning-the-toolchain)
-installs is looked for on [kf-lang](https://github.com/komp-co/kf-lang)'s
-releases first, and then on komp's own, which hold the ones released before
-the compiler moved there. `KFLAT_RELEASES`, when set, is the only place
-looked.
+`komp self update` replaces `~/.kflat/bin/komp` with komp's newest release,
+built for this machine and checked against the sha256 published beside it;
+`komp self update 1.0.0` installs that release instead. The toolchains stay
+as they are.
+
+```console
+$ komp self update
+installed komp 1.0.1 as /home/me/.kflat/bin/komp
+$ komp self update
+komp 1.0.1 is the newest release
+```
+
+`KOMP_RELEASES` names another place to take komp from, laid out as GitHub
+lays out releases: `latest` redirecting to the newest tag, and
+`komp-<version>-<target>.tar.gz` with its `.sha256` under
+`download/v<version>/`, the target `linux-x86_64` or `linux-aarch64`.
 
 ## kflatc
 

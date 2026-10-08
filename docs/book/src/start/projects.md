@@ -353,16 +353,18 @@ version = "0.1.0"
 kflat = "0.4"
 ```
 
-komp builds with its own compiler when the requirement allows komp's version.
+komp builds with the default kflatc, the one beside it, when the requirement
+allows its version.
 Otherwise it builds with the highest toolchain under `~/.kflat/toolchains`
 that the requirement allows, with that toolchain's `core`, `alloc` and `std`.
 `komp metadata` names the compiler it chose, so tools that ask komp use it
 too.
 
 When none installed fits, komp installs one before building: the newest
-release when the requirement allows it, else the version the requirement
-writes, from the compiler's [release pages](../tools/cli.md#komp-toolchain). It goes into `~/.kflat/toolchains` beside the others, and the `komp`
-on `PATH` stays the one it was. With `--offline` komp installs nothing and
+release the requirement allows, of those the package index lists as
+[`kflatc`](../tools/cli.md#komp-toolchain). It goes into
+`~/.kflat/toolchains` beside the others, and the default `kflatc` stays the
+one it was. With `--offline` komp installs nothing and
 stops instead:
 
 ```console

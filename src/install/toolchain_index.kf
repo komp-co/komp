@@ -1,0 +1,58 @@
+// Where a toolchain comes from: the index's `kflatc` package, whose versions
+// are kf-lang's release archives, each with its checksum.
+
+import alloc.list.*
+import komp.fetch.IndexVersion
+import komp.fetch.highest_allowed
+import komp.fetch.index_package
+import komp.project.default_index_url
+
+val TOOLCHAIN_PACKAGE: str = "kflatc"
+
+/// A release archive to install, or `error` saying why there is none.
+pub struct ToolchainRelease {
+    pub val version: String
+    pub val tarball: String
+    pub val checksum: String
+    pub val error: String
+}
+
+fun no_release(error: String): ToolchainRelease {
+    return ToolchainRelease { version: "", tarball: "", checksum: "", error: error }
+}
+
+/// Release `wanted` when `exact`, else the highest not yanked that `wanted`
+/// allows as a requirement, "" allowing every one.
+pub fun toolchain_release(wanted: str, exact: bool, cache: str, offline: bool): ToolchainRelease {
+    val index = default_index_url()
+    val found = index_package(index.as_str(), TOOLCHAIN_PACKAGE, cache, offline)
+    if found.error.byte_len() > 0 { return no_release(found.error.clone()) }
+    val versions = &found.packages[0].versions
+    val chosen = (if exact { versions.exactly(wanted) } else { versions.highest_allowed(wanted) }) ?: return no_release(
+        "the index ${index} lists no kflatc ${wanted}${versions.listed_versions()}")
+    if chosen.tarball.byte_len() == 0 || chosen.checksum.byte_len() == 0 {
+        return no_release("the index lists kflatc ${chosen.version} without a release archive and its checksum")
+    }
+    return ToolchainRelease {
+        version: chosen.version.clone(), tarball: chosen.tarball.clone(), checksum: chosen.checksum.clone(), error: ""
+    }
+}
+
+/// Named exactly, a yanked version is still installed: a project may lock it.
+fun List<IndexVersion>.exactly(version: str): IndexVersion? {
+    while candidate in &self {
+        if candidate.version.as_str() == version { return Option.Some(candidate.clone()) }
+    }
+    return null
+}
+
+/// "; it has 0.25.0, 0.26.0", or "" when it lists none.
+fun List<IndexVersion>.listed_versions(): String {
+    var out = ""
+    while candidate in &self {
+        if candidate.yanked { continue }
+        out.append(if out.byte_len() == 0 { String.from("; it has ") } else { String.from(", ") })
+        out.append(candidate.version.as_str())
+    }
+    return out
+}
