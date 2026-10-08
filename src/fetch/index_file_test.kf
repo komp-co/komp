@@ -50,3 +50,14 @@ fun a_url_becomes_one_readable_directory(): void {
     assert_eq(url_as_directory("https://github.com/komp-co/index").as_str(), "github.com_komp-co_index",
         "scheme dropped, separators flattened")
 }
+
+@test
+fun a_toolchain_entry_says_so_in_its_header(): void {
+    val text = "schema = 1\nname = \"kflatc\"\nkind = \"toolchain\"\n\n[[version]]\nversion = \"0.1.0\"\n"
+    assert_eq(index_file_is_toolchain(text), true, "kind = toolchain")
+}
+
+@test
+fun a_crate_entry_is_not_a_toolchain(): void {
+    assert_eq(index_file_is_toolchain(sample_entry()), false, "no kind")
+}

@@ -3,6 +3,7 @@
 //   schema = 1
 //   name = "json"
 //   description = "JSON reading and writing"   # optional
+//   kind = "toolchain"              # optional: a kflat toolchain, not a crate
 //
 //   [[version]]
 //   version = "0.1.0"
@@ -40,11 +41,22 @@ pub fun index_file_path(name: str): String {
 
 /// The `description` before the first `[[version]]`, or "".
 pub fun index_file_description(src: str): String {
+    return header_value(src, "description")
+}
+
+/// A toolchain's versions are kflat release archives, installed by
+/// `komp toolchain`, never fetched as a crate.
+pub fun index_file_is_toolchain(src: str): bool {
+    return header_value(src, "kind").as_str() == "toolchain"
+}
+
+/// The string `key` holds before the first `[[version]]`, or "".
+fun header_value(src: str, key: str): String {
     val lines = split_lines(src)
     while raw in &lines {
         val line = trim_string(raw.clone())
         if line.as_str() == "[[version]]" { return "" }
-        if read_key(line.clone()).as_str() == "description" { return read_string_value(line) }
+        if read_key(line.clone()).as_str() == key { return read_string_value(line) }
     }
     return ""
 }
