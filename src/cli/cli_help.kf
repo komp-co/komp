@@ -19,6 +19,7 @@ pub fun command_usage(command: str): str {
         "info" => "komp info <name> [--index <url>] [--offline]"
         "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
         "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
+        "self" => "komp self update [<version>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new [<name>]"
         "help" => "komp help [<command>]"
@@ -130,16 +131,20 @@ allows, and the newest version in its index.
   --offline         read each index as the cache has it, not bringing it up
                     to date first
   --format=json     one JSON object"""
-        "toolchain" => """The kflat releases installed in ~/.kflat/toolchains ($KFLAT_HOME when set).
+        "toolchain" => """The kflat releases installed in ~/.kflat/toolchains ($KFLAT_HOME when set),
+from those the package index lists as `kflatc`.
 
-  install [<version>]  the newest release, or the one named, such as 0.5.1,
-                       from its release archive, checked against the sha256
-                       published beside it; ~/.kflat/bin/komp then points at
-                       it, and earlier toolchains stay. Needs curl, tar and a
-                       C compiler
+  install [<version>]  the newest release; the one named, such as 0.26.1; or
+                       the newest a requirement such as 0.26 allows. Its
+                       archive is checked against the index's checksum, and
+                       ~/.kflat/bin/kflatc then points at it; earlier
+                       toolchains stay. Needs curl, tar and a C compiler
   list                 every installed toolchain, the default and the running
                        one marked
   remove <version>     that toolchain; not the default or the running one"""
+        "self" => """Replace ~/.kflat/bin/komp ($KFLAT_HOME/bin when set) with komp's newest
+release, or the one named, built for this machine and checked against the
+sha256 published beside it. The kflat toolchains are `komp toolchain`'s."""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
@@ -194,6 +199,7 @@ pub fun print_usage(): void {
     runtime_println("  info      list a package's versions in an index")
     runtime_println("  outdated  compare a project's packages with their newest versions")
     runtime_println("  toolchain install, list or remove kflat releases")
+    runtime_println("  self      update komp itself")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
     runtime_println("  new       create a new project, or one in the current directory")

@@ -337,6 +337,7 @@ pub fun run_cli(): int32 {
         "info" => return info_command(nargs)
         "outdated" => return outdated_command(nargs)
         "toolchain" => return toolchain_command(nargs)
+        "self" => return self_command(nargs)
         _ => { }
     }
 

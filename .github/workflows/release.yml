@@ -1,0 +1,126 @@
+name: Release
+
+# A merge into `main` is a release, tagged `v<version>` from kf.toml. komp is
+# built as one C file with the toolchain kf.toml pins, compiled into a static
+# binary for each target, and installs the newest kflat toolchain from the
+# index and runs a new project before anything is published:
+# komp-<version>-<target>.tar.gz with its .sha256, and install.sh.
+#
+# CONSTRAINT: a komp from before komp was released on its own updates by
+# running the install.sh inside the newest release's kflat-<version>.tar.gz,
+# checked against its .sha256, so that archive carries this install.sh.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/toolchain
+
+      - name: Read the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' kf.toml | head -1)
+          grep -q "return \"$version\"" src/version.kf ||
+            { echo "kf.toml says $version, but komp_version() in src/version.kf does not" >&2; exit 1; }
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "v$version is already released; bump the version in kf.toml and src/version.kf" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build komp as one C file
+        run: komp build --unity -o dist/komp.c .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: komp-c
+          path: dist/komp.c
+
+  build:
+    needs: source
+    strategy:
+      matrix:
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-latest
+          - target: linux-aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      NAME: komp-${{ needs.source.outputs.version }}-${{ matrix.target }}
+      VERSION: ${{ needs.source.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: komp-c
+
+      - name: Compile a static komp
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends musl-tools > /dev/null
+          mkdir -p "$NAME/bin"
+          musl-gcc -std=gnu17 -O2 -static -o "$NAME/bin/komp" komp.c -lm
+          "$NAME/bin/komp" --version | grep -qx "komp $VERSION"
+
+      - name: Install a toolchain with it and run a new project
+        run: |
+          export KFLAT_HOME="$RUNNER_TEMP/home"
+          mkdir -p "$KFLAT_HOME/bin"
+          cp "$NAME/bin/komp" "$KFLAT_HOME/bin/komp"
+          "$KFLAT_HOME/bin/komp" toolchain install
+          cd "$RUNNER_TEMP"
+          "$KFLAT_HOME/bin/komp" new hello
+          "$KFLAT_HOME/bin/komp" run hello
+
+      - name: Pack
+        run: |
+          tar -czf "$NAME.tar.gz" "$NAME"
+          sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.NAME }}.tar.gz*
+
+  publish:
+    needs: [source, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.source.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: linux-*
+          merge-multiple: true
+
+      - name: Add install.sh, and the archive earlier komps update from
+        run: |
+          cp install.sh dist/install.sh
+          mkdir -p "bridge/kflat-$VERSION"
+          cp install.sh "bridge/kflat-$VERSION/install.sh"
+          tar -czf "dist/kflat-$VERSION.tar.gz" -C bridge "kflat-$VERSION"
+          (cd dist && sha256sum "kflat-$VERSION.tar.gz" > "kflat-$VERSION.tar.gz.sha256")
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" \
+            --title "komp $VERSION" --generate-notes

@@ -15,7 +15,12 @@ pub fun resolve_from_index(dep: &Dependency, cache: str, refreshed: &var List<St
     if checkout.error.byte_len() > 0 { return fetch_failed(checkout.error.clone()) }
     val file = "${checkout.dir}/${index_file_path(dep.name.as_str())}"
     if !exists(file.as_str()) { return fetch_failed("the index ${dep.index_url} has no package `${dep.name}`") }
-    val versions = parse_index_file(read_file(file.as_str()).as_str())
+    val text = read_file(file.as_str())
+    if index_file_is_toolchain(text.as_str()) {
+        return fetch_failed("`${dep.name}` in ${dep.index_url} is a kflat toolchain, not a crate; " +
+                "a project picks one with kf.toml's `kflat` pin")
+    }
+    val versions = parse_index_file(text.as_str())
     val chosen = versions.highest_allowed(dep.version.as_str()) ?: return fetch_failed(
         "no version of `${dep.name}` in ${dep.index_url} matches \"${dep.version}\"${versions.listed()}")
     val fetched = fetch_exact_source(dep.name.as_str(), &chosen.git, &chosen.rev, &chosen.tarball, &chosen.checksum,
@@ -41,7 +46,7 @@ pub fun fetch_exact_source(name: str, git: &String, rev: &String, tarball: &Stri
 }
 
 /// An empty `requirement` allows every version.
-fun List<IndexVersion>.highest_allowed(requirement: str): IndexVersion? {
+internal fun List<IndexVersion>.highest_allowed(requirement: str): IndexVersion? {
     val parsed = if requirement.byte_len() == 0 { Option.Some(any_version()) } else { parse_requirement(requirement) }
     val wanted = parsed ?: return null
     var best: IndexVersion? = null

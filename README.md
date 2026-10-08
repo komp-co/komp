@@ -26,9 +26,10 @@ checker suggests. Every command takes a project directory, one containing a
 
 ## Build it
 
-komp is built with a released kflat toolchain, the one `kf.toml`'s
-`kflat` pin names. With that toolchain installed (its `komp` and `kflatc` on
-`PATH`):
+Install a released komp and toolchain with
+`curl -fsSL https://github.com/komp-co/komp/releases/latest/download/install.sh | sh`.
+komp is built with the kflat toolchain `kf.toml`'s `kflat` pin names. With
+that toolchain installed:
 
 ```sh
 komp build .   # target/kflat/komp
