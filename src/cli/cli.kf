@@ -356,7 +356,10 @@ pub fun run_cli(): int32 {
 
 fun build_project(root: str, out: str): int32 {
     val c = compile_project(root) ?: return build_failed("komp build: errors found; no output written")
+    val dir = parent_path(out)
+    if dir.byte_len() > 0 && !ensure_dir(dir.as_str()) { return 1 }
     write_file(out, c.as_str())
+    if !is_file(out) { return build_failed("komp build: could not write ${out}") }
     return 0
 }
 

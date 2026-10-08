@@ -130,3 +130,14 @@ fun the_unity_default_output_lands_under_the_project(): void {
     assert_eq(build_project_mode(root, BuildMode.Unity, out.as_str()), 0, "the whole-program build succeeds")
     assert_eq(unsafe { access(out.as_str(), 0) }, 0, "and the C is there")
 }
+
+@test
+fun a_unity_output_in_a_missing_directory_creates_it(): void {
+    val root = scratch_path("kf_unity_new_dir")
+    val _prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"unity_dir\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
+    write_file("${root}/src/main.kf".as_str(), "fun main(): int32 { return 0 }\n")
+    val out = "${root}/dist/out.c"
+    val built = build_project_mode(root, BuildMode.Unity, out.as_str())
+    assert_eq(built == 0 && unsafe { access(out.as_str(), 0) } == 0, true, "dist/ is made and the C written")
+}
