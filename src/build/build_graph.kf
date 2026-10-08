@@ -206,8 +206,9 @@ fun name_listed(names: &List<String>, name: str): bool {
 }
 
 // Declared dependencies, plus from the bundled sysroot (`<self_dir>/../libs`):
-// `core` and `alloc` for a dependency-free crate, and `std` for a crate of a
-// hosted program that imports it. A crate with dependencies inherits their
+// `core` and `alloc` for a dependency-free crate, and `std` for every crate
+// of a hosted program: its types are named without an import, so no line of
+// the source says whether it is used. A crate with dependencies inherits their
 // `core` and `alloc`; injecting another would duplicate trait impls. A crate
 // naming `core`, `alloc` or `std` manages its own tier.
 fun Manifest.effective_deps(crate_root: str, freestanding: bool): List<Dependency> {
@@ -222,7 +223,7 @@ fun Manifest.effective_deps(crate_root: str, freestanding: bool): List<Dependenc
             out.push(new_dependency(String.from("core"), "${libs}/core"))
             out.push(new_dependency(String.from("alloc"), "${libs}/alloc"))
         }
-        if libs.byte_len() > 0 && !freestanding && crate_imports_std(crate_root) {
+        if libs.byte_len() > 0 && !freestanding {
             out.push(new_dependency(String.from("std"), "${libs}/std"))
         }
     }

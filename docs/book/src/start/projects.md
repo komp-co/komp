@@ -244,9 +244,9 @@ covers every member.
 
 `core` and `alloc` do not need an entry — the compiler injects them into any
 crate that declares no dependencies of its own, and a crate that *does* have
-dependencies inherits theirs. `std` needs no entry either: any crate of a
-hosted program that imports from it gets it, and only those crates are
-compiled against it. See [std](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/std.md).
+dependencies inherits theirs. `std` needs no entry either: every crate of a
+hosted program has it, since its types (`File`, `Dir`, `Env`, …) are named
+without an import. A [freestanding](#the-freestanding-tier) program has none. See [std](https://github.com/komp-co/kf-lang/blob/main/docs/book/src/libs/std.md).
 
 A `path` dependency whose directory holds no `kf.toml` is an error naming it,
 from every command that reads the dependencies.

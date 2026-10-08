@@ -1,6 +1,5 @@
-// Whether a crate uses `std`: a file of it imports it. Imports are the only
-// way to reach another crate, so this is exact, and `std` is compiled only
-// for the programs that use it.
+// Whether a crate imports `std`, which a freestanding program is refused
+// for by name. A hosted program has `std` whether it imports it or not.
 
 import alloc.list.*
 
